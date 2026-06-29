@@ -11,20 +11,19 @@ CREATE TABLE match_reports (
     CONSTRAINT chk_match_reports_timestamps CHECK (updated_at >= created_at),
     CONSTRAINT fk_match_reports_match_id FOREIGN KEY (match_id) REFERENCES matches (id),
     CONSTRAINT fk_match_reports_referee_id FOREIGN KEY (referee_id) REFERENCES referees (id),
-    CONSTRAINT uq_match_reports_match_id UNIQUE (match_id),
-    CONSTRAINT chk_match_reports_status CHECK (status IN ('draft', 'submitted', 'locked'))
+    CONSTRAINT chk_match_reports_status CHECK (status IN ('draft','submitted','locked'))
 );
-
 COMMENT ON TABLE match_reports IS 'Referee report for a match.';
 COMMENT ON COLUMN match_reports.id IS 'Primary UUID identifier.';
-COMMENT ON COLUMN match_reports.created_at IS 'UTC timestamp when the row was created.';
-COMMENT ON COLUMN match_reports.updated_at IS 'UTC timestamp when the row was last updated.';
-COMMENT ON COLUMN match_reports.deleted_at IS 'UTC timestamp for soft deletion; null when active.';
 COMMENT ON COLUMN match_reports.match_id IS 'Match id.';
 COMMENT ON COLUMN match_reports.referee_id IS 'Referee id.';
 COMMENT ON COLUMN match_reports.submitted_at IS 'Submitted at.';
 COMMENT ON COLUMN match_reports.status IS 'Status.';
 COMMENT ON COLUMN match_reports.summary IS 'Summary.';
-CREATE INDEX idx_match_reports_match_id ON match_reports (match_id);
-CREATE INDEX idx_match_reports_referee_id ON match_reports (referee_id);
-CREATE INDEX idx_match_reports_status ON match_reports (status);
+COMMENT ON COLUMN match_reports.created_at IS 'UTC timestamp when the row was created.';
+COMMENT ON COLUMN match_reports.updated_at IS 'UTC timestamp when the row was last updated.';
+COMMENT ON COLUMN match_reports.deleted_at IS 'UTC timestamp for soft deletion; null when active.';
+CREATE UNIQUE INDEX uq_match_reports_match_id_active ON match_reports (match_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_match_reports_referee_status_submitted_at ON match_reports (referee_id, status, submitted_at) WHERE deleted_at IS NULL;
+CREATE INDEX idx_match_reports_match_id ON match_reports (match_id) WHERE deleted_at IS NULL;
+CREATE TRIGGER trg_match_reports_set_updated_at BEFORE UPDATE ON match_reports FOR EACH ROW EXECUTE FUNCTION set_updated_at();
