@@ -80,6 +80,10 @@ function FederationDashboardPanel() {
       />
     );
   const federationDashboard = query.data;
+  if (!federationDashboard) {
+    return <EmptyState message="Dashboard federazione non disponibile." />;
+  }
+
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
