@@ -14,7 +14,9 @@ export const applicationEventTypes = [
 
 export type ApplicationEventType = (typeof applicationEventTypes)[number];
 
-export interface ApplicationEvent<TPayload extends Record<string, unknown> = Record<string, never>> {
+export interface ApplicationEvent<
+  TPayload extends Record<string, unknown> = Record<string, never>,
+> {
   id: UUID;
   type: ApplicationEventType;
   occurredAt: ISODateTime;
@@ -22,13 +24,13 @@ export interface ApplicationEvent<TPayload extends Record<string, unknown> = Rec
 }
 
 export interface EventPublisher {
-  publish(event: ApplicationEvent): Promise<void>;
+  publish(event: ApplicationEvent<Record<string, unknown>>): Promise<void>;
 }
 
 export class NoopEventPublisher implements EventPublisher {
-  readonly publishedEvents: ApplicationEvent[] = [];
+  readonly publishedEvents: ApplicationEvent<Record<string, unknown>>[] = [];
 
-  publish(event: ApplicationEvent): Promise<void> {
+  publish(event: ApplicationEvent<Record<string, unknown>>): Promise<void> {
     this.publishedEvents.push(event);
     return Promise.resolve();
   }
