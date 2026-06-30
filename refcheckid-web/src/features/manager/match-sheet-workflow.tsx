@@ -24,6 +24,9 @@ import {
 } from "@/lib/api-client";
 import type { PlayerListItem, StaffListItem } from "@/lib/types";
 
+const EMPTY_PLAYERS: readonly PlayerListItem[] = [];
+const EMPTY_STAFF: readonly StaffListItem[] = [];
+
 export function MatchSheetWorkflow() {
   const [step, setStep] = useState(0);
   const [query, setQuery] = useState("");
@@ -62,10 +65,16 @@ export function MatchSheetWorkflow() {
     },
   });
 
-  const players =
-    selectedPlayers.length > 0 ? selectedPlayers : (playersQuery.data ?? []);
-  const staff =
-    selectedStaff.length > 0 ? selectedStaff : (staffQuery.data ?? []);
+  const fetchedPlayers = playersQuery.data ?? EMPTY_PLAYERS;
+  const fetchedStaff = staffQuery.data ?? EMPTY_STAFF;
+  const players = useMemo(
+    () => (selectedPlayers.length > 0 ? selectedPlayers : fetchedPlayers),
+    [fetchedPlayers, selectedPlayers],
+  );
+  const staff = useMemo(
+    () => (selectedStaff.length > 0 ? selectedStaff : fetchedStaff),
+    [fetchedStaff, selectedStaff],
+  );
   const filteredPlayers = useMemo(
     () =>
       players

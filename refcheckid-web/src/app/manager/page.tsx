@@ -30,6 +30,14 @@ export default function ManagerDashboardPage() {
   }
 
   const dashboard = dashboardQuery.data;
+  if (!dashboard) {
+    return (
+      <main className="mx-auto max-w-6xl p-6">
+        <EmptyState message="Dashboard dirigente non disponibile." />
+      </main>
+    );
+  }
+
   const nextMatch = dashboard.nextMatch;
 
   return (
