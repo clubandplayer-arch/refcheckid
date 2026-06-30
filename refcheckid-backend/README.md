@@ -86,3 +86,16 @@ Le convenzioni tecniche già definite per il progetto sono:
 ## Stato attuale
 
 Il repository contiene esclusivamente lo scheletro enterprise iniziale e la configurazione di base degli strumenti di sviluppo.
+
+## Backend application layer
+
+La Milestone 10 introduce lo skeleton iniziale dell'application layer backend:
+
+- `src/domain/`: tipi TypeScript principali allineati alle entità PostgreSQL approvate.
+- `src/repositories/`: repository base e repository specifici per area dati, senza implementazione database definitiva.
+- `src/services/`: service iniziali per orchestrazione futura, senza business logic completa.
+- `src/events/`: event engine skeleton con gli eventi applicativi approvati.
+- `src/api/`: moduli API skeleton senza endpoint pubblici definitivi.
+- `tests/`: test placeholder per repository, services ed event engine.
+
+Questo layer non modifica database, RLS, Master Bible, Domain Model o Product Tree.
