@@ -18,19 +18,19 @@ export abstract class NotImplementedRepository<TEntity, TCreate = Partial<TEntit
 {
   protected constructor(protected readonly repositoryName: string) {}
 
-  findById(_id: UUID): Promise<TEntity | null> {
+  findById(): Promise<TEntity | null> {
     return Promise.reject(new Error(`${this.repositoryName}.findById is not implemented yet.`));
   }
 
-  list(_query?: RepositoryQuery): Promise<readonly TEntity[]> {
+  list(): Promise<readonly TEntity[]> {
     return Promise.reject(new Error(`${this.repositoryName}.list is not implemented yet.`));
   }
 
-  create(_input: TCreate): Promise<TEntity> {
+  create(): Promise<TEntity> {
     return Promise.reject(new Error(`${this.repositoryName}.create is not implemented yet.`));
   }
 
-  update(_id: UUID, _input: TUpdate): Promise<TEntity> {
+  update(): Promise<TEntity> {
     return Promise.reject(new Error(`${this.repositoryName}.update is not implemented yet.`));
   }
 }

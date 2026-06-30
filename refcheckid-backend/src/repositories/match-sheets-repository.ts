@@ -1,4 +1,4 @@
-import type { MatchSheet, MatchSheetPlayer, MatchSheetStaff } from '../domain/index.js';
+import type { MatchSheet } from '../domain/index.js';
 import { NotImplementedRepository } from './base-repository.js';
 
 export class MatchSheetsRepository extends NotImplementedRepository<MatchSheet> {

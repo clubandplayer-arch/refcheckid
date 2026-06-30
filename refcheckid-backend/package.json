@@ -10,6 +10,7 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "typecheck": "tsc --noEmit",
+    "build": "tsc",
     "test": "vitest run"
   },
   "engines": {
