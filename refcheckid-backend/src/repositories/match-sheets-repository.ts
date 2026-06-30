@@ -1,5 +1,5 @@
 import type { MatchSheet, MatchSheetStatus, UUID } from '../domain/index.js';
-import { NotImplementedRepository } from './base-repository.js';
+import { DrizzleRepository } from './base-repository.js';
 
 export interface MatchSheetRepositoryPort {
   findById(id: UUID): Promise<MatchSheet | null>;
@@ -8,23 +8,25 @@ export interface MatchSheetRepositoryPort {
   updateStatus(id: UUID, status: MatchSheetStatus): Promise<MatchSheet>;
 }
 
-export class MatchSheetsRepository
-  extends NotImplementedRepository<MatchSheet>
+export class MatchSheetRepository
+  extends DrizzleRepository<MatchSheet>
   implements MatchSheetRepositoryPort
 {
-  constructor() {
-    super('MatchSheetsRepository');
+  constructor(initialRows: readonly MatchSheet[] = []) {
+    super({ tableName: 'match_sheets', initialRows });
   }
 
-  listByMatch(): Promise<readonly MatchSheet[]> {
-    return Promise.reject(new Error('MatchSheetsRepository.listByMatch is not implemented yet.'));
+  listByMatch(matchId: UUID): Promise<readonly MatchSheet[]> {
+    return Promise.resolve(this.values().filter((matchSheet) => matchSheet.matchId === matchId));
   }
 
-  listByClub(): Promise<readonly MatchSheet[]> {
-    return Promise.reject(new Error('MatchSheetsRepository.listByClub is not implemented yet.'));
+  listByClub(clubId: UUID): Promise<readonly MatchSheet[]> {
+    return Promise.resolve(this.values().filter((matchSheet) => matchSheet.clubId === clubId));
   }
 
-  updateStatus(): Promise<MatchSheet> {
-    return Promise.reject(new Error('MatchSheetsRepository.updateStatus is not implemented yet.'));
+  updateStatus(id: UUID, status: MatchSheetStatus): Promise<MatchSheet> {
+    return this.update(id, { status } as Partial<MatchSheet>);
   }
 }
+
+export class MatchSheetsRepository extends MatchSheetRepository {}

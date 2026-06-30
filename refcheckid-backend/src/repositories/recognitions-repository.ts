@@ -4,7 +4,7 @@ import type {
   RecognitionWorkflowStatus,
   UUID,
 } from '../domain/index.js';
-import { NotImplementedRepository } from './base-repository.js';
+import { DrizzleRepository } from './base-repository.js';
 
 export interface RecognitionRepositoryPort {
   findById(id: UUID): Promise<Recognition | null>;
@@ -16,27 +16,33 @@ export interface RecognitionRepositoryPort {
   ): Promise<RecognitionWorkflow>;
 }
 
-export class RecognitionsRepository
-  extends NotImplementedRepository<Recognition>
+export class RecognitionRepository
+  extends DrizzleRepository<Recognition>
   implements RecognitionRepositoryPort
 {
-  constructor() {
-    super('RecognitionsRepository');
+  private readonly workflows = new Map<UUID, RecognitionWorkflow>();
+
+  constructor(initialRows: readonly Recognition[] = []) {
+    super({ tableName: 'recognitions', initialRows });
   }
 
-  listByMatch(): Promise<readonly Recognition[]> {
-    return Promise.reject(new Error('RecognitionsRepository.listByMatch is not implemented yet.'));
+  listByMatch(matchId: UUID): Promise<readonly Recognition[]> {
+    return Promise.resolve(this.values().filter((recognition) => recognition.matchId === matchId));
   }
 
-  getWorkflowByMatch(): Promise<RecognitionWorkflow> {
-    return Promise.reject(
-      new Error('RecognitionsRepository.getWorkflowByMatch is not implemented yet.'),
-    );
+  getWorkflowByMatch(matchId: UUID): Promise<RecognitionWorkflow> {
+    return Promise.resolve(this.workflows.get(matchId) ?? { matchId, status: 'not_started' });
   }
 
-  updateWorkflowStatus(): Promise<RecognitionWorkflow> {
-    return Promise.reject(
-      new Error('RecognitionsRepository.updateWorkflowStatus is not implemented yet.'),
-    );
+  updateWorkflowStatus(
+    matchId: UUID,
+    status: RecognitionWorkflowStatus,
+  ): Promise<RecognitionWorkflow> {
+    const workflow = { matchId, status };
+    this.workflows.set(matchId, workflow);
+
+    return Promise.resolve(workflow);
   }
 }
+
+export class RecognitionsRepository extends RecognitionRepository {}

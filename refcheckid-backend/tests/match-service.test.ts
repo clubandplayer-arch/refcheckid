@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Match, MatchStatus, UUID } from '../src/domain/index.js';
 import type { MatchRepositoryPort } from '../src/repositories/index.js';
-import { InvalidMatchStatusTransitionError, MatchNotFoundError, MatchService } from '../src/services/index.js';
+import {
+  InvalidMatchStatusTransitionError,
+  MatchNotFoundError,
+  MatchService,
+} from '../src/services/index.js';
 
 const matchId = '00000000-0000-0000-0000-000000000001';
 const federationId = '00000000-0000-0000-0000-000000000002';

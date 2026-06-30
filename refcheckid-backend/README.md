@@ -99,3 +99,15 @@ La Milestone 10 introduce lo skeleton iniziale dell'application layer backend:
 - `tests/`: test placeholder per repository, services ed event engine.
 
 Questo layer non modifica database, RLS, Master Bible, Domain Model o Product Tree.
+
+## Application Layer Runtime
+
+Milestone 10 provides the first complete application-layer runtime:
+
+- services receive repositories through constructor-based dependency injection;
+- repositories expose Drizzle-compatible contracts and in-memory execution semantics for local tests;
+- the event engine supports dynamic handler registration, unregistration and ordered dispatch;
+- `AuditEventPublisher` can bridge application events into append-only audit records;
+- `FederationSyncService` coordinates federation, club, referee, player, staff and match synchronization through injected repositories.
+
+The application layer remains independent from REST APIs and frontend concerns. PostgreSQL migrations and Supabase RLS policies are not modified by the runtime layer.

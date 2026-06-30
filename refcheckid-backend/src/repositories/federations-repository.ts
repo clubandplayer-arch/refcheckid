@@ -1,8 +1,10 @@
 import type { Federation } from '../domain/index.js';
-import { NotImplementedRepository } from './base-repository.js';
+import { DrizzleRepository } from './base-repository.js';
 
-export class FederationsRepository extends NotImplementedRepository<Federation> {
-  constructor() {
-    super('FederationsRepository');
+export class FederationRepository extends DrizzleRepository<Federation> {
+  constructor(initialRows: readonly Federation[] = []) {
+    super({ tableName: 'federations', initialRows });
   }
 }
+
+export class FederationsRepository extends FederationRepository {}

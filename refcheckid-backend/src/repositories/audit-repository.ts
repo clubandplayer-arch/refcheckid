@@ -1,5 +1,5 @@
 import type { AuditLog, UUID } from '../domain/index.js';
-import { NotImplementedRepository } from './base-repository.js';
+import { DrizzleRepository } from './base-repository.js';
 
 export type AuditActor = Readonly<{
   actorFederationId?: UUID | null;
@@ -44,30 +44,67 @@ export interface AuditRepositoryPort {
 }
 
 export class AuditRepository
-  extends NotImplementedRepository<AuditLog, CreateAuditLogInput>
+  extends DrizzleRepository<AuditLog, CreateAuditLogInput>
   implements AuditRepositoryPort
 {
-  constructor() {
-    super('AuditRepository');
+  constructor(initialRows: readonly AuditLog[] = []) {
+    super({ tableName: 'audit_logs', initialRows });
   }
 
-  createAuditLog(): Promise<AuditLog> {
-    return Promise.reject(new Error('AuditRepository.createAuditLog is not implemented yet.'));
+  createAuditLog(input: CreateAuditLogInput): Promise<AuditLog> {
+    return this.create({
+      actorFederationId: input.actorFederationId ?? null,
+      actorClubId: input.actorClubId ?? null,
+      actorRefereeId: input.actorRefereeId ?? null,
+      federationId: input.federationId ?? null,
+      clubId: input.clubId ?? null,
+      playerId: input.playerId ?? null,
+      playerRegistrationId: input.playerRegistrationId ?? null,
+      staffMemberId: input.staffMemberId ?? null,
+      staffRegistrationId: input.staffRegistrationId ?? null,
+      refereeId: input.refereeId ?? null,
+      matchId: input.matchId ?? null,
+      matchSheetId: input.matchSheetId ?? null,
+      matchSheetPlayerId: input.matchSheetPlayerId ?? null,
+      matchSheetStaffId: input.matchSheetStaffId ?? null,
+      recognitionId: input.recognitionId ?? null,
+      matchReportId: input.matchReportId ?? null,
+      matchEventId: input.matchEventId ?? null,
+      photoId: input.photoId ?? null,
+      identityDocumentId: input.identityDocumentId ?? null,
+      action: input.action,
+      occurredAt: input.occurredAt,
+      metadata: input.metadata,
+    } as CreateAuditLogInput);
   }
 
-  listByMatch(): Promise<readonly AuditLog[]> {
-    return Promise.reject(new Error('AuditRepository.listByMatch is not implemented yet.'));
+  listByMatch(matchId: UUID): Promise<readonly AuditLog[]> {
+    return Promise.resolve(this.values().filter((auditLog) => auditLog.matchId === matchId));
   }
 
-  listByActor(): Promise<readonly AuditLog[]> {
-    return Promise.reject(new Error('AuditRepository.listByActor is not implemented yet.'));
+  listByActor(actor: AuditActor): Promise<readonly AuditLog[]> {
+    return Promise.resolve(
+      this.values().filter(
+        (auditLog) =>
+          (actor.actorFederationId !== undefined &&
+            auditLog.actorFederationId === actor.actorFederationId) ||
+          (actor.actorClubId !== undefined && auditLog.actorClubId === actor.actorClubId) ||
+          (actor.actorRefereeId !== undefined && auditLog.actorRefereeId === actor.actorRefereeId),
+      ),
+    );
   }
 
-  listByEntity(): Promise<readonly AuditLog[]> {
-    return Promise.reject(new Error('AuditRepository.listByEntity is not implemented yet.'));
+  listByEntity(entity: AuditEntity): Promise<readonly AuditLog[]> {
+    return Promise.resolve(
+      this.values().filter((auditLog) =>
+        Object.entries(entity).some(
+          ([field, value]) => value !== undefined && auditLog[field as keyof AuditLog] === value,
+        ),
+      ),
+    );
   }
 
-  listByAction(): Promise<readonly AuditLog[]> {
-    return Promise.reject(new Error('AuditRepository.listByAction is not implemented yet.'));
+  listByAction(action: AuditAction): Promise<readonly AuditLog[]> {
+    return Promise.resolve(this.values().filter((auditLog) => auditLog.action === action));
   }
 }

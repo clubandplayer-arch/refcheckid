@@ -1,5 +1,5 @@
 import type { MatchReport, MatchReportStatus, UUID } from '../domain/index.js';
-import { NotImplementedRepository } from './base-repository.js';
+import { DrizzleRepository } from './base-repository.js';
 
 export interface CreateMatchReportInput {
   matchId: UUID;
@@ -19,23 +19,33 @@ export interface MatchReportRepositoryPort {
   updateStatus(id: UUID, status: MatchReportStatus): Promise<MatchReport>;
 }
 
-export class ReportsRepository
-  extends NotImplementedRepository<MatchReport, CreateMatchReportInput, UpdateMatchReportInput>
+export class MatchReportRepository
+  extends DrizzleRepository<MatchReport, CreateMatchReportInput, Partial<MatchReport>>
   implements MatchReportRepositoryPort
 {
-  constructor() {
-    super('ReportsRepository');
+  constructor(initialRows: readonly MatchReport[] = []) {
+    super({ tableName: 'match_reports', initialRows });
   }
 
-  findByMatch(): Promise<MatchReport | null> {
-    return Promise.reject(new Error('ReportsRepository.findByMatch is not implemented yet.'));
+  findByMatch(matchId: UUID): Promise<MatchReport | null> {
+    return Promise.resolve(this.values().find((report) => report.matchId === matchId) ?? null);
   }
 
-  updateContent(): Promise<MatchReport> {
-    return Promise.reject(new Error('ReportsRepository.updateContent is not implemented yet.'));
+  create(input: CreateMatchReportInput): Promise<MatchReport> {
+    return super.create({ ...input, status: 'draft', submittedAt: null } as CreateMatchReportInput);
   }
 
-  updateStatus(): Promise<MatchReport> {
-    return Promise.reject(new Error('ReportsRepository.updateStatus is not implemented yet.'));
+  updateContent(id: UUID, input: UpdateMatchReportInput): Promise<MatchReport> {
+    return this.update(id, input);
+  }
+
+  updateStatus(id: UUID, status: MatchReportStatus): Promise<MatchReport> {
+    const submittedAt = status === 'submitted' ? new Date().toISOString() : undefined;
+    return this.update(id, {
+      status,
+      ...(submittedAt === undefined ? {} : { submittedAt }),
+    } as Partial<MatchReport>);
   }
 }
+
+export class ReportsRepository extends MatchReportRepository {}

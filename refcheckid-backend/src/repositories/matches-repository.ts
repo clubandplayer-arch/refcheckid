@@ -1,5 +1,5 @@
 import type { Match, MatchStatus, UUID } from '../domain/index.js';
-import { NotImplementedRepository } from './base-repository.js';
+import { DrizzleRepository } from './base-repository.js';
 
 export interface MatchRepositoryPort {
   findById(id: UUID): Promise<Match | null>;
@@ -9,24 +9,28 @@ export interface MatchRepositoryPort {
   updateStatus(id: UUID, status: MatchStatus): Promise<Match>;
 }
 
-export class MatchesRepository extends NotImplementedRepository<Match> implements MatchRepositoryPort {
-  constructor() {
-    super('MatchesRepository');
+export class MatchRepository extends DrizzleRepository<Match> implements MatchRepositoryPort {
+  constructor(initialRows: readonly Match[] = []) {
+    super({ tableName: 'matches', initialRows });
   }
 
-  listByFederation(): Promise<readonly Match[]> {
-    return Promise.reject(new Error('MatchesRepository.listByFederation is not implemented yet.'));
+  listByFederation(federationId: UUID): Promise<readonly Match[]> {
+    return Promise.resolve(this.values().filter((match) => match.federationId === federationId));
   }
 
-  listByClub(): Promise<readonly Match[]> {
-    return Promise.reject(new Error('MatchesRepository.listByClub is not implemented yet.'));
+  listByClub(clubId: UUID): Promise<readonly Match[]> {
+    return Promise.resolve(
+      this.values().filter((match) => match.homeClubId === clubId || match.awayClubId === clubId),
+    );
   }
 
-  listByReferee(): Promise<readonly Match[]> {
-    return Promise.reject(new Error('MatchesRepository.listByReferee is not implemented yet.'));
+  listByReferee(refereeId: UUID): Promise<readonly Match[]> {
+    return Promise.resolve(this.values().filter((match) => match.refereeId === refereeId));
   }
 
-  updateStatus(): Promise<Match> {
-    return Promise.reject(new Error('MatchesRepository.updateStatus is not implemented yet.'));
+  updateStatus(id: UUID, status: MatchStatus): Promise<Match> {
+    return this.update(id, { status } as Partial<Match>);
   }
 }
+
+export class MatchesRepository extends MatchRepository {}
