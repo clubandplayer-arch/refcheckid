@@ -132,7 +132,7 @@ describe('AuditService', () => {
   it('rejects audit events without an actor', async () => {
     const service = new AuditService({ auditRepository: new FakeAuditRepository() });
 
-    await expect(
+    await expect(async () =>
       service.recordAuditEvent({ action: 'MATCH_CREATED', actor: {}, entity: { matchId } }),
     ).rejects.toBeInstanceOf(MissingAuditActorError);
   });
@@ -140,7 +140,7 @@ describe('AuditService', () => {
   it('rejects audit events without an action', async () => {
     const service = new AuditService({ auditRepository: new FakeAuditRepository() });
 
-    await expect(
+    await expect(async () =>
       service.recordAuditEvent({ action: '', actor: { actorRefereeId }, entity: { matchId } }),
     ).rejects.toBeInstanceOf(MissingAuditActionError);
   });
@@ -148,7 +148,7 @@ describe('AuditService', () => {
   it('rejects audit events without an entity', async () => {
     const service = new AuditService({ auditRepository: new FakeAuditRepository() });
 
-    await expect(
+    await expect(async () =>
       service.recordAuditEvent({ action: 'MATCH_CREATED', actor: { actorRefereeId }, entity: {} }),
     ).rejects.toBeInstanceOf(MissingAuditEntityError);
   });
