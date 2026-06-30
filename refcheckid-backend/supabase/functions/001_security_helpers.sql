@@ -2,6 +2,20 @@ CREATE SCHEMA IF NOT EXISTS app_security;
 
 COMMENT ON SCHEMA app_security IS 'Supabase security helper functions for RefCheckID RLS policies.';
 
+CREATE TABLE IF NOT EXISTS app_security.platform_admins (
+    user_id uuid PRIMARY KEY,
+    enabled boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    disabled_at timestamptz
+);
+
+COMMENT ON TABLE app_security.platform_admins IS 'Database-verified allowlist for platform administrator Supabase users.';
+COMMENT ON COLUMN app_security.platform_admins.user_id IS 'Supabase auth user identifier allowed to act as platform admin.';
+COMMENT ON COLUMN app_security.platform_admins.enabled IS 'Whether the platform administrator grant is active.';
+COMMENT ON COLUMN app_security.platform_admins.created_at IS 'UTC timestamp when the platform administrator grant was created.';
+COMMENT ON COLUMN app_security.platform_admins.disabled_at IS 'UTC timestamp when the platform administrator grant was disabled.';
+
+
 CREATE OR REPLACE FUNCTION app_security.jwt_text(claim_name text)
 RETURNS text
 LANGUAGE sql
@@ -67,8 +81,18 @@ CREATE OR REPLACE FUNCTION app_security.is_platform_admin()
 RETURNS boolean
 LANGUAGE sql
 STABLE
+SECURITY DEFINER
+SET search_path = app_security, public, auth
 AS $$
-    SELECT app_security.current_app_role() = 'platform_admin'
+    SELECT auth.uid() IS NOT NULL
+        AND app_security.current_app_role() = 'platform_admin'
+        AND EXISTS (
+            SELECT 1
+            FROM app_security.platform_admins
+            WHERE platform_admins.user_id = auth.uid()
+              AND platform_admins.enabled = true
+              AND platform_admins.disabled_at IS NULL
+        )
 $$;
 
 CREATE OR REPLACE FUNCTION app_security.is_federation_admin()
@@ -195,5 +219,7 @@ AS $$
 $$;
 
 REVOKE ALL ON SCHEMA app_security FROM anon;
+REVOKE ALL ON TABLE app_security.platform_admins FROM anon, authenticated;
 GRANT USAGE ON SCHEMA app_security TO authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE app_security.platform_admins TO service_role;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA app_security TO authenticated, service_role;

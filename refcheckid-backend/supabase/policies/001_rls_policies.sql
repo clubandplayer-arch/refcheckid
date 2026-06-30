@@ -58,32 +58,32 @@ CREATE POLICY matches_delete ON matches FOR DELETE TO authenticated USING (app_s
 
 CREATE POLICY match_sheets_select ON match_sheets FOR SELECT TO authenticated USING (app_security.can_access_match_sheet(id));
 CREATE POLICY match_sheets_insert ON match_sheets FOR INSERT TO authenticated WITH CHECK (app_security.can_manage_club(club_id));
-CREATE POLICY match_sheets_update ON match_sheets FOR UPDATE TO authenticated USING (app_security.can_manage_club(club_id)) WITH CHECK (app_security.can_manage_club(club_id));
-CREATE POLICY match_sheets_delete ON match_sheets FOR DELETE TO authenticated USING (app_security.can_manage_club(club_id));
+CREATE POLICY match_sheets_update ON match_sheets FOR UPDATE TO authenticated USING (app_security.is_platform_admin()) WITH CHECK (app_security.is_platform_admin());
+CREATE POLICY match_sheets_delete ON match_sheets FOR DELETE TO authenticated USING (app_security.is_platform_admin());
 
 CREATE POLICY match_sheet_players_select ON match_sheet_players FOR SELECT TO authenticated USING (app_security.can_access_match_sheet(match_sheet_id));
 CREATE POLICY match_sheet_players_insert ON match_sheet_players FOR INSERT TO authenticated WITH CHECK (app_security.can_access_match_sheet(match_sheet_id));
-CREATE POLICY match_sheet_players_update ON match_sheet_players FOR UPDATE TO authenticated USING (app_security.can_access_match_sheet(match_sheet_id)) WITH CHECK (app_security.can_access_match_sheet(match_sheet_id));
-CREATE POLICY match_sheet_players_delete ON match_sheet_players FOR DELETE TO authenticated USING (app_security.can_access_match_sheet(match_sheet_id));
+CREATE POLICY match_sheet_players_update ON match_sheet_players FOR UPDATE TO authenticated USING (app_security.is_platform_admin()) WITH CHECK (app_security.is_platform_admin());
+CREATE POLICY match_sheet_players_delete ON match_sheet_players FOR DELETE TO authenticated USING (app_security.is_platform_admin());
 
 CREATE POLICY match_sheet_staff_select ON match_sheet_staff FOR SELECT TO authenticated USING (app_security.can_access_match_sheet(match_sheet_id));
 CREATE POLICY match_sheet_staff_insert ON match_sheet_staff FOR INSERT TO authenticated WITH CHECK (app_security.can_access_match_sheet(match_sheet_id));
-CREATE POLICY match_sheet_staff_update ON match_sheet_staff FOR UPDATE TO authenticated USING (app_security.can_access_match_sheet(match_sheet_id)) WITH CHECK (app_security.can_access_match_sheet(match_sheet_id));
-CREATE POLICY match_sheet_staff_delete ON match_sheet_staff FOR DELETE TO authenticated USING (app_security.can_access_match_sheet(match_sheet_id));
+CREATE POLICY match_sheet_staff_update ON match_sheet_staff FOR UPDATE TO authenticated USING (app_security.is_platform_admin()) WITH CHECK (app_security.is_platform_admin());
+CREATE POLICY match_sheet_staff_delete ON match_sheet_staff FOR DELETE TO authenticated USING (app_security.is_platform_admin());
 
 CREATE POLICY recognitions_select ON recognitions FOR SELECT TO authenticated USING (app_security.can_access_match(match_id));
 CREATE POLICY recognitions_insert ON recognitions FOR INSERT TO authenticated WITH CHECK (app_security.can_access_referee(referee_id) AND app_security.can_access_match(match_id));
-CREATE POLICY recognitions_update ON recognitions FOR UPDATE TO authenticated USING (app_security.can_access_referee(referee_id)) WITH CHECK (app_security.can_access_referee(referee_id));
+CREATE POLICY recognitions_update ON recognitions FOR UPDATE TO authenticated USING (app_security.is_platform_admin()) WITH CHECK (app_security.is_platform_admin());
 CREATE POLICY recognitions_delete ON recognitions FOR DELETE TO authenticated USING (app_security.is_platform_admin());
 
 CREATE POLICY match_reports_select ON match_reports FOR SELECT TO authenticated USING (app_security.can_access_match(match_id));
 CREATE POLICY match_reports_insert ON match_reports FOR INSERT TO authenticated WITH CHECK (app_security.can_access_referee(referee_id) AND app_security.can_access_match(match_id));
-CREATE POLICY match_reports_update ON match_reports FOR UPDATE TO authenticated USING (app_security.can_access_referee(referee_id)) WITH CHECK (app_security.can_access_referee(referee_id));
+CREATE POLICY match_reports_update ON match_reports FOR UPDATE TO authenticated USING (app_security.is_platform_admin()) WITH CHECK (app_security.is_platform_admin());
 CREATE POLICY match_reports_delete ON match_reports FOR DELETE TO authenticated USING (app_security.is_platform_admin());
 
 CREATE POLICY match_events_select ON match_events FOR SELECT TO authenticated USING (app_security.can_access_match(match_id));
 CREATE POLICY match_events_insert ON match_events FOR INSERT TO authenticated WITH CHECK (app_security.can_access_match(match_id));
-CREATE POLICY match_events_update ON match_events FOR UPDATE TO authenticated USING (app_security.can_access_match(match_id)) WITH CHECK (app_security.can_access_match(match_id));
+CREATE POLICY match_events_update ON match_events FOR UPDATE TO authenticated USING (app_security.is_platform_admin()) WITH CHECK (app_security.is_platform_admin());
 CREATE POLICY match_events_delete ON match_events FOR DELETE TO authenticated USING (app_security.is_platform_admin());
 
 CREATE POLICY photos_select ON photos FOR SELECT TO authenticated USING (
@@ -105,8 +105,10 @@ CREATE POLICY identity_documents_select ON identity_documents FOR SELECT TO auth
     OR EXISTS (SELECT 1 FROM staff_members WHERE staff_members.id = identity_documents.staff_member_id AND app_security.can_access_federation(staff_members.federation_id))
 );
 CREATE POLICY identity_documents_insert ON identity_documents FOR INSERT TO authenticated WITH CHECK (app_security.is_platform_admin() OR app_security.is_federation_admin());
-CREATE POLICY identity_documents_update ON identity_documents FOR UPDATE TO authenticated USING (app_security.is_platform_admin() OR app_security.is_federation_admin()) WITH CHECK (app_security.is_platform_admin() OR app_security.is_federation_admin());
+CREATE POLICY identity_documents_update ON identity_documents FOR UPDATE TO authenticated USING (app_security.is_platform_admin()) WITH CHECK (app_security.is_platform_admin());
 CREATE POLICY identity_documents_delete ON identity_documents FOR DELETE TO authenticated USING (app_security.is_platform_admin());
 
 CREATE POLICY audit_logs_select ON audit_logs FOR SELECT TO authenticated USING (app_security.is_platform_admin() OR app_security.is_federation_admin());
 CREATE POLICY audit_logs_insert ON audit_logs FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY audit_logs_update_immutable ON audit_logs FOR UPDATE TO authenticated USING (false) WITH CHECK (false);
+CREATE POLICY audit_logs_delete_immutable ON audit_logs FOR DELETE TO authenticated USING (false);

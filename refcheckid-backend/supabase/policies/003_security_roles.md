@@ -6,11 +6,11 @@
 
 ## Ruoli applicativi
 
-I ruoli sono letti dal JWT Supabase tramite `app_metadata.role` oppure dal claim `role`.
+I ruoli sono letti dal JWT Supabase tramite `app_metadata.role` oppure dal claim `role`. Il ruolo `platform_admin` richiede anche una riga attiva nella allowlist database `app_security.platform_admins`.
 
 | Ruolo | Scopo | Principio |
 | --- | --- | --- |
-| `platform_admin` | Amministrazione tecnica globale | Accesso massimo, riservato |
+| `platform_admin` | Amministrazione tecnica globale | Accesso massimo, riservato e verificato da database |
 | `federation_admin` | Gestione dati della propria federazione | Accesso limitato a `federation_id` nel JWT |
 | `club_admin` | Gestione dati del proprio club | Accesso limitato a `club_id` nel JWT |
 | `referee` | Gestione operativa delle gare assegnate | Accesso limitato a `referee_id` nel JWT |
@@ -28,5 +28,6 @@ I ruoli sono letti dal JWT Supabase tramite `app_metadata.role` oppure dal claim
 ## Note operative
 
 - Nessuna policy è definita per `anon`.
+- `platform_admin` non è sufficiente come solo claim JWT: deve essere confermato da `app_security.platform_admins`.
 - Le funzioni helper centralizzano il calcolo degli scope.
 - Le policy applicano least privilege e privacy by design.
