@@ -1,16 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
+import { useToast } from "@/components/ui/toast";
+import { queryKeys } from "@/lib/api-client";
 import {
-  federationDashboard,
-  federationHistory,
-  federationMatches,
-  federationReports,
-  photoRequests,
-} from "@/lib/federation-mock-data";
+  fetchFederationDashboard,
+  fetchFederationHistory,
+  fetchFederationMatches,
+  fetchFederationReports,
+  fetchPhotoRequests,
+} from "@/lib/federation-api-client";
 import type {
   FederationHistoryItem,
   FederationMatchListItem,
@@ -63,6 +67,19 @@ export function FederationWorkflow() {
 }
 
 function FederationDashboardPanel() {
+  const query = useQuery({
+    queryFn: fetchFederationDashboard,
+    queryKey: [...queryKeys.federation, "dashboard"],
+  });
+  if (query.isLoading) return <SkeletonBlock />;
+  if (query.isError)
+    return (
+      <ErrorState
+        message={query.error.message}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  const federationDashboard = query.data;
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
@@ -107,19 +124,31 @@ function StatCard({
 }
 
 function MatchCalendarPanel() {
+  const query = useQuery({
+    queryFn: fetchFederationMatches,
+    queryKey: queryKeys.matches,
+  });
   const [matchday, setMatchday] = useState("all");
   const [status, setStatus] = useState<(typeof reportStatuses)[number]>("all");
   const filteredMatches = useMemo(
     () =>
-      federationMatches.filter((match) => {
+      (query.data ?? []).filter((match) => {
         const matchdayMatches =
           matchday === "all" || String(match.matchday) === matchday;
         const statusMatches = status === "all" || match.reportStatus === status;
         return matchdayMatches && statusMatches;
       }),
-    [matchday, status],
+    [matchday, query.data, status],
   );
 
+  if (query.isLoading) return <SkeletonBlock />;
+  if (query.isError)
+    return (
+      <ErrorState
+        message={query.error.message}
+        onRetry={() => void query.refetch()}
+      />
+    );
   return (
     <Card className="space-y-4">
       <div>
@@ -137,13 +166,13 @@ function MatchCalendarPanel() {
             value={matchday}
           >
             <option value="all">Tutte</option>
-            {[...new Set(federationMatches.map((match) => match.matchday))].map(
-              (day) => (
-                <option key={day} value={day}>
-                  {day}
-                </option>
-              ),
-            )}
+            {[
+              ...new Set((query.data ?? []).map((match) => match.matchday)),
+            ].map((day) => (
+              <option key={day} value={day}>
+                {day}
+              </option>
+            ))}
           </select>
         </label>
         <label className="space-y-1 text-sm font-medium">
@@ -200,18 +229,31 @@ function MatchList({
 }
 
 function ReportsPanel() {
-  const [selectedReportId, setSelectedReportId] = useState(
-    federationReports[0]?.id ?? null,
-  );
+  const query = useQuery({
+    queryFn: fetchFederationReports,
+    queryKey: queryKeys.matchReports,
+  });
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  if (query.isLoading) return <SkeletonBlock />;
+  if (query.isError)
+    return (
+      <ErrorState
+        message={query.error.message}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  const reports = query.data ?? [];
   const selectedReport =
-    federationReports.find((report) => report.id === selectedReportId) ?? null;
+    reports.find((report) => report.id === selectedReportId) ??
+    reports[0] ??
+    null;
 
   return (
     <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
       <Card className="space-y-3">
         <h2 className="text-xl font-bold">Referti ricevuti</h2>
         <ReportList
-          reports={federationReports}
+          reports={reports}
           selectedReportId={selectedReportId}
           onSelect={setSelectedReportId}
         />
@@ -333,20 +375,37 @@ function ReadOnlyNotes({
 }
 
 function PhotoRequestsPanel() {
-  const [requests, setRequests] =
-    useState<readonly PhotoRequest[]>(photoRequests);
+  const queryClient = useQueryClient();
+  const { notify } = useToast();
+  const query = useQuery({
+    queryFn: fetchPhotoRequests,
+    queryKey: queryKeys.photos,
+  });
+  const [localStatuses, setLocalStatuses] = useState<
+    Record<string, PhotoRequestStatus>
+  >({});
 
   function transitionRequest(
     requestId: string,
     status: Exclude<PhotoRequestStatus, "pending">,
   ) {
-    setRequests((current) =>
-      current.map((request) =>
-        request.id === requestId ? { ...request, status } : request,
-      ),
-    );
+    setLocalStatuses((current) => ({ ...current, [requestId]: status }));
+    notify(`Richiesta foto ${status}`, "success");
+    void queryClient.invalidateQueries({ queryKey: queryKeys.photos });
   }
 
+  if (query.isLoading) return <SkeletonBlock />;
+  if (query.isError)
+    return (
+      <ErrorState
+        message={query.error.message}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  const requests = (query.data ?? []).map((request) => ({
+    ...request,
+    status: localStatuses[request.id] ?? request.status,
+  }));
   return (
     <Card className="space-y-4">
       <div>
@@ -430,17 +489,29 @@ function PhotoBox({
 }
 
 function HistoryPanel() {
+  const historyQuery = useQuery({
+    queryFn: fetchFederationHistory,
+    queryKey: queryKeys.audit,
+  });
   const [query, setQuery] = useState("");
   const filteredHistory = useMemo(
     () =>
-      federationHistory.filter((item) => {
+      (historyQuery.data ?? []).filter((item) => {
         const searchable =
           `${item.matchLabel} ${item.clubNames.join(" ")} ${item.refereeName}`.toLowerCase();
         return searchable.includes(query.toLowerCase());
       }),
-    [query],
+    [historyQuery.data, query],
   );
 
+  if (historyQuery.isLoading) return <SkeletonBlock />;
+  if (historyQuery.isError)
+    return (
+      <ErrorState
+        message={historyQuery.error.message}
+        onRetry={() => void historyQuery.refetch()}
+      />
+    );
   return (
     <Card className="space-y-4">
       <div>
@@ -495,11 +566,5 @@ function StatusBadge({ label }: Readonly<{ label: string }>) {
     <span className="inline-flex w-fit rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase">
       {label}
     </span>
-  );
-}
-
-function EmptyState({ message }: Readonly<{ message: string }>) {
-  return (
-    <p className="rounded-xl bg-muted p-4 text-sm text-slate-500">{message}</p>
   );
 }

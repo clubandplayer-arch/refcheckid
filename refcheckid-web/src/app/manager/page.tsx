@@ -1,9 +1,36 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { managerDashboard } from "@/lib/mock-data";
+import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
+import { fetchManagerDashboard, queryKeys } from "@/lib/api-client";
 
 export default function ManagerDashboardPage() {
-  const nextMatch = managerDashboard.nextMatch;
+  const dashboardQuery = useQuery({
+    queryFn: fetchManagerDashboard,
+    queryKey: [...queryKeys.manager, "dashboard"],
+  });
+
+  if (dashboardQuery.isLoading)
+    return (
+      <main className="mx-auto max-w-6xl p-6">
+        <SkeletonBlock />
+      </main>
+    );
+  if (dashboardQuery.isError) {
+    return (
+      <main className="mx-auto max-w-6xl p-6">
+        <ErrorState
+          message={dashboardQuery.error.message}
+          onRetry={() => void dashboardQuery.refetch()}
+        />
+      </main>
+    );
+  }
+
+  const dashboard = dashboardQuery.data;
+  const nextMatch = dashboard.nextMatch;
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
@@ -29,21 +56,22 @@ export default function ManagerDashboardPage() {
               <p>{nextMatch.venue}</p>
             </div>
           ) : (
-            <p className="mt-3 text-sm text-slate-500">
-              Nessuna gara programmata.
-            </p>
+            <EmptyState message="Nessuna gara programmata." />
           )}
         </Card>
         <Card>
           <h2 className="font-semibold">Stato distinta</h2>
           <p className="mt-3 rounded-full bg-muted px-3 py-2 text-sm uppercase">
-            {managerDashboard.matchSheetStatus}
+            {dashboard.matchSheetStatus}
           </p>
         </Card>
         <Card>
           <h2 className="font-semibold">Notifiche</h2>
+          {dashboard.notifications.length === 0 ? (
+            <EmptyState message="Nessuna notifica." />
+          ) : null}
           <ul className="mt-3 space-y-2 text-sm">
-            {managerDashboard.notifications.map((notification) => (
+            {dashboard.notifications.map((notification) => (
               <li key={notification}>• {notification}</li>
             ))}
           </ul>

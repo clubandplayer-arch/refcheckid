@@ -1,21 +1,29 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
+import { useToast } from "@/components/ui/toast";
+import { queryKeys } from "@/lib/api-client";
 import {
-  initialMatchReport,
-  recognitionSubjects,
-  teamSheetVerifications,
-} from "@/lib/referee-mock-data";
+  completeRecognition,
+  fetchRecognitionSubjects,
+  fetchRefereeDashboard,
+  fetchRefereeMatchSheets,
+  fetchRefereeReport,
+  startRecognition,
+  submitMatchReport,
+} from "@/lib/referee-api-client";
 import type {
   MatchReportDraft,
-  MatchReportEvent,
   RecognitionDecision,
   RecognitionSubject,
   TeamSheetVerification,
 } from "@/lib/referee-types";
+import { useSession } from "@/lib/session";
 
 const steps = ["Distinte", "Riconoscimento", "Referto"] as const;
 const reportSteps = [
@@ -30,6 +38,24 @@ const reportSteps = [
 
 export function RefereeMatchWorkflow() {
   const [step, setStep] = useState(0);
+  const { session } = useSession();
+  const dashboardQuery = useQuery({
+    enabled: Boolean(session?.actorId),
+    queryFn: () => fetchRefereeDashboard(session?.actorId ?? ""),
+    queryKey: [...queryKeys.referees, "dashboard", session?.actorId],
+  });
+  const matchId = dashboardQuery.data?.nextMatch?.id ?? "";
+
+  if (!session) return <ErrorState message="Sessione richiesta." />;
+  if (dashboardQuery.isLoading) return <SkeletonBlock />;
+  if (dashboardQuery.isError)
+    return (
+      <ErrorState
+        message={dashboardQuery.error.message}
+        onRetry={() => void dashboardQuery.refetch()}
+      />
+    );
+  if (!matchId) return <EmptyState message="Nessuna gara assegnata." />;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
@@ -45,17 +71,40 @@ export function RefereeMatchWorkflow() {
           </button>
         ))}
       </aside>
-      {step === 0 ? <SheetVerificationStep onStart={() => setStep(1)} /> : null}
-      {step === 1 ? <RecognitionStep onComplete={() => setStep(2)} /> : null}
-      {step === 2 ? <MatchReportStep /> : null}
+      {step === 0 ? (
+        <SheetVerificationStep matchId={matchId} onStart={() => setStep(1)} />
+      ) : null}
+      {step === 1 ? (
+        <RecognitionStep matchId={matchId} onComplete={() => setStep(2)} />
+      ) : null}
+      {step === 2 ? <MatchReportStep matchId={matchId} /> : null}
     </div>
   );
 }
 
-function SheetVerificationStep({ onStart }: Readonly<{ onStart: () => void }>) {
-  const allLocked = teamSheetVerifications.every(
-    (sheet) => sheet.status === "locked",
-  );
+function SheetVerificationStep({
+  matchId,
+  onStart,
+}: Readonly<{ matchId: string; onStart: () => void }>) {
+  const query = useQuery({
+    queryFn: () => fetchRefereeMatchSheets(matchId),
+    queryKey: [...queryKeys.matchSheets, matchId],
+  });
+  const mutation = useMutation({
+    mutationFn: () => startRecognition(matchId),
+    onSuccess: onStart,
+  });
+  if (query.isLoading) return <SkeletonBlock />;
+  if (query.isError)
+    return (
+      <ErrorState
+        message={query.error.message}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  const sheets = query.data ?? [];
+  const allLocked =
+    sheets.length > 0 && sheets.every((sheet) => sheet.status === "locked");
   return (
     <Card className="space-y-4">
       <div>
@@ -64,17 +113,20 @@ function SheetVerificationStep({ onStart }: Readonly<{ onStart: () => void }>) {
           Controlla casa, ospite e stato prima di avviare il riconoscimento.
         </p>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        {teamSheetVerifications.map((sheet) => (
-          <TeamSheetCard key={sheet.id} sheet={sheet} />
-        ))}
-      </div>
-      {!allLocked ? (
-        <p className="rounded-lg bg-yellow-100 p-3 text-sm text-yellow-900">
-          Una o più distinte non sono ancora bloccate.
-        </p>
-      ) : null}
-      <Button disabled={!allLocked} onClick={onStart} type="button">
+      {sheets.length === 0 ? (
+        <EmptyState message="Nessuna distinta disponibile." />
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {sheets.map((sheet) => (
+            <TeamSheetCard key={sheet.id} sheet={sheet} />
+          ))}
+        </div>
+      )}
+      <Button
+        disabled={!allLocked || mutation.isPending}
+        onClick={() => mutation.mutate()}
+        type="button"
+      >
         Inizia riconoscimento
       </Button>
     </Card>
@@ -101,77 +153,63 @@ function TeamSheetCard({ sheet }: Readonly<{ sheet: TeamSheetVerification }>) {
           <dt>Staff</dt>
           <dd>{sheet.staffCount}</dd>
         </div>
-        <div className="flex justify-between">
-          <dt>Invio</dt>
-          <dd>
-            {sheet.submittedAt
-              ? new Date(sheet.submittedAt).toLocaleTimeString("it-IT", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "—"}
-          </dd>
-        </div>
       </dl>
     </div>
   );
 }
 
-function RecognitionStep({ onComplete }: Readonly<{ onComplete: () => void }>) {
-  const [subjects, setSubjects] =
-    useState<readonly RecognitionSubject[]>(recognitionSubjects);
+function RecognitionStep({
+  matchId,
+  onComplete,
+}: Readonly<{ matchId: string; onComplete: () => void }>) {
   const [index, setIndex] = useState(0);
   const [showDocument, setShowDocument] = useState(false);
+  const [decisions, setDecisions] = useState<
+    Record<string, RecognitionDecision>
+  >({});
+  const query = useQuery({
+    queryFn: fetchRecognitionSubjects,
+    queryKey: [...queryKeys.recognitions, matchId],
+  });
+  const mutation = useMutation({
+    mutationFn: () => completeRecognition(matchId),
+    onSuccess: onComplete,
+  });
+  if (query.isLoading) return <SkeletonBlock />;
+  if (query.isError)
+    return (
+      <ErrorState
+        message={query.error.message}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  const subjects = query.data ?? [];
   const currentSubject = subjects[index] ?? null;
-  const completedCount = subjects.filter(
-    (subject) => subject.decision !== "pending",
-  ).length;
-  const isComplete = completedCount === subjects.length;
-
+  const completedCount = Object.keys(decisions).length;
   function decide(decision: Exclude<RecognitionDecision, "pending">) {
     if (!currentSubject) return;
-    setSubjects((current) =>
-      current.map((subject) =>
-        subject.id === currentSubject.id ? { ...subject, decision } : subject,
-      ),
-    );
+    setDecisions((current) => ({ ...current, [currentSubject.id]: decision }));
     setShowDocument(false);
     setIndex((current) => Math.min(current + 1, subjects.length));
   }
-
-  function goBack() {
-    setShowDocument(false);
-    setIndex((current) => Math.max(current - 1, 0));
-  }
-
-  if (subjects.length === 0) {
-    return (
-      <Card>
-        <h2 className="text-xl font-bold">Riconoscimento</h2>
-        <p className="mt-3 text-sm text-slate-500">
-          Nessun atleta da riconoscere.
-        </p>
-      </Card>
-    );
-  }
-
-  if (isComplete || !currentSubject) {
+  if (subjects.length === 0)
+    return <EmptyState message="Nessun atleta da riconoscere." />;
+  if (!currentSubject || completedCount === subjects.length)
     return (
       <Card className="space-y-4 text-center">
-        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-3xl text-green-700">
-          ✓
-        </div>
         <h2 className="text-2xl font-bold">Riconoscimento completato</h2>
         <p className="text-sm text-slate-500">
           {completedCount} tesserati verificati. Puoi procedere al referto.
         </p>
-        <Button onClick={onComplete} type="button">
+        <Button
+          disabled={mutation.isPending}
+          onClick={() => mutation.mutate()}
+          type="button"
+        >
           Vai al referto
         </Button>
       </Card>
     );
-  }
-
   return (
     <Card className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -186,15 +224,9 @@ function RecognitionStep({ onComplete }: Readonly<{ onComplete: () => void }>) {
           {completedCount}/{subjects.length}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full bg-primary transition-all"
-          style={{ width: `${(completedCount / subjects.length) * 100}%` }}
-        />
-      </div>
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
         <div className="flex aspect-[3/4] items-center justify-center rounded-2xl bg-muted text-lg font-semibold">
-          {currentSubject.photoUrl ? "Foto" : "Foto tesserato"}
+          Foto tesserato
         </div>
         <div className="space-y-4">
           <div>
@@ -222,14 +254,6 @@ function RecognitionStep({ onComplete }: Readonly<{ onComplete: () => void }>) {
                   <dt>Numero</dt>
                   <dd>{currentSubject.document.number}</dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt>Scadenza</dt>
-                  <dd>
-                    {new Date(
-                      currentSubject.document.expiresAt,
-                    ).toLocaleDateString("it-IT")}
-                  </dd>
-                </div>
               </dl>
             ) : (
               <p className="mt-1 text-sm text-slate-500">
@@ -241,7 +265,7 @@ function RecognitionStep({ onComplete }: Readonly<{ onComplete: () => void }>) {
             <Button
               className="bg-slate-700"
               disabled={index === 0}
-              onClick={goBack}
+              onClick={() => setIndex((current) => Math.max(current - 1, 0))}
               type="button"
             >
               Indietro
@@ -267,12 +291,34 @@ function RecognitionStep({ onComplete }: Readonly<{ onComplete: () => void }>) {
   );
 }
 
-function MatchReportStep() {
-  const [report, setReport] = useState<MatchReportDraft>(initialMatchReport);
+function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
+  const queryClient = useQueryClient();
+  const { notify } = useToast();
+  const query = useQuery({
+    queryFn: () => fetchRefereeReport(matchId),
+    queryKey: [...queryKeys.matchReports, matchId],
+  });
   const [step, setStep] = useState(0);
+  const [report, setReport] = useState<MatchReportDraft | null>(null);
+  const currentReport = report ?? query.data;
+  const submitMutation = useMutation({
+    mutationFn: () => submitMatchReport(matchId),
+    onSuccess() {
+      notify("Referto inviato", "success");
+      void queryClient.invalidateQueries({ queryKey: queryKeys.matchReports });
+    },
+  });
+  if (query.isLoading) return <SkeletonBlock />;
+  if (query.isError)
+    return (
+      <ErrorState
+        message={query.error.message}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  if (!currentReport)
+    return <EmptyState message="Nessun referto disponibile." />;
   const currentStep = reportSteps[step];
-  const canSubmit = report.homeGoals >= 0 && report.awayGoals >= 0;
-
   return (
     <Card className="space-y-4">
       <div>
@@ -294,25 +340,30 @@ function MatchReportStep() {
         ))}
       </div>
       {currentStep === "Risultato" ? (
-        <ResultPanel report={report} setReport={setReport} />
-      ) : null}
-      {currentStep === "Gol" ? (
-        <EventsPanel events={report.goals} title="Gol" />
-      ) : null}
-      {currentStep === "Ammonizioni" ? (
-        <EventsPanel events={report.cautions} title="Ammonizioni" />
-      ) : null}
-      {currentStep === "Espulsioni" ? (
-        <EventsPanel events={report.expulsions} title="Espulsioni" />
-      ) : null}
-      {currentStep === "Sostituzioni" ? (
-        <EventsPanel events={report.substitutions} title="Sostituzioni" />
+        <ResultPanel report={currentReport} setReport={setReport} />
       ) : null}
       {currentStep === "Note" ? (
-        <NotesPanel report={report} setReport={setReport} />
+        <textarea
+          className="min-h-32 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          onChange={(event) =>
+            setReport({ ...currentReport, refereeNotes: event.target.value })
+          }
+          value={currentReport.refereeNotes}
+        />
       ) : null}
       {currentStep === "Riepilogo" ? (
-        <ReportSummary report={report} canSubmit={canSubmit} />
+        <div className="space-y-4">
+          <p className="rounded-lg bg-green-100 p-3 text-sm text-green-900">
+            Riepilogo pronto per l’invio.
+          </p>
+          <Button
+            disabled={submitMutation.isPending}
+            onClick={() => submitMutation.mutate()}
+            type="button"
+          >
+            Invia referto
+          </Button>
+        </div>
       ) : null}
     </Card>
   );
@@ -349,103 +400,6 @@ function ResultPanel({
           value={report.awayGoals}
         />
       </label>
-    </div>
-  );
-}
-
-function EventsPanel({
-  events,
-  title,
-}: Readonly<{ events: readonly MatchReportEvent[]; title: string }>) {
-  return (
-    <div className="space-y-3">
-      <h3 className="font-semibold">{title}</h3>
-      {events.length === 0 ? (
-        <p className="rounded-xl bg-muted p-4 text-sm">
-          Nessun evento registrato.
-        </p>
-      ) : null}
-      {events.map((event) => (
-        <div
-          className="grid gap-1 rounded-xl border p-3 text-sm md:grid-cols-[80px_1fr_1fr]"
-          key={event.id}
-        >
-          <span>{event.minute}&apos;</span>
-          <span>{event.teamName}</span>
-          <span>
-            {event.playerName} · {event.detail}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function NotesPanel({
-  report,
-  setReport,
-}: Readonly<{
-  report: MatchReportDraft;
-  setReport: (report: MatchReportDraft) => void;
-}>) {
-  return (
-    <label className="block space-y-1 text-sm font-medium">
-      Note arbitro
-      <textarea
-        className="min-h-32 w-full rounded-lg border bg-background px-3 py-2 text-sm"
-        onChange={(event) =>
-          setReport({ ...report, refereeNotes: event.target.value })
-        }
-        value={report.refereeNotes}
-      />
-    </label>
-  );
-}
-
-function ReportSummary({
-  report,
-  canSubmit,
-}: Readonly<{ report: MatchReportDraft; canSubmit: boolean }>) {
-  const totalEvents = useMemo(
-    () =>
-      report.goals.length +
-      report.cautions.length +
-      report.expulsions.length +
-      report.substitutions.length,
-    [report],
-  );
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-4">
-        <SummaryMetric
-          label="Risultato"
-          value={`${report.homeGoals}-${report.awayGoals}`}
-        />
-        <SummaryMetric label="Gol" value={String(report.goals.length)} />
-        <SummaryMetric label="Eventi" value={String(totalEvents)} />
-        <SummaryMetric
-          label="Note"
-          value={report.refereeNotes ? "Presenti" : "Assenti"}
-        />
-      </div>
-      <p className="rounded-lg bg-green-100 p-3 text-sm text-green-900">
-        Riepilogo pronto per l’invio.
-      </p>
-      <Button disabled={!canSubmit} type="button">
-        Invia referto
-      </Button>
-    </div>
-  );
-}
-
-function SummaryMetric({
-  label,
-  value,
-}: Readonly<{ label: string; value: string }>) {
-  return (
-    <div className="rounded-xl border p-3">
-      <p className="text-xs uppercase text-slate-500">{label}</p>
-      <p className="text-lg font-bold">{value}</p>
     </div>
   );
 }

@@ -1,9 +1,45 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { refereeDashboard } from "@/lib/referee-mock-data";
+import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
+import { queryKeys } from "@/lib/api-client";
+import { fetchRefereeDashboard } from "@/lib/referee-api-client";
+import { useSession } from "@/lib/session";
 
 export default function RefereeDashboardPage() {
-  const nextMatch = refereeDashboard.nextMatch;
+  const { session } = useSession();
+  const dashboardQuery = useQuery({
+    enabled: Boolean(session?.actorId),
+    queryFn: () => fetchRefereeDashboard(session?.actorId ?? ""),
+    queryKey: [...queryKeys.referees, "dashboard", session?.actorId],
+  });
+
+  if (!session)
+    return (
+      <main className="mx-auto max-w-6xl p-6">
+        <ErrorState message="Sessione richiesta." />
+      </main>
+    );
+  if (dashboardQuery.isLoading)
+    return (
+      <main className="mx-auto max-w-6xl p-6">
+        <SkeletonBlock />
+      </main>
+    );
+  if (dashboardQuery.isError)
+    return (
+      <main className="mx-auto max-w-6xl p-6">
+        <ErrorState
+          message={dashboardQuery.error.message}
+          onRetry={() => void dashboardQuery.refetch()}
+        />
+      </main>
+    );
+
+  const dashboard = dashboardQuery.data;
+  const nextMatch = dashboard.nextMatch;
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
@@ -31,9 +67,7 @@ export default function RefereeDashboardPage() {
               <p>{nextMatch.venue}</p>
             </div>
           ) : (
-            <p className="mt-3 text-sm text-slate-500">
-              Nessuna gara assegnata.
-            </p>
+            <EmptyState message="Nessuna gara assegnata." />
           )}
         </Card>
         <Card>
@@ -44,14 +78,15 @@ export default function RefereeDashboardPage() {
         </Card>
         <Card>
           <h2 className="font-semibold">Notifiche</h2>
-          <ul className="mt-3 space-y-2 text-sm">
-            {refereeDashboard.notifications.length === 0 ? (
-              <li>Nessuna notifica.</li>
-            ) : null}
-            {refereeDashboard.notifications.map((notification) => (
-              <li key={notification}>• {notification}</li>
-            ))}
-          </ul>
+          {dashboard.notifications.length === 0 ? (
+            <EmptyState message="Nessuna notifica." />
+          ) : (
+            <ul className="mt-3 space-y-2 text-sm">
+              {dashboard.notifications.map((notification) => (
+                <li key={notification}>• {notification}</li>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
     </main>

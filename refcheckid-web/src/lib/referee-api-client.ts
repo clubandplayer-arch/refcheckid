@@ -1,3 +1,13 @@
+import {
+  completeRecognition,
+  fetchMatches,
+  fetchMatchReports,
+  fetchMatchSheets,
+  fetchPlayers,
+  startRecognition,
+  submitMatchReport,
+} from "./api-client";
+import type { ApiMatch, ApiMatchSheet, ApiReport } from "./api-client";
 import type {
   MatchReportDraft,
   RecognitionSubject,
@@ -5,58 +15,106 @@ import type {
   TeamSheetVerification,
 } from "./referee-types";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
-
 export async function fetchRefereeDashboard(
   refereeId: string,
 ): Promise<RefereeDashboard> {
-  const matches = await request<readonly RefereeDashboard["nextMatch"][]>(
-    `/matches?refereeId=${encodeURIComponent(refereeId)}`,
+  const matches = await fetchMatches(
+    `?refereeId=${encodeURIComponent(refereeId)}`,
   );
+  const nextMatch =
+    [...matches].sort((a, b) =>
+      a.scheduledAt.localeCompare(b.scheduledAt),
+    )[0] ?? null;
   return {
-    nextMatch: matches.find((match) => match !== null) ?? null,
-    notifications: [],
+    nextMatch: nextMatch ? toRefereeMatch(nextMatch) : null,
+    notifications: nextMatch ? [`Gara ${nextMatch.status}`] : [],
   };
 }
 
-export async function fetchMatchSheets(
+export async function fetchRefereeMatchSheets(
   matchId: string,
 ): Promise<readonly TeamSheetVerification[]> {
-  return request<readonly TeamSheetVerification[]>(
-    `/match-sheets?matchId=${encodeURIComponent(matchId)}`,
+  const sheets = await fetchMatchSheets(
+    `?matchId=${encodeURIComponent(matchId)}`,
   );
+  return sheets.map(toTeamSheetVerification);
 }
 
-export async function fetchRecognitionSubjects(
+export async function fetchRecognitionSubjects(): Promise<
+  readonly RecognitionSubject[]
+> {
+  const players = await fetchPlayers();
+  return players.map((player) => ({
+    id: player.id,
+    firstName: player.firstName,
+    lastName: player.lastName,
+    shirtNumber: player.shirtNumber ?? 0,
+    teamName: "Club",
+    photoUrl: player.photoUrl,
+    document: {
+      type: "Documento",
+      number: player.id,
+      expiresAt: new Date().toISOString(),
+    },
+    decision: "pending",
+  }));
+}
+
+export async function fetchRefereeReport(
   matchId: string,
-): Promise<readonly RecognitionSubject[]> {
-  return request<readonly RecognitionSubject[]>(
-    `/recognitions?matchId=${encodeURIComponent(matchId)}`,
+): Promise<MatchReportDraft> {
+  const response = await fetchMatchReports(
+    `?matchId=${encodeURIComponent(matchId)}`,
   );
+  const report = Array.isArray(response) ? response[0] : response;
+  return toReportDraft(report ?? null);
 }
 
-export async function submitRefereeReport(
-  reportId: string,
-  report: MatchReportDraft,
-): Promise<void> {
-  await request(`/match-reports/${encodeURIComponent(reportId)}/submit`, {
-    method: "POST",
-    body: JSON.stringify(report),
-  });
+export { completeRecognition, startRecognition, submitMatchReport };
+
+function toRefereeMatch(
+  match: ApiMatch,
+): NonNullable<RefereeDashboard["nextMatch"]> {
+  return {
+    id: match.id,
+    awayTeam: match.awayClubId,
+    homeTeam: match.homeClubId,
+    scheduledAt: match.scheduledAt,
+    status:
+      match.status === "completed"
+        ? "completed"
+        : match.status === "in_progress"
+          ? "recognition"
+          : "scheduled",
+    venue: match.venue ?? "Da definire",
+  };
 }
 
-async function request<TResponse>(
-  path: string,
-  init?: RequestInit,
-): Promise<TResponse> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    ...init,
-    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
-  });
+function toTeamSheetVerification(sheet: ApiMatchSheet): TeamSheetVerification {
+  return {
+    id: sheet.id,
+    clubName: sheet.clubId,
+    playerCount: 0,
+    staffCount: 0,
+    status:
+      sheet.status === "locked"
+        ? "locked"
+        : sheet.status === "submitted"
+          ? "submitted"
+          : "missing",
+    submittedAt: sheet.submittedAt,
+    team: "home",
+  };
+}
 
-  if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}.`);
-  }
-
-  return (await response.json()) as TResponse;
+function toReportDraft(report: ApiReport | null): MatchReportDraft {
+  return {
+    awayGoals: 0,
+    cautions: [],
+    expulsions: [],
+    goals: [],
+    homeGoals: 0,
+    refereeNotes: report?.summary ?? "",
+    substitutions: [],
+  };
 }

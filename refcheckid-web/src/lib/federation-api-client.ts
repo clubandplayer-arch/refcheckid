@@ -1,3 +1,10 @@
+import {
+  fetchMatchReports,
+  fetchMatches,
+  fetchPhotos,
+  request,
+} from "./api-client";
+import type { ApiMatch, ApiPhoto, ApiReport } from "./api-client";
 import type {
   FederationDashboard,
   FederationHistoryItem,
@@ -6,48 +13,112 @@ import type {
   PhotoRequest,
 } from "./federation-types";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
-
 export async function fetchFederationDashboard(): Promise<FederationDashboard> {
-  return request<FederationDashboard>("/federations/dashboard");
+  const [reports, photos] = await Promise.all([
+    fetchFederationReports(),
+    fetchPhotoRequests(),
+  ]);
+  return {
+    reportsReceived: reports.length,
+    pendingPhotoRequests: photos.filter((photo) => photo.status === "pending")
+      .length,
+    syncStatus: "ok",
+    notifications: [
+      `${reports.length} referti disponibili`,
+      `${photos.length} richieste foto`,
+    ],
+  };
 }
 
 export async function fetchFederationMatches(): Promise<
   readonly FederationMatchListItem[]
 > {
-  return request<readonly FederationMatchListItem[]>("/matches");
+  const matches = await fetchMatches();
+  return matches.map(toFederationMatch);
 }
 
 export async function fetchFederationReports(): Promise<
   readonly FederationReport[]
 > {
-  return request<readonly FederationReport[]>("/match-reports");
+  const response = await fetchMatchReports();
+  const reports = Array.isArray(response)
+    ? response
+    : response
+      ? [response]
+      : [];
+  return reports.map(toFederationReport);
 }
 
 export async function fetchPhotoRequests(): Promise<readonly PhotoRequest[]> {
-  return request<readonly PhotoRequest[]>("/photos");
+  const photos = await fetchPhotos();
+  return photos.map(toPhotoRequest);
 }
 
 export async function fetchFederationHistory(): Promise<
   readonly FederationHistoryItem[]
 > {
-  return request<readonly FederationHistoryItem[]>(
+  const audit = await request<readonly Record<string, unknown>[]>(
     "/audit/by-action?action=MATCH_ARCHIVED",
   );
+  return audit.map((item) => ({
+    id: String(item.id),
+    auditSummary: [String(item.action ?? "Audit")],
+    clubNames: [],
+    matchLabel: String(item.entityId ?? item.entity_id ?? "Gara"),
+    refereeName: String(item.actorId ?? item.actor_id ?? "—"),
+    reportId: String(item.entityId ?? item.entity_id ?? ""),
+  }));
 }
 
-async function request<TResponse>(
-  path: string,
-  init?: RequestInit,
-): Promise<TResponse> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    ...init,
-    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
-  });
+function toFederationMatch(match: ApiMatch): FederationMatchListItem {
+  return {
+    id: match.id,
+    awayTeam: match.awayClubId,
+    homeTeam: match.homeClubId,
+    matchStatus:
+      match.status === "completed"
+        ? "completed"
+        : match.status === "in_progress"
+          ? "in_progress"
+          : "scheduled",
+    matchday: new Date(match.scheduledAt).getUTCDate(),
+    refereeName: match.refereeId ?? "Da assegnare",
+    reportStatus: match.status === "completed" ? "submitted" : "missing",
+    scheduledAt: match.scheduledAt,
+  };
+}
 
-  if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}.`);
-  }
+function toFederationReport(report: ApiReport): FederationReport {
+  return {
+    id: report.id,
+    cautions: [],
+    commissionerNotes: null,
+    expulsions: [],
+    goals: [],
+    homeTeam: report.matchId,
+    awayTeam: report.matchId,
+    matchId: report.matchId,
+    refereeName: report.refereeId,
+    refereeNotes: report.summary ?? "",
+    result: { awayGoals: 0, homeGoals: 0 },
+    substitutions: [],
+    submittedAt: report.submittedAt ?? "",
+  };
+}
 
-  return (await response.json()) as TResponse;
+function toPhotoRequest(photo: ApiPhoto): PhotoRequest {
+  return {
+    id: photo.id,
+    clubName: "Club",
+    currentPhotoUrl: null,
+    playerName: photo.playerId ?? photo.id,
+    proposedPhotoUrl: photo.storagePath ?? null,
+    requestedAt: "",
+    status:
+      photo.status === "approved"
+        ? "approved"
+        : photo.status === "rejected"
+          ? "rejected"
+          : "pending",
+  };
 }

@@ -8,22 +8,64 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
+import { useToast } from "@/components/ui/toast";
 import {
-  players as initialPlayers,
-  staff as initialStaff,
-} from "@/lib/mock-data";
+  fetchMatchSheets,
+  fetchPlayers,
+  fetchStaff,
+  queryKeys,
+  submitMatchSheet,
+} from "@/lib/api-client";
 import type { PlayerListItem, StaffListItem } from "@/lib/types";
 
 export function MatchSheetWorkflow() {
   const [step, setStep] = useState(0);
   const [query, setQuery] = useState("");
-  const [players, setPlayers] =
-    useState<readonly PlayerListItem[]>(initialPlayers);
-  const [staff, setStaff] = useState<readonly StaffListItem[]>(initialStaff);
+  const queryClient = useQueryClient();
+  const { notify } = useToast();
+  const playersQuery = useQuery({
+    queryFn: fetchPlayers,
+    queryKey: queryKeys.players,
+  });
+  const staffQuery = useQuery({
+    queryFn: fetchStaff,
+    queryKey: queryKeys.staff,
+  });
+  const sheetsQuery = useQuery({
+    queryFn: () => fetchMatchSheets(),
+    queryKey: queryKeys.matchSheets,
+  });
+  const [selectedPlayers, setSelectedPlayers] = useState<
+    readonly PlayerListItem[]
+  >([]);
+  const [selectedStaff, setSelectedStaff] = useState<readonly StaffListItem[]>(
+    [],
+  );
+  const submitMutation = useMutation({
+    mutationFn: () => {
+      const firstSheet = sheetsQuery.data?.[0];
+      if (!firstSheet) throw new Error("Nessuna distinta disponibile.");
+      return submitMatchSheet(firstSheet.id);
+    },
+    onSuccess() {
+      notify("Distinta inviata", "success");
+      void queryClient.invalidateQueries({ queryKey: queryKeys.matchSheets });
+    },
+    onError(error) {
+      notify(error.message, "error");
+    },
+  });
+
+  const players =
+    selectedPlayers.length > 0 ? selectedPlayers : (playersQuery.data ?? []);
+  const staff =
+    selectedStaff.length > 0 ? selectedStaff : (staffQuery.data ?? []);
   const filteredPlayers = useMemo(
     () =>
       players
@@ -35,11 +77,21 @@ export function MatchSheetWorkflow() {
         .sort((a, b) => a.lastName.localeCompare(b.lastName)),
     [players, query],
   );
-  const selectedPlayers = players.filter((player) => player.selected);
-  const selectedStaff = staff.filter((staffMember) => staffMember.selected);
+  const calledPlayers = players.filter((player) => player.selected);
+  const calledStaff = staff.filter((staffMember) => staffMember.selected);
 
+  function setPlayerList(
+    updater: (current: readonly PlayerListItem[]) => readonly PlayerListItem[],
+  ) {
+    setSelectedPlayers(updater(players));
+  }
+  function setStaffList(
+    updater: (current: readonly StaffListItem[]) => readonly StaffListItem[],
+  ) {
+    setSelectedStaff(updater(staff));
+  }
   function togglePlayer(playerId: string) {
-    setPlayers((current) =>
+    setPlayerList((current) =>
       current.map((player) =>
         player.id === playerId
           ? { ...player, selected: !player.selected }
@@ -47,9 +99,8 @@ export function MatchSheetWorkflow() {
       ),
     );
   }
-
   function toggleStaff(staffId: string) {
-    setStaff((current) =>
+    setStaffList((current) =>
       current.map((staffMember) =>
         staffMember.id === staffId
           ? { ...staffMember, selected: !staffMember.selected }
@@ -57,22 +108,46 @@ export function MatchSheetWorkflow() {
       ),
     );
   }
-
   function updateShirtNumber(playerId: string, shirtNumber: number | null) {
-    setPlayers((current) =>
+    setPlayerList((current) =>
       current.map((player) =>
         player.id === playerId ? { ...player, shirtNumber } : player,
       ),
     );
   }
-
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = players.findIndex((player) => player.id === active.id);
     const newIndex = players.findIndex((player) => player.id === over.id);
-    setPlayers((current) => arrayMove([...current], oldIndex, newIndex));
+    setSelectedPlayers((current) =>
+      arrayMove([...(current.length ? current : players)], oldIndex, newIndex),
+    );
   }
+
+  if (playersQuery.isLoading || staffQuery.isLoading || sheetsQuery.isLoading)
+    return <SkeletonBlock />;
+  if (playersQuery.isError)
+    return (
+      <ErrorState
+        message={playersQuery.error.message}
+        onRetry={() => void playersQuery.refetch()}
+      />
+    );
+  if (staffQuery.isError)
+    return (
+      <ErrorState
+        message={staffQuery.error.message}
+        onRetry={() => void staffQuery.refetch()}
+      />
+    );
+  if (sheetsQuery.isError)
+    return (
+      <ErrorState
+        message={sheetsQuery.error.message}
+        onRetry={() => void sheetsQuery.refetch()}
+      />
+    );
 
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
@@ -101,7 +176,7 @@ export function MatchSheetWorkflow() {
       {step === 1 ? (
         <OrderStep
           onDragEnd={handleDragEnd}
-          players={selectedPlayers}
+          players={calledPlayers}
           updateShirtNumber={updateShirtNumber}
         />
       ) : null}
@@ -109,7 +184,12 @@ export function MatchSheetWorkflow() {
         <StaffStep staff={staff} toggleStaff={toggleStaff} />
       ) : null}
       {step === 3 ? (
-        <SummaryStep players={selectedPlayers} staff={selectedStaff} />
+        <SummaryStep
+          isSubmitting={submitMutation.isPending}
+          onSubmit={() => submitMutation.mutate()}
+          players={calledPlayers}
+          staff={calledStaff}
+        />
       ) : null}
     </div>
   );
@@ -142,9 +222,7 @@ function PlayersStep({
       />
       <div className="divide-y rounded-xl border">
         {players.length === 0 ? (
-          <p className="p-4 text-sm text-slate-500">
-            Nessun giocatore trovato.
-          </p>
+          <EmptyState message="Nessun giocatore trovato." />
         ) : null}
         {players.map((player) => (
           <label className="flex items-center gap-3 p-3" key={player.id}>
@@ -192,24 +270,27 @@ function OrderStep({
             riserve.
           </p>
         </div>
-        <Button type="button">Ripristina distinta precedente</Button>
       </div>
-      <DndContext onDragEnd={onDragEnd}>
-        <SortableContext
-          items={players.map((player) => player.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="space-y-2">
-            {players.map((player) => (
-              <SortablePlayerRow
-                key={player.id}
-                player={player}
-                updateShirtNumber={updateShirtNumber}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+      {players.length === 0 ? (
+        <EmptyState message="Nessun convocato." />
+      ) : (
+        <DndContext onDragEnd={onDragEnd}>
+          <SortableContext
+            items={players.map((player) => player.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {players.map((player) => (
+                <SortablePlayerRow
+                  key={player.id}
+                  player={player}
+                  updateShirtNumber={updateShirtNumber}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
     </Card>
   );
 }
@@ -223,16 +304,11 @@ function SortablePlayerRow({
 }>) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: player.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
   return (
     <div
       className="grid gap-2 rounded-xl border p-3 md:grid-cols-[48px_1fr_120px_160px]"
       ref={setNodeRef}
-      style={style}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
     >
       <button
         aria-label={`Sposta ${player.lastName} ${player.firstName}`}
@@ -272,6 +348,9 @@ function StaffStep({
   return (
     <Card className="space-y-4">
       <h2 className="text-xl font-bold">Staff</h2>
+      {staff.length === 0 ? (
+        <EmptyState message="Nessuno staff disponibile." />
+      ) : null}
       {staff.map((staffMember) => (
         <label
           className="flex items-center justify-between rounded-xl border p-3"
@@ -294,9 +373,13 @@ function StaffStep({
 function SummaryStep({
   players,
   staff,
+  isSubmitting,
+  onSubmit,
 }: Readonly<{
   players: readonly PlayerListItem[];
   staff: readonly StaffListItem[];
+  isSubmitting: boolean;
+  onSubmit: () => void;
 }>) {
   const missingNumbers = players.filter(
     (player) => player.shirtNumber === null,
@@ -318,8 +401,12 @@ function SummaryStep({
           Controlli superati.
         </p>
       )}
-      <Button disabled={missingNumbers > 0} type="button">
-        Invia distinta
+      <Button
+        disabled={missingNumbers > 0 || isSubmitting}
+        onClick={onSubmit}
+        type="button"
+      >
+        {isSubmitting ? "Invio..." : "Invia distinta"}
       </Button>
     </Card>
   );
