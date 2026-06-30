@@ -111,3 +111,16 @@ Milestone 10 provides the first complete application-layer runtime:
 - `FederationSyncService` coordinates federation, club, referee, player, staff and match synchronization through injected repositories.
 
 The application layer remains independent from REST APIs and frontend concerns. PostgreSQL migrations and Supabase RLS policies are not modified by the runtime layer.
+
+## REST API Layer
+
+Sprint 11 adds the REST API layer on top of the frozen application services:
+
+- `/api/health` exposes the health check;
+- `/api/v1` contains versioned domain routes;
+- controllers validate input, delegate to services or read-only repository access, and return DTO-compatible responses;
+- middleware provides request id, correlation id, logging, authentication, authorization and centralized error handling;
+- `/api/docs/openapi.json` exposes the OpenAPI 3.1 document;
+- `/api/docs/swagger` serves an embedded documentation page.
+
+The REST layer does not modify PostgreSQL migrations, Supabase RLS policies, repositories, services, Event Engine, Master Bible, Domain Model or Product Tree.

@@ -6,6 +6,7 @@ import {
   MatchReportRepository,
   MatchRepository,
   MatchSheetRepository,
+  PhotoRepository,
   PlayerRepository,
   RecognitionRepository,
   RefereeRepository,
@@ -29,6 +30,7 @@ export interface ApplicationContainer {
     readonly matches: MatchRepository;
     readonly matchReports: MatchReportRepository;
     readonly matchSheets: MatchSheetRepository;
+    readonly photos: PhotoRepository;
     readonly players: PlayerRepository;
     readonly recognitions: RecognitionRepository;
     readonly referees: RefereeRepository;
@@ -53,6 +55,7 @@ export function createApplicationContainer(): ApplicationContainer {
     matches: new MatchRepository(),
     matchReports: new MatchReportRepository(),
     matchSheets: new MatchSheetRepository(),
+    photos: new PhotoRepository(),
     players: new PlayerRepository(),
     recognitions: new RecognitionRepository(),
     referees: new RefereeRepository(),
