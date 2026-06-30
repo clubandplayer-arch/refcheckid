@@ -1,0 +1,505 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  federationDashboard,
+  federationHistory,
+  federationMatches,
+  federationReports,
+  photoRequests,
+} from "@/lib/federation-mock-data";
+import type {
+  FederationHistoryItem,
+  FederationMatchListItem,
+  FederationReport,
+  FederationReportEvent,
+  FederationReportStatus,
+  PhotoRequest,
+  PhotoRequestStatus,
+} from "@/lib/federation-types";
+
+const sections = [
+  "Dashboard",
+  "Calendario",
+  "Referti",
+  "Foto",
+  "Storico",
+] as const;
+const reportStatuses: readonly ("all" | FederationReportStatus)[] = [
+  "all",
+  "missing",
+  "draft",
+  "submitted",
+  "reviewed",
+];
+
+export function FederationWorkflow() {
+  const [section, setSection] = useState(0);
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+      <aside className="space-y-2">
+        {sections.map((label, index) => (
+          <button
+            className={`w-full rounded-lg px-3 py-2 text-left text-sm ${section === index ? "bg-primary text-white" : "bg-muted"}`}
+            key={label}
+            onClick={() => setSection(index)}
+            type="button"
+          >
+            {label}
+          </button>
+        ))}
+      </aside>
+      {section === 0 ? <FederationDashboardPanel /> : null}
+      {section === 1 ? <MatchCalendarPanel /> : null}
+      {section === 2 ? <ReportsPanel /> : null}
+      {section === 3 ? <PhotoRequestsPanel /> : null}
+      {section === 4 ? <HistoryPanel /> : null}
+    </div>
+  );
+}
+
+function FederationDashboardPanel() {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard
+          label="Referti ricevuti"
+          value={String(federationDashboard.reportsReceived)}
+        />
+        <StatCard
+          label="Richieste foto"
+          value={String(federationDashboard.pendingPhotoRequests)}
+        />
+        <StatCard
+          label="Sincronizzazioni"
+          value={federationDashboard.syncStatus.toUpperCase()}
+        />
+      </div>
+      <Card>
+        <h2 className="font-semibold">Notifiche operative</h2>
+        <ul className="mt-3 space-y-2 text-sm">
+          {federationDashboard.notifications.length === 0 ? (
+            <li>Nessuna notifica operativa.</li>
+          ) : null}
+          {federationDashboard.notifications.map((notification) => (
+            <li key={notification}>• {notification}</li>
+          ))}
+        </ul>
+      </Card>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+}: Readonly<{ label: string; value: string }>) {
+  return (
+    <Card>
+      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
+      <p className="mt-2 text-3xl font-bold">{value}</p>
+    </Card>
+  );
+}
+
+function MatchCalendarPanel() {
+  const [matchday, setMatchday] = useState("all");
+  const [status, setStatus] = useState<(typeof reportStatuses)[number]>("all");
+  const filteredMatches = useMemo(
+    () =>
+      federationMatches.filter((match) => {
+        const matchdayMatches =
+          matchday === "all" || String(match.matchday) === matchday;
+        const statusMatches = status === "all" || match.reportStatus === status;
+        return matchdayMatches && statusMatches;
+      }),
+    [matchday, status],
+  );
+
+  return (
+    <Card className="space-y-4">
+      <div>
+        <h2 className="text-xl font-bold">Calendario gare</h2>
+        <p className="text-sm text-slate-500">
+          Filtra per giornata e stato referto.
+        </p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="space-y-1 text-sm font-medium">
+          Giornata
+          <select
+            className="w-full rounded-lg border bg-background px-3 py-2"
+            onChange={(event) => setMatchday(event.target.value)}
+            value={matchday}
+          >
+            <option value="all">Tutte</option>
+            {[...new Set(federationMatches.map((match) => match.matchday))].map(
+              (day) => (
+                <option key={day} value={day}>
+                  {day}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+        <label className="space-y-1 text-sm font-medium">
+          Stato referto
+          <select
+            className="w-full rounded-lg border bg-background px-3 py-2"
+            onChange={(event) =>
+              setStatus(event.target.value as (typeof reportStatuses)[number])
+            }
+            value={status}
+          >
+            {reportStatuses.map((reportStatus) => (
+              <option key={reportStatus} value={reportStatus}>
+                {reportStatus}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <MatchList matches={filteredMatches} />
+    </Card>
+  );
+}
+
+function MatchList({
+  matches,
+}: Readonly<{ matches: readonly FederationMatchListItem[] }>) {
+  if (matches.length === 0) {
+    return (
+      <p className="rounded-xl bg-muted p-4 text-sm">
+        Nessuna gara trovata con i filtri selezionati.
+      </p>
+    );
+  }
+
+  return (
+    <div className="divide-y rounded-xl border">
+      {matches.map((match) => (
+        <div
+          className="grid gap-2 p-4 text-sm lg:grid-cols-[80px_1fr_160px_140px_140px]"
+          key={match.id}
+        >
+          <span>G{match.matchday}</span>
+          <span className="font-semibold">
+            {match.homeTeam} - {match.awayTeam}
+          </span>
+          <span>{match.refereeName}</span>
+          <StatusBadge label={match.matchStatus} />
+          <StatusBadge label={match.reportStatus} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ReportsPanel() {
+  const [selectedReportId, setSelectedReportId] = useState(
+    federationReports[0]?.id ?? null,
+  );
+  const selectedReport =
+    federationReports.find((report) => report.id === selectedReportId) ?? null;
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
+      <Card className="space-y-3">
+        <h2 className="text-xl font-bold">Referti ricevuti</h2>
+        <ReportList
+          reports={federationReports}
+          selectedReportId={selectedReportId}
+          onSelect={setSelectedReportId}
+        />
+      </Card>
+      {selectedReport ? (
+        <ReportDetail report={selectedReport} />
+      ) : (
+        <EmptyState message="Seleziona un referto." />
+      )}
+    </div>
+  );
+}
+
+function ReportList({
+  reports,
+  selectedReportId,
+  onSelect,
+}: Readonly<{
+  reports: readonly FederationReport[];
+  selectedReportId: string | null;
+  onSelect: (id: string) => void;
+}>) {
+  if (reports.length === 0) {
+    return <EmptyState message="Nessun referto ricevuto." />;
+  }
+
+  return (
+    <div className="space-y-2">
+      {reports.map((report) => (
+        <button
+          className={`w-full rounded-xl border p-3 text-left ${selectedReportId === report.id ? "border-primary bg-muted" : ""}`}
+          key={report.id}
+          onClick={() => onSelect(report.id)}
+          type="button"
+        >
+          <p className="font-semibold">
+            {report.homeTeam} - {report.awayTeam}
+          </p>
+          <p className="text-xs text-slate-500">
+            {report.refereeName} ·{" "}
+            {new Date(report.submittedAt).toLocaleString("it-IT")}
+          </p>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ReportDetail({ report }: Readonly<{ report: FederationReport }>) {
+  return (
+    <Card className="space-y-4">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-primary">
+            Dettaglio referto in sola lettura
+          </p>
+          <h2 className="text-2xl font-bold">
+            {report.homeTeam} - {report.awayTeam}
+          </h2>
+          <p className="text-sm text-slate-500">
+            Arbitro: {report.refereeName}
+          </p>
+        </div>
+        <StatusBadge
+          label={`${report.result.homeGoals}-${report.result.awayGoals}`}
+        />
+      </div>
+      <ReportEvents title="Gol" events={report.goals} />
+      <ReportEvents title="Ammonizioni" events={report.cautions} />
+      <ReportEvents title="Espulsioni" events={report.expulsions} />
+      <ReportEvents title="Sostituzioni" events={report.substitutions} />
+      <ReadOnlyNotes title="Note arbitro" value={report.refereeNotes} />
+      {report.commissionerNotes ? (
+        <ReadOnlyNotes
+          title="Note commissario"
+          value={report.commissionerNotes}
+        />
+      ) : null}
+    </Card>
+  );
+}
+
+function ReportEvents({
+  title,
+  events,
+}: Readonly<{ title: string; events: readonly FederationReportEvent[] }>) {
+  return (
+    <section className="space-y-2">
+      <h3 className="font-semibold">{title}</h3>
+      {events.length === 0 ? (
+        <p className="rounded-xl bg-muted p-3 text-sm">Nessun evento.</p>
+      ) : null}
+      {events.map((event) => (
+        <div
+          className="grid gap-1 rounded-xl border p-3 text-sm md:grid-cols-[70px_1fr_1fr]"
+          key={event.id}
+        >
+          <span>{event.minute}&apos;</span>
+          <span>{event.teamName}</span>
+          <span>
+            {event.playerName} · {event.detail}
+          </span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function ReadOnlyNotes({
+  title,
+  value,
+}: Readonly<{ title: string; value: string }>) {
+  return (
+    <section>
+      <h3 className="font-semibold">{title}</h3>
+      <p className="mt-2 rounded-xl bg-muted p-3 text-sm">{value}</p>
+    </section>
+  );
+}
+
+function PhotoRequestsPanel() {
+  const [requests, setRequests] =
+    useState<readonly PhotoRequest[]>(photoRequests);
+
+  function transitionRequest(
+    requestId: string,
+    status: Exclude<PhotoRequestStatus, "pending">,
+  ) {
+    setRequests((current) =>
+      current.map((request) =>
+        request.id === requestId ? { ...request, status } : request,
+      ),
+    );
+  }
+
+  return (
+    <Card className="space-y-4">
+      <div>
+        <h2 className="text-xl font-bold">Richieste foto</h2>
+        <p className="text-sm text-slate-500">
+          Confronta foto attuale e nuova proposta prima della decisione.
+        </p>
+      </div>
+      {requests.length === 0 ? (
+        <EmptyState message="Nessuna richiesta foto." />
+      ) : null}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {requests.map((request) => (
+          <PhotoRequestCard
+            key={request.id}
+            request={request}
+            transitionRequest={transitionRequest}
+          />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function PhotoRequestCard({
+  request,
+  transitionRequest,
+}: Readonly<{
+  request: PhotoRequest;
+  transitionRequest: (
+    requestId: string,
+    status: Exclude<PhotoRequestStatus, "pending">,
+  ) => void;
+}>) {
+  return (
+    <div className="space-y-3 rounded-xl border p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-bold">{request.playerName}</h3>
+          <p className="text-sm text-slate-500">{request.clubName}</p>
+        </div>
+        <StatusBadge label={request.status} />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <PhotoBox label="Foto attuale" photoUrl={request.currentPhotoUrl} />
+        <PhotoBox label="Nuova proposta" photoUrl={request.proposedPhotoUrl} />
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Button
+          disabled={request.status !== "pending"}
+          onClick={() => transitionRequest(request.id, "approved")}
+          type="button"
+        >
+          Approva
+        </Button>
+        <Button
+          className="bg-red-600"
+          disabled={request.status !== "pending"}
+          onClick={() => transitionRequest(request.id, "rejected")}
+          type="button"
+        >
+          Rifiuta
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function PhotoBox({
+  label,
+  photoUrl,
+}: Readonly<{ label: string; photoUrl: string | null }>) {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-semibold">{label}</p>
+      <div className="flex aspect-square items-center justify-center rounded-xl bg-muted text-sm text-slate-500">
+        {photoUrl ? "Foto" : "Nessuna immagine"}
+      </div>
+    </div>
+  );
+}
+
+function HistoryPanel() {
+  const [query, setQuery] = useState("");
+  const filteredHistory = useMemo(
+    () =>
+      federationHistory.filter((item) => {
+        const searchable =
+          `${item.matchLabel} ${item.clubNames.join(" ")} ${item.refereeName}`.toLowerCase();
+        return searchable.includes(query.toLowerCase());
+      }),
+    [query],
+  );
+
+  return (
+    <Card className="space-y-4">
+      <div>
+        <h2 className="text-xl font-bold">Storico</h2>
+        <p className="text-sm text-slate-500">
+          Ricerca gara, società o arbitro e accedi a referto e audit sintetico.
+        </p>
+      </div>
+      <Input
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Cerca gara, società o arbitro"
+        value={query}
+      />
+      {filteredHistory.length === 0 ? (
+        <EmptyState message="Nessun elemento storico trovato." />
+      ) : null}
+      <div className="space-y-3">
+        {filteredHistory.map((item) => (
+          <HistoryCard item={item} key={item.id} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function HistoryCard({ item }: Readonly<{ item: FederationHistoryItem }>) {
+  return (
+    <div className="rounded-xl border p-4">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h3 className="font-bold">{item.matchLabel}</h3>
+          <p className="text-sm text-slate-500">Arbitro: {item.refereeName}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button type="button">Apri referto</Button>
+          <Button className="bg-slate-700" type="button">
+            Audit sintetico
+          </Button>
+        </div>
+      </div>
+      <ul className="mt-3 space-y-1 text-sm">
+        {item.auditSummary.map((entry) => (
+          <li key={entry}>• {entry}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function StatusBadge({ label }: Readonly<{ label: string }>) {
+  return (
+    <span className="inline-flex w-fit rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase">
+      {label}
+    </span>
+  );
+}
+
+function EmptyState({ message }: Readonly<{ message: string }>) {
+  return (
+    <p className="rounded-xl bg-muted p-4 text-sm text-slate-500">{message}</p>
+  );
+}

@@ -23,6 +23,16 @@ Questo modulo implementa il workflow completo dell’arbitro:
 4. referto con risultato, gol, ammonizioni, espulsioni, sostituzioni, note, riepilogo e invio;
 5. stati loading-ready, empty state ed error state predisposti nei componenti e nei dati di interfaccia.
 
+## Area Federazione
+
+Questo modulo implementa il workflow completo della federazione:
+
+1. dashboard con referti ricevuti, richieste foto, sincronizzazioni e notifiche operative;
+2. calendario gare con stato gara, stato referto e filtri per giornata/stato;
+3. referti ricevuti con dettaglio in sola lettura, risultato, eventi, note arbitro e note commissario;
+4. richieste foto con foto attuale, proposta, approvazione/rifiuto e stato;
+5. storico con ricerca per gara, società o arbitro, accesso referto e audit sintetico.
+
 Il frontend utilizza esclusivamente il layer REST API esistente e non introduce backend, database o nuove API.
 
 ## Comandi
