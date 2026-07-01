@@ -48,6 +48,7 @@ export interface RecognitionSubject {
 
 export interface MatchReportDraft {
   id: string | null;
+  status: string;
   homeGoals: number;
   awayGoals: number;
   goals: readonly MatchReportEvent[];
@@ -63,4 +64,9 @@ export interface MatchReportEvent {
   teamName: string;
   playerName: string;
   detail: string;
+  shirtNumber?: number | null;
+  outgoingShirtNumber?: number | null;
+  outgoingPlayerName?: string;
+  incomingShirtNumber?: number | null;
+  incomingPlayerName?: string;
 }

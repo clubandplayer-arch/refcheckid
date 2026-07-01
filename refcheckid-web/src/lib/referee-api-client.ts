@@ -126,6 +126,7 @@ function toTeamSheetVerification(
 function toReportDraft(report: ApiReport | null): MatchReportDraft {
   return {
     id: report?.id ?? null,
+    status: report?.status ?? "draft",
     awayGoals: 0,
     cautions: [],
     expulsions: [],

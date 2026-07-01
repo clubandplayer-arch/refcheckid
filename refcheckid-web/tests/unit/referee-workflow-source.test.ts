@@ -18,7 +18,7 @@ describe("regression: referee smoke workflow", () => {
   it("shows locked recognition as terminal and routes to the report", () => {
     expect(source).toContain("Riconoscimento LOCKED");
     expect(source).toContain("Puoi proseguire solo con il referto");
-    expect(source).toContain("Vai al referto");
+    expect(source).toContain("Chiudi riconoscimento e vai al referto");
   });
 
   it("exposes editable report sections for goals, cards, dismissals and substitutions", () => {
@@ -28,5 +28,13 @@ describe("regression: referee smoke workflow", () => {
     expect(source).toContain('eventKey="substitutions"');
     expect(source).toContain("Aggiungi");
     expect(source).toContain("Rimuovi");
+    expect(source).toContain("Tipo gol");
+    expect(source).toContain("Numero uscente");
+    expect(source).toContain("Numero entrante");
+  });
+
+  it("makes submitted reports read-only", () => {
+    expect(source).toContain("isReadOnly");
+    expect(source).toContain("disabled={readOnly}");
   });
 });

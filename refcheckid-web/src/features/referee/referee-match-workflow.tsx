@@ -9,6 +9,14 @@ import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { useToast } from "@/components/ui/toast";
 import { queryKeys } from "@/lib/api-client";
 import {
+  cautionReasons,
+  expulsionReasons,
+  goalTypes,
+  reportTeams,
+  resolveReportPlayerName,
+  validateReportDraft,
+} from "@/lib/referee-report-validation";
+import {
   completeRecognition,
   fetchRecognitionSubjects,
   fetchRefereeDashboard,
@@ -21,7 +29,6 @@ import type {
   MatchReportDraft,
   MatchReportEvent,
   RecognitionDecision,
-  RecognitionSubject,
   TeamSheetVerification,
 } from "@/lib/referee-types";
 import { useSession } from "@/lib/session";
@@ -222,7 +229,7 @@ function RecognitionStep({
           Il riconoscimento è chiuso. Puoi proseguire solo con il referto.
         </p>
         <Button onClick={onComplete} type="button">
-          Vai al referto
+          Referto
         </Button>
       </Card>
     );
@@ -258,7 +265,7 @@ function RecognitionStep({
           onClick={() => mutation.mutate()}
           type="button"
         >
-          Vai al referto
+          Chiudi riconoscimento e vai al referto
         </Button>
       </Card>
     );
@@ -345,10 +352,14 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
   });
   const [step, setStep] = useState(0);
   const [report, setReport] = useState<MatchReportDraft | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const currentReport = report ?? query.data;
+  const reportErrors = currentReport ? validateReportDraft(currentReport) : [];
+  const isReadOnly = isSubmitted || currentReport?.status === "submitted";
   const submitMutation = useMutation({
     mutationFn: () => submitMatchReport(currentReport?.id ?? matchId),
     onSuccess() {
+      setIsSubmitted(true);
       notify("Referto inviato", "success");
       void queryClient.invalidateQueries({ queryKey: queryKeys.matchReports });
     },
@@ -385,11 +396,16 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
         ))}
       </div>
       {currentStep === "Risultato" ? (
-        <ResultPanel report={currentReport} setReport={setReport} />
+        <ResultPanel
+          readOnly={isReadOnly}
+          report={currentReport}
+          setReport={setReport}
+        />
       ) : null}
       {currentStep === "Gol" ? (
         <EventsPanel
           eventKey="goals"
+          readOnly={isReadOnly}
           report={currentReport}
           setReport={setReport}
           title="Gol"
@@ -398,6 +414,7 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
       {currentStep === "Ammonizioni" ? (
         <EventsPanel
           eventKey="cautions"
+          readOnly={isReadOnly}
           report={currentReport}
           setReport={setReport}
           title="Ammonizioni"
@@ -406,6 +423,7 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
       {currentStep === "Espulsioni" ? (
         <EventsPanel
           eventKey="expulsions"
+          readOnly={isReadOnly}
           report={currentReport}
           setReport={setReport}
           title="Espulsioni"
@@ -414,6 +432,7 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
       {currentStep === "Sostituzioni" ? (
         <EventsPanel
           eventKey="substitutions"
+          readOnly={isReadOnly}
           report={currentReport}
           setReport={setReport}
           title="Sostituzioni"
@@ -422,6 +441,7 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
       {currentStep === "Note" ? (
         <textarea
           className="min-h-32 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          disabled={isReadOnly}
           onChange={(event) =>
             setReport({ ...currentReport, refereeNotes: event.target.value })
           }
@@ -430,9 +450,20 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
       ) : null}
       {currentStep === "Riepilogo" ? (
         <div className="space-y-4">
-          <p className="rounded-lg bg-green-100 p-3 text-sm text-green-900">
-            Riepilogo pronto per l’invio.
-          </p>
+          {reportErrors.length === 0 ? (
+            <p className="rounded-lg bg-green-100 p-3 text-sm text-green-900">
+              Riepilogo pronto per l’invio.
+            </p>
+          ) : (
+            <div className="rounded-lg bg-red-100 p-3 text-sm text-red-900">
+              <p className="font-semibold">Referto non valido.</p>
+              <ul className="mt-2 list-disc pl-5">
+                {reportErrors.map((error) => (
+                  <li key={error}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <dl className="grid gap-2 rounded-lg border p-3 text-sm sm:grid-cols-2">
             <div className="flex justify-between gap-3">
               <dt>Gol registrati</dt>
@@ -456,7 +487,9 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
             </div>
           </dl>
           <Button
-            disabled={submitMutation.isPending}
+            disabled={
+              isReadOnly || reportErrors.length > 0 || submitMutation.isPending
+            }
             onClick={() => submitMutation.mutate()}
             type="button"
           >
@@ -476,11 +509,13 @@ type MatchReportEventKey =
 
 function EventsPanel({
   eventKey,
+  readOnly,
   report,
   setReport,
   title,
 }: Readonly<{
   eventKey: MatchReportEventKey;
+  readOnly: boolean;
   report: MatchReportDraft;
   setReport: (report: MatchReportDraft) => void;
   title: string;
@@ -491,28 +526,58 @@ function EventsPanel({
     setReport({ ...report, [eventKey]: nextEvents });
   }
 
+  function nextMinute() {
+    return Math.min((events.at(-1)?.minute ?? 0) + 1, 120);
+  }
+
   function addEvent() {
+    const baseEvent: MatchReportEvent = {
+      detail: defaultDetail(eventKey),
+      id: `${eventKey}-${Date.now()}-${events.length + 1}`,
+      minute: nextMinute(),
+      playerName: "",
+      shirtNumber: null,
+      teamName: "Casa",
+    };
     setEvents([
       ...events,
-      {
-        detail: "",
-        id: `${eventKey}-${Date.now()}-${events.length + 1}`,
-        minute: 1,
-        playerName: "",
-        teamName: "",
-      },
+      eventKey === "substitutions"
+        ? {
+            ...baseEvent,
+            incomingPlayerName: "",
+            incomingShirtNumber: null,
+            outgoingPlayerName: "",
+            outgoingShirtNumber: null,
+          }
+        : baseEvent,
     ]);
   }
 
-  function updateEvent(
-    eventId: string,
-    field: keyof MatchReportEvent,
-    value: string | number,
-  ) {
+  function updateEvent(eventId: string, patch: Partial<MatchReportEvent>) {
     setEvents(
-      events.map((event) =>
-        event.id === eventId ? { ...event, [field]: value } : event,
-      ),
+      events.map((event) => {
+        if (event.id !== eventId) return event;
+        const nextEvent = { ...event, ...patch };
+        if ("teamName" in patch || "shirtNumber" in patch) {
+          nextEvent.playerName = resolveReportPlayerName(
+            nextEvent.teamName,
+            nextEvent.shirtNumber,
+          );
+        }
+        if ("teamName" in patch || "outgoingShirtNumber" in patch) {
+          nextEvent.outgoingPlayerName = resolveReportPlayerName(
+            nextEvent.teamName,
+            nextEvent.outgoingShirtNumber,
+          );
+        }
+        if ("teamName" in patch || "incomingShirtNumber" in patch) {
+          nextEvent.incomingPlayerName = resolveReportPlayerName(
+            nextEvent.teamName,
+            nextEvent.incomingShirtNumber,
+          );
+        }
+        return nextEvent;
+      }),
     );
   }
 
@@ -524,7 +589,7 @@ function EventsPanel({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-semibold">{title}</h3>
-        <Button onClick={addEvent} type="button">
+        <Button disabled={readOnly} onClick={addEvent} type="button">
           Aggiungi
         </Button>
       </div>
@@ -534,60 +599,49 @@ function EventsPanel({
         </p>
       ) : (
         <div className="space-y-3">
-          {events.map((event) => (
-            <div
-              className="grid gap-2 rounded-xl border p-3 md:grid-cols-[100px_1fr_1fr_1fr_auto]"
-              key={event.id}
-            >
-              <label className="space-y-1 text-sm font-medium">
-                Minuto
-                <Input
-                  min={1}
-                  onChange={(change) =>
-                    updateEvent(
-                      event.id,
-                      "minute",
-                      change.target.valueAsNumber || 1,
-                    )
-                  }
-                  type="number"
-                  value={event.minute}
+          {events.map((event, index) => (
+            <div className="rounded-xl border p-3" key={event.id}>
+              <div className="grid gap-2 md:grid-cols-5">
+                <MinuteField
+                  event={event}
+                  index={index}
+                  onChange={(minute) => updateEvent(event.id, { minute })}
+                  previousMinute={events[index - 1]?.minute ?? null}
+                  readOnly={readOnly}
                 />
-              </label>
-              <label className="space-y-1 text-sm font-medium">
-                Squadra
-                <Input
-                  onChange={(change) =>
-                    updateEvent(event.id, "teamName", change.target.value)
-                  }
-                  value={event.teamName}
+                <TeamField
+                  event={event}
+                  onChange={(teamName) => updateEvent(event.id, { teamName })}
+                  readOnly={readOnly}
                 />
-              </label>
-              <label className="space-y-1 text-sm font-medium">
-                Tesserato
-                <Input
-                  onChange={(change) =>
-                    updateEvent(event.id, "playerName", change.target.value)
-                  }
-                  value={event.playerName}
-                />
-              </label>
-              <label className="space-y-1 text-sm font-medium">
-                Dettaglio
-                <Input
-                  onChange={(change) =>
-                    updateEvent(event.id, "detail", change.target.value)
-                  }
-                  value={event.detail}
-                />
-              </label>
-              <Button
-                className="self-end bg-red-600"
-                onClick={() => removeEvent(event.id)}
-                type="button"
-              >
-                Rimuovi
-              </Button>
+                {eventKey === "substitutions" ? (
+                  <SubstitutionFields
+                    event={event}
+                    onChange={(patch) => updateEvent(event.id, patch)}
+                    readOnly={readOnly}
+                  />
+                ) : (
+                  <PlayerAndReasonFields
+                    event={event}
+                    eventKey={eventKey}
+                    onChange={(patch) => updateEvent(event.id, patch)}
+                    readOnly={readOnly}
+                  />
+                )}
+                <Button
+                  className="self-end bg-red-600"
+                  disabled={readOnly}
+                  onClick={() => removeEvent(event.id)}
+                  type="button"
+                >
+                  Rimuovi
+                </Button>
+              </div>
+              {event.minute < (events[index - 1]?.minute ?? 0) ? (
+                <p className="mt-2 rounded bg-red-100 p-2 text-sm text-red-900">
+                  Evento fuori ordine cronologico.
+                </p>
+              ) : null}
             </div>
           ))}
         </div>
@@ -596,10 +650,187 @@ function EventsPanel({
   );
 }
 
+function defaultDetail(eventKey: MatchReportEventKey) {
+  if (eventKey === "goals") return goalTypes[0];
+  if (eventKey === "cautions") return cautionReasons[0];
+  if (eventKey === "expulsions") return expulsionReasons[0];
+  return "";
+}
+
+function MinuteField({
+  event,
+  index,
+  onChange,
+  previousMinute,
+  readOnly,
+}: Readonly<{
+  event: MatchReportEvent;
+  index: number;
+  onChange: (minute: number) => void;
+  previousMinute: number | null;
+  readOnly: boolean;
+}>) {
+  return (
+    <label className="space-y-1 text-sm font-medium">
+      Minuto
+      <Input
+        disabled={readOnly}
+        max={120}
+        min={previousMinute ?? 1}
+        onChange={(change) => onChange(change.target.valueAsNumber || 1)}
+        type="number"
+        value={event.minute}
+      />
+      {index > 0 ? (
+        <span className="text-xs text-slate-500">Minimo {previousMinute}</span>
+      ) : null}
+    </label>
+  );
+}
+
+function TeamField({
+  event,
+  onChange,
+  readOnly,
+}: Readonly<{
+  event: MatchReportEvent;
+  onChange: (teamName: string) => void;
+  readOnly: boolean;
+}>) {
+  return (
+    <label className="space-y-1 text-sm font-medium">
+      Squadra
+      <select
+        className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+        disabled={readOnly}
+        onChange={(change) => onChange(change.target.value)}
+        value={event.teamName}
+      >
+        {reportTeams.map((team) => (
+          <option key={team} value={team}>
+            {team}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function PlayerAndReasonFields({
+  event,
+  eventKey,
+  onChange,
+  readOnly,
+}: Readonly<{
+  event: MatchReportEvent;
+  eventKey: Exclude<MatchReportEventKey, "substitutions">;
+  onChange: (patch: Partial<MatchReportEvent>) => void;
+  readOnly: boolean;
+}>) {
+  const reasonOptions =
+    eventKey === "goals"
+      ? goalTypes
+      : eventKey === "cautions"
+        ? cautionReasons
+        : expulsionReasons;
+  const detailLabel = eventKey === "goals" ? "Tipo gol" : "Motivo";
+  return (
+    <>
+      <label className="space-y-1 text-sm font-medium">
+        Numero maglia
+        <Input
+          disabled={readOnly}
+          max={99}
+          min={1}
+          onChange={(change) =>
+            onChange({ shirtNumber: change.target.valueAsNumber || null })
+          }
+          type="number"
+          value={event.shirtNumber ?? ""}
+        />
+      </label>
+      <label className="space-y-1 text-sm font-medium">
+        Tesserato
+        <Input disabled readOnly value={event.playerName} />
+      </label>
+      <label className="space-y-1 text-sm font-medium">
+        {detailLabel}
+        <select
+          className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          disabled={readOnly}
+          onChange={(change) => onChange({ detail: change.target.value })}
+          value={event.detail}
+        >
+          {reasonOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
+    </>
+  );
+}
+
+function SubstitutionFields({
+  event,
+  onChange,
+  readOnly,
+}: Readonly<{
+  event: MatchReportEvent;
+  onChange: (patch: Partial<MatchReportEvent>) => void;
+  readOnly: boolean;
+}>) {
+  return (
+    <>
+      <label className="space-y-1 text-sm font-medium">
+        Numero uscente
+        <Input
+          disabled={readOnly}
+          max={99}
+          min={1}
+          onChange={(change) =>
+            onChange({
+              outgoingShirtNumber: change.target.valueAsNumber || null,
+            })
+          }
+          type="number"
+          value={event.outgoingShirtNumber ?? ""}
+        />
+      </label>
+      <label className="space-y-1 text-sm font-medium">
+        Tesserato uscente
+        <Input disabled readOnly value={event.outgoingPlayerName ?? ""} />
+      </label>
+      <label className="space-y-1 text-sm font-medium">
+        Numero entrante
+        <Input
+          disabled={readOnly}
+          max={99}
+          min={1}
+          onChange={(change) =>
+            onChange({
+              incomingShirtNumber: change.target.valueAsNumber || null,
+            })
+          }
+          type="number"
+          value={event.incomingShirtNumber ?? ""}
+        />
+      </label>
+      <label className="space-y-1 text-sm font-medium">
+        Tesserato entrante
+        <Input disabled readOnly value={event.incomingPlayerName ?? ""} />
+      </label>
+    </>
+  );
+}
+
 function ResultPanel({
+  readOnly,
   report,
   setReport,
 }: Readonly<{
+  readOnly: boolean;
   report: MatchReportDraft;
   setReport: (report: MatchReportDraft) => void;
 }>) {
@@ -608,6 +839,7 @@ function ResultPanel({
       <label className="space-y-1 text-sm font-medium">
         Gol casa
         <Input
+          disabled={readOnly}
           min={0}
           onChange={(event) =>
             setReport({ ...report, homeGoals: event.target.valueAsNumber || 0 })
@@ -619,6 +851,7 @@ function ResultPanel({
       <label className="space-y-1 text-sm font-medium">
         Gol ospite
         <Input
+          disabled={readOnly}
           min={0}
           onChange={(event) =>
             setReport({ ...report, awayGoals: event.target.valueAsNumber || 0 })
