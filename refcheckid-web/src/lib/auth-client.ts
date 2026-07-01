@@ -41,7 +41,7 @@ export async function authenticateWithPassword(input: {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Network/CORS error";
-    console.error("[RefCheckID][auth] login network or CORS failure", { error: message, url });
+    console.warn("[RefCheckID][auth] login network or CORS failure", { error: message, url });
     throw new AuthError("INVALID_CREDENTIALS", "Accesso non riuscito.", {
       corsOrNetworkError: message,
       url,

@@ -23,6 +23,12 @@ describe("unit: auth client", () => {
       }),
     }));
     vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("window", {
+      location: {
+        hostname: "obscure-space-system-r4vwjw76p6wrcp6wp-3000.app.github.dev",
+        protocol: "https:",
+      },
+    });
 
     await expect(
       authenticateWithPassword({
@@ -32,7 +38,7 @@ describe("unit: auth client", () => {
     ).resolves.toMatchObject({ user: { role: "manager" } });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:4000/api/v1/auth/login",
+      "/api/v1/auth/login",
       expect.objectContaining({ method: "POST" }),
     );
   });
