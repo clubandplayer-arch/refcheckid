@@ -1,6 +1,5 @@
+import { getApiBaseUrl } from "./api-base-url";
 import type { AppSession } from "./session";
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
 
 export type AuthErrorCode =
   | "INVALID_CREDENTIALS"
@@ -21,7 +20,7 @@ export async function authenticateWithPassword(input: {
   email: string;
   password: string;
 }): Promise<AppSession> {
-  const response = await fetch(`${apiBaseUrl}/auth/login`, {
+  const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
@@ -36,7 +35,7 @@ export async function authenticateWithPassword(input: {
 }
 
 export async function logoutSession(refreshToken: string): Promise<void> {
-  await fetch(`${apiBaseUrl}/auth/logout`, {
+  await fetch(`${getApiBaseUrl()}/auth/logout`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ refreshToken }),

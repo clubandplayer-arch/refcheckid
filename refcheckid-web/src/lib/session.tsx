@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { getApiBaseUrl } from "./api-base-url";
 
 export type AppRole = "manager" | "referee" | "federation";
 
@@ -109,8 +110,7 @@ export function isSessionExpired(session: AppSession): boolean {
 }
 
 async function refreshStoredSession(refreshToken: string): Promise<AppSession | null> {
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
-  const response = await fetch(`${apiBaseUrl}/auth/refresh`, {
+  const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ refreshToken }),

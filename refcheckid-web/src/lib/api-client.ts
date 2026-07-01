@@ -1,7 +1,6 @@
+import { getApiBaseUrl } from "./api-base-url";
 import { isSessionExpired, readStoredSession } from "./session";
 import type { ManagerDashboard, PlayerListItem, StaffListItem } from "./types";
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
 
 export interface ApiMatch {
   id: string;
@@ -175,7 +174,7 @@ export async function request<TResponse>(
     window.localStorage.removeItem("refcheckid.session");
   }
   const activeSession = session && !isSessionExpired(session) ? session : null;
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",
