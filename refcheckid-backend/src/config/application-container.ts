@@ -20,6 +20,7 @@ import {
   MatchSheetService,
   RecognitionService,
 } from '../services/index.js';
+import { pilotMatches, pilotMatchSheets } from './pilot-data.js';
 
 export interface ApplicationContainer {
   readonly events: EventDispatcher;
@@ -52,9 +53,9 @@ export function createApplicationContainer(): ApplicationContainer {
     audit: new AuditRepository(),
     clubs: new ClubRepository(),
     federations: new FederationRepository(),
-    matches: new MatchRepository(),
+    matches: new MatchRepository(pilotMatches),
     matchReports: new MatchReportRepository(),
-    matchSheets: new MatchSheetRepository(),
+    matchSheets: new MatchSheetRepository(pilotMatchSheets),
     photos: new PhotoRepository(),
     players: new PlayerRepository(),
     recognitions: new RecognitionRepository(),
