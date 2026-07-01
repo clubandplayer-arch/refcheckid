@@ -4,6 +4,7 @@ import {
   fetchMatchReports,
   fetchMatchSheets,
   fetchPlayers,
+  lockMatchSheet,
   startRecognition,
   submitMatchReport,
 } from "./api-client";
@@ -33,7 +34,7 @@ export async function fetchRefereeMatchSheets(
   const sheets = await fetchMatchSheets(
     `?matchId=${encodeURIComponent(matchId)}`,
   );
-  return sheets.map(toTeamSheetVerification);
+  return sheets.map((sheet, index) => toTeamSheetVerification(sheet, index));
 }
 
 export async function fetchRecognitionSubjects(): Promise<
@@ -66,7 +67,21 @@ export async function fetchRefereeReport(
   return toReportDraft(report ?? null);
 }
 
-export { completeRecognition, startRecognition, submitMatchReport };
+export async function lockSubmittedSheetsAndStartRecognition(
+  matchId: string,
+): Promise<unknown> {
+  const sheets = await fetchMatchSheets(
+    `?matchId=${encodeURIComponent(matchId)}`,
+  );
+  await Promise.all(
+    sheets
+      .filter((sheet) => sheet.status !== "locked")
+      .map((sheet) => lockMatchSheet(sheet.id)),
+  );
+  return startRecognition(matchId);
+}
+
+export { completeRecognition, submitMatchReport };
 
 function toRefereeMatch(
   match: ApiMatch,
@@ -86,10 +101,15 @@ function toRefereeMatch(
   };
 }
 
-function toTeamSheetVerification(sheet: ApiMatchSheet): TeamSheetVerification {
+function toTeamSheetVerification(
+  sheet: ApiMatchSheet,
+  index: number,
+): TeamSheetVerification {
+  const team = index === 0 ? "home" : "away";
   return {
     id: sheet.id,
-    clubName: sheet.clubId,
+    clubName:
+      team === "home" ? `Casa · ${sheet.clubId}` : `Ospite · ${sheet.clubId}`,
     playerCount: 0,
     staffCount: 0,
     status:
@@ -99,12 +119,13 @@ function toTeamSheetVerification(sheet: ApiMatchSheet): TeamSheetVerification {
           ? "submitted"
           : "missing",
     submittedAt: sheet.submittedAt,
-    team: "home",
+    team,
   };
 }
 
 function toReportDraft(report: ApiReport | null): MatchReportDraft {
   return {
+    id: report?.id ?? null,
     awayGoals: 0,
     cautions: [],
     expulsions: [],

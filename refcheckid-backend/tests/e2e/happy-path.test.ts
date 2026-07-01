@@ -13,7 +13,7 @@ describe('e2e happy path: manager, referee, federation', () => {
     await app.services.matchSheets.lockMatchSheet(ids.homeSheet);
     await app.services.matchSheets.lockMatchSheet(ids.awaySheet);
     await expect(app.services.recognitions.startRecognition(ids.match)).resolves.toMatchObject({ status: 'in_progress' });
-    await expect(app.services.recognitions.completeRecognition(ids.match)).resolves.toMatchObject({ status: 'completed' });
+    await expect(app.services.recognitions.completeRecognition(ids.match)).resolves.toMatchObject({ status: 'locked' });
     await app.services.matches.transitionMatchStatus(ids.match, 'in_progress');
     await app.services.matches.transitionMatchStatus(ids.match, 'completed');
     const report = await app.services.matchReports.createMatchReport({ matchId: ids.match, refereeId: ids.referee, summary: 'Referto completo.' });

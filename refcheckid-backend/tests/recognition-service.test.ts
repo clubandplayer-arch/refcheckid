@@ -182,12 +182,12 @@ describe('RecognitionService', () => {
     expect(recognitionsRepository.workflowUpdates).toEqual([]);
   });
 
-  it('rejects starting completed recognition', async () => {
+  it('rejects starting locked recognition', async () => {
     const service = new RecognitionService({
       matchSheetsRepository: new FakeMatchSheetRepository([
         buildMatchSheet('20000000-0000-0000-0000-000000000101'),
       ]),
-      recognitionsRepository: new FakeRecognitionRepository([], { matchId, status: 'completed' }),
+      recognitionsRepository: new FakeRecognitionRepository([], { matchId, status: 'locked' }),
     });
 
     await expect(service.startRecognition(matchId)).rejects.toBeInstanceOf(
@@ -195,7 +195,7 @@ describe('RecognitionService', () => {
     );
   });
 
-  it('completes in-progress recognition', async () => {
+  it('locks in-progress recognition', async () => {
     const recognitionsRepository = new FakeRecognitionRepository([], {
       matchId,
       status: 'in_progress',
@@ -207,9 +207,9 @@ describe('RecognitionService', () => {
 
     await expect(service.completeRecognition(matchId)).resolves.toEqual({
       matchId,
-      status: 'completed',
+      status: 'locked',
     });
-    expect(recognitionsRepository.workflowUpdates).toEqual([{ matchId, status: 'completed' }]);
+    expect(recognitionsRepository.workflowUpdates).toEqual([{ matchId, status: 'locked' }]);
   });
 
   it('rejects completing recognition before it is started', async () => {
@@ -223,10 +223,10 @@ describe('RecognitionService', () => {
     );
   });
 
-  it('keeps completed recognition terminal and unchanged', async () => {
+  it('keeps locked recognition terminal and unchanged', async () => {
     const recognitionsRepository = new FakeRecognitionRepository([], {
       matchId,
-      status: 'completed',
+      status: 'locked',
     });
     const service = new RecognitionService({
       matchSheetsRepository: new FakeMatchSheetRepository(),
@@ -235,7 +235,7 @@ describe('RecognitionService', () => {
 
     await expect(service.completeRecognition(matchId)).resolves.toEqual({
       matchId,
-      status: 'completed',
+      status: 'locked',
     });
     expect(recognitionsRepository.workflowUpdates).toEqual([]);
   });

@@ -47,6 +47,7 @@ export interface RecognitionSubject {
 }
 
 export interface MatchReportDraft {
+  id: string | null;
   homeGoals: number;
   awayGoals: number;
   goals: readonly MatchReportEvent[];

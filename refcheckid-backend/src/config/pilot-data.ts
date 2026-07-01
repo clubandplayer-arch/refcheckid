@@ -1,4 +1,4 @@
-import type { Match, MatchSheet, UUID } from '../domain/index.js';
+import type { Match, MatchReport, MatchSheet, UUID } from '../domain/index.js';
 
 export const pilotIds = {
   awayClub: '70000000-0000-4000-8000-000000000004',
@@ -7,6 +7,7 @@ export const pilotIds = {
   homeClub: '70000000-0000-4000-8000-000000000003',
   homeSheet: '70000000-0000-4000-8000-000000000007',
   match: '70000000-0000-4000-8000-000000000006',
+  report: '70000000-0000-4000-8000-000000000009',
   referee: '70000000-0000-4000-8000-000000000005',
 } as const satisfies Record<string, UUID>;
 
@@ -46,8 +47,22 @@ export const pilotMatchSheets: readonly MatchSheet[] = [
     deletedAt: null,
     id: pilotIds.awaySheet,
     matchId: pilotIds.match,
+    status: 'submitted',
+    submittedAt: timestamp,
+    updatedAt: timestamp,
+  },
+];
+
+export const pilotMatchReports: readonly MatchReport[] = [
+  {
+    createdAt: timestamp,
+    deletedAt: null,
+    id: pilotIds.report,
+    matchId: pilotIds.match,
+    refereeId: pilotIds.referee,
     status: 'draft',
     submittedAt: null,
+    summary: null,
     updatedAt: timestamp,
   },
 ];

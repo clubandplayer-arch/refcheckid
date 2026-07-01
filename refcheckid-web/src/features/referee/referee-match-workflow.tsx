@@ -14,11 +14,12 @@ import {
   fetchRefereeDashboard,
   fetchRefereeMatchSheets,
   fetchRefereeReport,
-  startRecognition,
+  lockSubmittedSheetsAndStartRecognition,
   submitMatchReport,
 } from "@/lib/referee-api-client";
 import type {
   MatchReportDraft,
+  MatchReportEvent,
   RecognitionDecision,
   RecognitionSubject,
   TeamSheetVerification,
@@ -38,6 +39,7 @@ const reportSteps = [
 
 export function RefereeMatchWorkflow() {
   const [step, setStep] = useState(0);
+  const [recognitionLocked, setRecognitionLocked] = useState(false);
   const { session } = useSession();
   const dashboardQuery = useQuery({
     enabled: Boolean(session),
@@ -75,7 +77,14 @@ export function RefereeMatchWorkflow() {
         <SheetVerificationStep matchId={matchId} onStart={() => setStep(1)} />
       ) : null}
       {step === 1 ? (
-        <RecognitionStep matchId={matchId} onComplete={() => setStep(2)} />
+        <RecognitionStep
+          isLocked={recognitionLocked}
+          matchId={matchId}
+          onComplete={() => {
+            setRecognitionLocked(true);
+            setStep(2);
+          }}
+        />
       ) : null}
       {step === 2 ? <MatchReportStep matchId={matchId} /> : null}
     </div>
@@ -91,7 +100,7 @@ function SheetVerificationStep({
     queryKey: [...queryKeys.matchSheets, matchId],
   });
   const mutation = useMutation({
-    mutationFn: () => startRecognition(matchId),
+    mutationFn: () => lockSubmittedSheetsAndStartRecognition(matchId),
     onSuccess: onStart,
   });
   if (query.isLoading) return <SkeletonBlock />;
@@ -103,8 +112,8 @@ function SheetVerificationStep({
       />
     );
   const sheets = query.data ?? [];
-  const allLocked =
-    sheets.length > 0 && sheets.every((sheet) => sheet.status === "locked");
+  const canStart =
+    sheets.length > 0 && sheets.every((sheet) => sheet.status !== "missing");
   return (
     <Card className="space-y-4">
       <div>
@@ -123,7 +132,7 @@ function SheetVerificationStep({
         </div>
       )}
       <Button
-        disabled={!allLocked || mutation.isPending}
+        disabled={!canStart || mutation.isPending}
         onClick={() => mutation.mutate()}
         type="button"
       >
@@ -134,16 +143,37 @@ function SheetVerificationStep({
 }
 
 function TeamSheetCard({ sheet }: Readonly<{ sheet: TeamSheetVerification }>) {
+  const statusLabel = {
+    locked: "LOCKED · pronta per riconoscimento",
+    missing: "MISSING · distinta non disponibile",
+    submitted: "SUBMITTED · in attesa di lock",
+  }[sheet.status];
+  const statusClass = {
+    locked: "bg-green-100 text-green-800",
+    missing: "bg-red-100 text-red-800",
+    submitted: "bg-blue-100 text-blue-800",
+  }[sheet.status];
+  const sideLabel = sheet.team === "home" ? "Squadra casa" : "Squadra ospite";
+
   return (
-    <div className="rounded-xl border p-4">
-      <p className="text-xs font-semibold uppercase text-primary">
-        {sheet.team === "home" ? "Casa" : "Ospite"}
-      </p>
-      <h3 className="mt-1 text-lg font-bold">{sheet.clubName}</h3>
+    <div className="rounded-xl border border-slate-200 p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase text-primary">
+            {sideLabel}
+          </p>
+          <h3 className="mt-1 text-lg font-bold">{sheet.clubName}</h3>
+        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass}`}
+        >
+          {statusLabel}
+        </span>
+      </div>
       <dl className="mt-3 grid gap-2 text-sm">
         <div className="flex justify-between">
-          <dt>Stato</dt>
-          <dd className="font-semibold uppercase">{sheet.status}</dd>
+          <dt>Lato gara</dt>
+          <dd className="font-semibold">{sideLabel}</dd>
         </div>
         <div className="flex justify-between">
           <dt>Giocatori</dt>
@@ -153,15 +183,24 @@ function TeamSheetCard({ sheet }: Readonly<{ sheet: TeamSheetVerification }>) {
           <dt>Staff</dt>
           <dd>{sheet.staffCount}</dd>
         </div>
+        <div className="flex justify-between">
+          <dt>Invio</dt>
+          <dd>{sheet.submittedAt ? "Ricevuta" : "Non ricevuta"}</dd>
+        </div>
       </dl>
     </div>
   );
 }
 
 function RecognitionStep({
+  isLocked,
   matchId,
   onComplete,
-}: Readonly<{ matchId: string; onComplete: () => void }>) {
+}: Readonly<{
+  isLocked: boolean;
+  matchId: string;
+  onComplete: () => void;
+}>) {
   const [index, setIndex] = useState(0);
   const [showDocument, setShowDocument] = useState(false);
   const [decisions, setDecisions] = useState<
@@ -175,6 +214,19 @@ function RecognitionStep({
     mutationFn: () => completeRecognition(matchId),
     onSuccess: onComplete,
   });
+  if (isLocked) {
+    return (
+      <Card className="space-y-4 text-center">
+        <h2 className="text-2xl font-bold">Riconoscimento LOCKED</h2>
+        <p className="text-sm text-slate-500">
+          Il riconoscimento è chiuso. Puoi proseguire solo con il referto.
+        </p>
+        <Button onClick={onComplete} type="button">
+          Vai al referto
+        </Button>
+      </Card>
+    );
+  }
   if (query.isLoading) return <SkeletonBlock />;
   if (query.isError)
     return (
@@ -261,7 +313,7 @@ function RecognitionStep({
               </p>
             )}
           </button>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2">
             <Button
               className="bg-slate-700"
               disabled={index === 0}
@@ -271,18 +323,11 @@ function RecognitionStep({
               Indietro
             </Button>
             <Button
-              className="bg-red-600"
-              onClick={() => decide("rejected")}
-              type="button"
-            >
-              Swipe sinistra
-            </Button>
-            <Button
               className="bg-green-600"
               onClick={() => decide("approved")}
               type="button"
             >
-              Swipe destra
+              Swipe (destra→sinistra)
             </Button>
           </div>
         </div>
@@ -302,7 +347,7 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
   const [report, setReport] = useState<MatchReportDraft | null>(null);
   const currentReport = report ?? query.data;
   const submitMutation = useMutation({
-    mutationFn: () => submitMatchReport(matchId),
+    mutationFn: () => submitMatchReport(currentReport?.id ?? matchId),
     onSuccess() {
       notify("Referto inviato", "success");
       void queryClient.invalidateQueries({ queryKey: queryKeys.matchReports });
@@ -342,6 +387,38 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
       {currentStep === "Risultato" ? (
         <ResultPanel report={currentReport} setReport={setReport} />
       ) : null}
+      {currentStep === "Gol" ? (
+        <EventsPanel
+          eventKey="goals"
+          report={currentReport}
+          setReport={setReport}
+          title="Gol"
+        />
+      ) : null}
+      {currentStep === "Ammonizioni" ? (
+        <EventsPanel
+          eventKey="cautions"
+          report={currentReport}
+          setReport={setReport}
+          title="Ammonizioni"
+        />
+      ) : null}
+      {currentStep === "Espulsioni" ? (
+        <EventsPanel
+          eventKey="expulsions"
+          report={currentReport}
+          setReport={setReport}
+          title="Espulsioni"
+        />
+      ) : null}
+      {currentStep === "Sostituzioni" ? (
+        <EventsPanel
+          eventKey="substitutions"
+          report={currentReport}
+          setReport={setReport}
+          title="Sostituzioni"
+        />
+      ) : null}
       {currentStep === "Note" ? (
         <textarea
           className="min-h-32 w-full rounded-lg border bg-background px-3 py-2 text-sm"
@@ -356,6 +433,28 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
           <p className="rounded-lg bg-green-100 p-3 text-sm text-green-900">
             Riepilogo pronto per l’invio.
           </p>
+          <dl className="grid gap-2 rounded-lg border p-3 text-sm sm:grid-cols-2">
+            <div className="flex justify-between gap-3">
+              <dt>Gol registrati</dt>
+              <dd className="font-semibold">{currentReport.goals.length}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt>Ammonizioni</dt>
+              <dd className="font-semibold">{currentReport.cautions.length}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt>Espulsioni</dt>
+              <dd className="font-semibold">
+                {currentReport.expulsions.length}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt>Sostituzioni</dt>
+              <dd className="font-semibold">
+                {currentReport.substitutions.length}
+              </dd>
+            </div>
+          </dl>
           <Button
             disabled={submitMutation.isPending}
             onClick={() => submitMutation.mutate()}
@@ -366,6 +465,134 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
         </div>
       ) : null}
     </Card>
+  );
+}
+
+type MatchReportEventKey =
+  | "cautions"
+  | "expulsions"
+  | "goals"
+  | "substitutions";
+
+function EventsPanel({
+  eventKey,
+  report,
+  setReport,
+  title,
+}: Readonly<{
+  eventKey: MatchReportEventKey;
+  report: MatchReportDraft;
+  setReport: (report: MatchReportDraft) => void;
+  title: string;
+}>) {
+  const events = report[eventKey];
+
+  function setEvents(nextEvents: readonly MatchReportEvent[]) {
+    setReport({ ...report, [eventKey]: nextEvents });
+  }
+
+  function addEvent() {
+    setEvents([
+      ...events,
+      {
+        detail: "",
+        id: `${eventKey}-${Date.now()}-${events.length + 1}`,
+        minute: 1,
+        playerName: "",
+        teamName: "",
+      },
+    ]);
+  }
+
+  function updateEvent(
+    eventId: string,
+    field: keyof MatchReportEvent,
+    value: string | number,
+  ) {
+    setEvents(
+      events.map((event) =>
+        event.id === eventId ? { ...event, [field]: value } : event,
+      ),
+    );
+  }
+
+  function removeEvent(eventId: string) {
+    setEvents(events.filter((event) => event.id !== eventId));
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-semibold">{title}</h3>
+        <Button onClick={addEvent} type="button">
+          Aggiungi
+        </Button>
+      </div>
+      {events.length === 0 ? (
+        <p className="rounded-lg bg-muted p-3 text-sm text-slate-600">
+          Nessun evento inserito.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {events.map((event) => (
+            <div
+              className="grid gap-2 rounded-xl border p-3 md:grid-cols-[100px_1fr_1fr_1fr_auto]"
+              key={event.id}
+            >
+              <label className="space-y-1 text-sm font-medium">
+                Minuto
+                <Input
+                  min={1}
+                  onChange={(change) =>
+                    updateEvent(
+                      event.id,
+                      "minute",
+                      change.target.valueAsNumber || 1,
+                    )
+                  }
+                  type="number"
+                  value={event.minute}
+                />
+              </label>
+              <label className="space-y-1 text-sm font-medium">
+                Squadra
+                <Input
+                  onChange={(change) =>
+                    updateEvent(event.id, "teamName", change.target.value)
+                  }
+                  value={event.teamName}
+                />
+              </label>
+              <label className="space-y-1 text-sm font-medium">
+                Tesserato
+                <Input
+                  onChange={(change) =>
+                    updateEvent(event.id, "playerName", change.target.value)
+                  }
+                  value={event.playerName}
+                />
+              </label>
+              <label className="space-y-1 text-sm font-medium">
+                Dettaglio
+                <Input
+                  onChange={(change) =>
+                    updateEvent(event.id, "detail", change.target.value)
+                  }
+                  value={event.detail}
+                />
+              </label>
+              <Button
+                className="self-end bg-red-600"
+                onClick={() => removeEvent(event.id)}
+                type="button"
+              >
+                Rimuovi
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

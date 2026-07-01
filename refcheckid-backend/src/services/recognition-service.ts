@@ -11,8 +11,8 @@ const allowedRecognitionWorkflowTransitions: Readonly<
   Record<RecognitionWorkflowStatus, readonly RecognitionWorkflowStatus[]>
 > = {
   not_started: ['in_progress'],
-  in_progress: ['completed'],
-  completed: [],
+  in_progress: ['locked'],
+  locked: [],
 };
 
 export class RecognitionNotFoundError extends Error {
@@ -69,7 +69,7 @@ export class RecognitionService {
       return workflow;
     }
 
-    if (workflow.status === 'completed') {
+    if (workflow.status === 'locked') {
       throw new CompletedRecognitionError(matchId);
     }
 
@@ -79,11 +79,11 @@ export class RecognitionService {
   async completeRecognition(matchId: UUID): Promise<RecognitionWorkflow> {
     const workflow = await this.dependencies.recognitionsRepository.getWorkflowByMatch(matchId);
 
-    if (workflow.status === 'completed') {
+    if (workflow.status === 'locked') {
       return workflow;
     }
 
-    return this.transitionRecognitionWorkflow(matchId, workflow.status, 'completed');
+    return this.transitionRecognitionWorkflow(matchId, workflow.status, 'locked');
   }
 
   private async assertMatchSheetsLocked(matchId: UUID): Promise<void> {
