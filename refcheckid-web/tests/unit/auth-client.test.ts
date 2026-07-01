@@ -9,7 +9,8 @@ describe("unit: auth client", () => {
   it("posts pilot credentials to the backend auth endpoint by default", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
-      json: async () => ({
+      status: 200,
+      text: async () => JSON.stringify({
         accessToken: "access-token",
         refreshToken: "refresh-token",
         expiresAt: "2026-07-01T10:30:00.000Z",

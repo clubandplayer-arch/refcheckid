@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "sh -c 'pnpm dev:backend & backend_pid=$!; trap \"kill $backend_pid\" EXIT INT TERM; pnpm dev:web'",
     "dev:backend": "pnpm -C refcheckid-backend dev",
-    "dev:web": "NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:4000/api/v1} pnpm -C refcheckid-web dev",
+    "dev:web": "pnpm -C refcheckid-web dev",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "test:unit": "pnpm --filter refcheckid-backend test:unit && pnpm --filter refcheckid-web test:unit",

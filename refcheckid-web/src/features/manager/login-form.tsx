@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { AuthError, authenticateWithPassword } from "@/lib/auth-client";
+import { AuthError, authenticateWithPassword, type AuthDiagnostics } from "@/lib/auth-client";
 import { useSession } from "@/lib/session";
+import { useState } from "react";
 
 const loginSchema = z.object({
   email: z.string().email("Inserisci un indirizzo email valido"),
@@ -26,6 +27,7 @@ const errorMessages = {
 } as const;
 
 export function LoginForm() {
+  const [diagnostics, setDiagnostics] = useState<AuthDiagnostics | null>(null);
   const form = useForm<LoginFormValues>({
     defaultValues: { email: "", password: "" },
     resolver: zodResolver(loginSchema),
@@ -37,6 +39,7 @@ export function LoginForm() {
   async function onSubmit(values: LoginFormValues) {
     try {
       const session = await authenticateWithPassword(values);
+      setDiagnostics(null);
       login(session);
       notify("Accesso eseguito", "success");
       router.push(roleRedirects[session.user.role]);
@@ -45,6 +48,7 @@ export function LoginForm() {
         error instanceof AuthError
           ? errorMessages[error.code]
           : "Accesso non riuscito.";
+      setDiagnostics(error instanceof AuthError ? error.diagnostics : null);
       form.setError("root", { message });
       notify(message, "error");
     }
@@ -90,9 +94,14 @@ export function LoginForm() {
           ) : null}
         </label>
         {form.formState.errors.root ? (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-            {form.formState.errors.root.message}
-          </p>
+          <div className="space-y-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p>{form.formState.errors.root.message}</p>
+            {diagnostics ? (
+              <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded bg-white/70 p-2 text-xs text-red-900">
+                {JSON.stringify(diagnostics, null, 2)}
+              </pre>
+            ) : null}
+          </div>
         ) : null}
         <Button className="w-full" disabled={form.formState.isSubmitting} type="submit">
           ACCEDI

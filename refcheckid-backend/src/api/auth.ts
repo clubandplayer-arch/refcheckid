@@ -64,6 +64,16 @@ export const loginHandler: ApiHandler = (request) => {
   const credentials = parseCredentials(request.body);
   const user = users.find((candidate) => candidate.email === credentials.email.toLowerCase());
 
+  const passwordMatches = user?.password === credentials.password;
+  console.info('[RefCheckID][auth] login diagnostic', {
+    email: credentials.email.toLowerCase(),
+    passwordLength: credentials.password.length,
+    passwordMatches,
+    userEnabled: user?.enabled ?? null,
+    userExists: user !== undefined,
+    userRole: user?.role ?? null,
+  });
+
   if (user === undefined) {
     return authError('USER_NOT_FOUND', 'Utente inesistente.');
   }
@@ -72,7 +82,7 @@ export const loginHandler: ApiHandler = (request) => {
     return authError('ACCOUNT_DISABLED', 'Account disabilitato.');
   }
 
-  if (user.password !== credentials.password) {
+  if (!passwordMatches) {
     return authError('INVALID_CREDENTIALS', 'Credenziali errate.');
   }
 

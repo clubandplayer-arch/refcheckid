@@ -75,6 +75,12 @@ async function handleRequest(
     return;
   }
 
+  console.info('[RefCheckID][api] request handled', {
+    method,
+    path: requestUrl.pathname,
+    status: apiResponse.status,
+  });
+
   if (typeof apiResponse.body === 'string') {
     response.writeHead(apiResponse.status);
     response.end(apiResponse.body);
