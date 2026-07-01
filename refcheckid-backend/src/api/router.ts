@@ -24,15 +24,21 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.use(authorizationMiddleware);
 
   router.register('GET', '/api/health', controllers.health);
-  router.register('GET', '/api/docs/openapi.json', () => ({
+  const openApiHandler = () => ({
     status: 200,
+    headers: { 'content-type': 'application/json' },
     body: createOpenApiDocument(),
-  }));
-  router.register('GET', '/api/docs/swagger', () => ({
+  });
+  const swaggerHandler = () => ({
     status: 200,
     headers: { 'content-type': 'text/html' },
     body: createSwaggerHtml(),
-  }));
+  });
+
+  router.register('GET', '/api/docs/openapi.json', openApiHandler);
+  router.register('GET', '/api/docs/swagger', swaggerHandler);
+  router.register('GET', '/api/v1/openapi.json', openApiHandler);
+  router.register('GET', '/api/v1/swagger', swaggerHandler);
 
   router.register('POST', '/api/v1/federation-sync', controllers.syncFederation);
   router.register('GET', '/api/v1/federations', controllers.listFederations);

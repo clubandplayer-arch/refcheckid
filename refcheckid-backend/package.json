@@ -6,6 +6,8 @@
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
+    "dev": "pnpm build && node dist/src/server.js",
+    "start": "node dist/src/server.js",
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:write": "prettier --write .",

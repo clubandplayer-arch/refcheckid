@@ -39,7 +39,10 @@ export const authenticationMiddleware: ApiMiddleware = (next) => (request) => {
 };
 
 export const authorizationMiddleware: ApiMiddleware = (next) => (request) => {
-  if (request.path === '/api/health' || request.path.startsWith('/api/docs')) {
+  if (request.path === '/api/health' ||
+    request.path.startsWith('/api/docs') ||
+    request.path === '/api/v1/openapi.json' ||
+    request.path === '/api/v1/swagger') {
     return next(request);
   }
 
