@@ -56,6 +56,20 @@ async function handleRequest(
   }
 
   const requestUrl = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
+  if (method === 'GET' && requestUrl.pathname === '/') {
+    writeText(
+      response,
+      200,
+      [
+        'RefCheckID Backend API',
+        'health: /api/health',
+        'openapi: /api/v1/openapi.json',
+        'swagger: /api/v1/swagger',
+      ].join('\n'),
+    );
+    return;
+  }
+
   const apiResponse = await router.handle({
     method,
     path: requestUrl.pathname,
@@ -143,6 +157,12 @@ function writeJson(response: ServerResponse, status: number, body: unknown): voi
   response.setHeader('content-type', 'application/json');
   response.writeHead(status);
   response.end(JSON.stringify(body));
+}
+
+function writeText(response: ServerResponse, status: number, body: string): void {
+  response.setHeader('content-type', 'text/plain; charset=utf-8');
+  response.writeHead(status);
+  response.end(body);
 }
 
 function readPort(): number {

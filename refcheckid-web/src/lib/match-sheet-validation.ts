@@ -1,11 +1,36 @@
 import type { PlayerListItem, StaffListItem } from "./types";
 
+export const lineupRoleOptions = [
+  { label: "Portiere", value: "goalkeeper" },
+  { label: "Titolare", value: "starter" },
+  { label: "Riserva", value: "reserve" },
+] as const;
+
+export type PlayerStatusTone = "default" | "warning" | "suspended";
+
+export function getPlayerStatusTone(player: PlayerListItem): PlayerStatusTone {
+  if (player.suspended) return "suspended";
+  if (player.warning) return "warning";
+  return "default";
+}
+
+export function getPlayerStatusLabel(player: PlayerListItem): string {
+  if (player.suspended) return "Squalificato";
+  if (player.warning) return "Diffida";
+  return "Disponibile";
+}
+
 export interface MatchSheetValidationResult {
   readonly isValid: boolean;
   readonly errors: readonly string[];
   readonly missingNumbers: number;
   readonly invalidPlayers: number;
   readonly duplicateShirtNumbers: readonly number[];
+  readonly goalkeepers: number;
+  readonly starters: number;
+  readonly captains: number;
+  readonly viceCaptains: number;
+  readonly captainViceConflicts: number;
 }
 
 export function validateMatchSheet(
@@ -14,6 +39,13 @@ export function validateMatchSheet(
 ): MatchSheetValidationResult {
   const missingNumbers = players.filter((player) => player.shirtNumber === null).length;
   const invalidPlayers = players.filter((player) => player.suspended).length;
+  const goalkeepers = players.filter((player) => player.role === "goalkeeper").length;
+  const starters = players.filter((player) => player.role === "starter").length;
+  const captains = players.filter((player) => player.isCaptain).length;
+  const viceCaptains = players.filter((player) => player.isViceCaptain).length;
+  const captainViceConflicts = players.filter(
+    (player) => player.isCaptain && player.isViceCaptain,
+  ).length;
   const shirtNumberCounts = new Map<number, number>();
   for (const player of players) {
     if (player.shirtNumber === null) continue;
@@ -34,14 +66,26 @@ export function validateMatchSheet(
       ? [`Numeri di maglia duplicati: ${duplicateShirtNumbers.join(", ")}.`]
       : []),
     ...(invalidPlayers > 0 ? ["Rimuovi i giocatori non validi dalla distinta."] : []),
+    ...(goalkeepers === 0 ? ["Seleziona almeno un Portiere."] : []),
+    ...(starters < 11 ? ["Seleziona almeno 11 Titolari per lo smoke test."] : []),
+    ...(captains > 1 ? ["Seleziona al massimo un Capitano."] : []),
+    ...(viceCaptains > 1 ? ["Seleziona al massimo un Vice capitano."] : []),
+    ...(captainViceConflicts > 0
+      ? ["Capitano e Vice capitano devono essere giocatori diversi."]
+      : []),
   ];
 
   return {
+    captainViceConflicts,
+    captains,
     duplicateShirtNumbers,
     errors,
+    goalkeepers,
     invalidPlayers,
     isValid: errors.length === 0,
     missingNumbers,
+    starters,
+    viceCaptains,
   };
 }
 

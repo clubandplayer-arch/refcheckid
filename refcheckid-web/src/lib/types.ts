@@ -1,4 +1,5 @@
 export type MatchSheetStatus = "draft" | "submitted" | "locked";
+export type PlayerLineupRole = "goalkeeper" | "starter" | "reserve";
 
 export interface ManagerDashboard {
   nextMatch: {
@@ -20,7 +21,9 @@ export interface PlayerListItem {
   suspended: boolean;
   selected: boolean;
   shirtNumber: number | null;
-  role: "goalkeeper" | "captain" | "vice_captain" | "reserve" | "player";
+  role: PlayerLineupRole;
+  isCaptain: boolean;
+  isViceCaptain: boolean;
 }
 
 export interface StaffListItem {

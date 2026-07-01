@@ -18,6 +18,9 @@ import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { useToast } from "@/components/ui/toast";
 import {
   getMatchSheetSubmitError,
+  getPlayerStatusLabel,
+  getPlayerStatusTone,
+  lineupRoleOptions,
   validateMatchSheet,
 } from "@/lib/match-sheet-validation";
 import {
@@ -27,7 +30,11 @@ import {
   queryKeys,
   submitMatchSheet,
 } from "@/lib/api-client";
-import type { PlayerListItem, StaffListItem } from "@/lib/types";
+import type {
+  PlayerLineupRole,
+  PlayerListItem,
+  StaffListItem,
+} from "@/lib/types";
 
 const EMPTY_PLAYERS: readonly PlayerListItem[] = [];
 const EMPTY_STAFF: readonly StaffListItem[] = [];
@@ -107,8 +114,13 @@ export function MatchSheetWorkflow() {
   function togglePlayer(playerId: string) {
     setPlayerList((current) =>
       current.map((player) =>
-        player.id === playerId
-          ? { ...player, selected: !player.selected }
+        player.id === playerId && !player.suspended
+          ? {
+              ...player,
+              isCaptain: player.selected ? false : player.isCaptain,
+              isViceCaptain: player.selected ? false : player.isViceCaptain,
+              selected: !player.selected,
+            }
           : player,
       ),
     );
@@ -127,6 +139,39 @@ export function MatchSheetWorkflow() {
       current.map((player) =>
         player.id === playerId ? { ...player, shirtNumber } : player,
       ),
+    );
+  }
+  function updatePlayerRole(playerId: string, role: PlayerLineupRole) {
+    setPlayerList((current) =>
+      current.map((player) =>
+        player.id === playerId ? { ...player, role } : player,
+      ),
+    );
+  }
+  function toggleCaptain(playerId: string) {
+    setPlayerList((current) =>
+      current.map((player) => {
+        if (player.id !== playerId) return { ...player, isCaptain: false };
+        const nextCaptain = !player.isCaptain;
+        return {
+          ...player,
+          isCaptain: nextCaptain,
+          isViceCaptain: nextCaptain ? false : player.isViceCaptain,
+        };
+      }),
+    );
+  }
+  function toggleViceCaptain(playerId: string) {
+    setPlayerList((current) =>
+      current.map((player) => {
+        if (player.id !== playerId) return { ...player, isViceCaptain: false };
+        const nextViceCaptain = !player.isViceCaptain;
+        return {
+          ...player,
+          isCaptain: nextViceCaptain ? false : player.isCaptain,
+          isViceCaptain: nextViceCaptain,
+        };
+      }),
     );
   }
   function handleDragEnd(event: DragEndEvent) {
@@ -190,7 +235,11 @@ export function MatchSheetWorkflow() {
       {step === 1 ? (
         <OrderStep
           onDragEnd={handleDragEnd}
-          players={calledPlayers}
+          players={players}
+          toggleCaptain={toggleCaptain}
+          togglePlayer={togglePlayer}
+          toggleViceCaptain={toggleViceCaptain}
+          updatePlayerRole={updatePlayerRole}
           updateShirtNumber={updateShirtNumber}
         />
       ) : null}
@@ -239,8 +288,19 @@ function PlayersStep({
         {players.length === 0 ? (
           <EmptyState message="Nessun giocatore trovato." />
         ) : null}
-        {players.map((player) => (
-          <label className="flex items-center gap-3 p-3" key={player.id}>
+        {players.map((player) => {
+          const statusTone = getPlayerStatusTone(player);
+          return (
+          <label
+            className={`flex items-center gap-3 p-3 ${
+              statusTone === "warning"
+                ? "bg-yellow-50"
+                : statusTone === "suspended"
+                  ? "bg-red-50 opacity-80"
+                  : ""
+            }`}
+            key={player.id}
+          >
             {player.photoUrl ? (
               <Image
                 alt={`Foto ${player.lastName} ${player.firstName}`}
@@ -264,13 +324,15 @@ function PlayersStep({
               </p>
             </div>
             <input
+              aria-label={`Convoca ${player.lastName} ${player.firstName}`}
               checked={player.selected}
               disabled={player.suspended}
               onChange={() => togglePlayer(player.id)}
               type="checkbox"
             />
           </label>
-        ))}
+          );
+        })}
       </div>
     </Card>
   );
@@ -279,10 +341,18 @@ function PlayersStep({
 function OrderStep({
   players,
   onDragEnd,
+  toggleCaptain,
+  togglePlayer,
+  toggleViceCaptain,
+  updatePlayerRole,
   updateShirtNumber,
 }: Readonly<{
   players: readonly PlayerListItem[];
   onDragEnd: (event: DragEndEvent) => void;
+  toggleCaptain: (id: string) => void;
+  togglePlayer: (id: string) => void;
+  toggleViceCaptain: (id: string) => void;
+  updatePlayerRole: (id: string, value: PlayerLineupRole) => void;
   updateShirtNumber: (id: string, value: number | null) => void;
 }>) {
   return (
@@ -291,8 +361,7 @@ function OrderStep({
         <div>
           <h2 className="text-xl font-bold">Ordine distinta</h2>
           <p className="text-sm text-slate-500">
-            Drag & drop, numero maglia, portiere, capitano, vice capitano e
-            riserve.
+            Drag & drop, numero maglia, ruolo e incarichi.
           </p>
         </div>
       </div>
@@ -304,11 +373,24 @@ function OrderStep({
             items={players.map((player) => player.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-2">
+            <div className="overflow-x-auto rounded-xl border">
+              <div className="grid min-w-[960px] grid-cols-[72px_2fr_140px_160px_240px_140px_90px] border-b bg-muted/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <span>Ordine</span>
+                <span>Giocatore</span>
+                <span>Numero maglia</span>
+                <span>Ruolo</span>
+                <span>Incarichi</span>
+                <span>Stato</span>
+                <span>Azione</span>
+              </div>
               {players.map((player) => (
                 <SortablePlayerRow
                   key={player.id}
                   player={player}
+                  toggleCaptain={toggleCaptain}
+                  togglePlayer={togglePlayer}
+                  toggleViceCaptain={toggleViceCaptain}
+                  updatePlayerRole={updatePlayerRole}
                   updateShirtNumber={updateShirtNumber}
                 />
               ))}
@@ -322,16 +404,32 @@ function OrderStep({
 
 function SortablePlayerRow({
   player,
+  toggleCaptain,
+  togglePlayer,
+  toggleViceCaptain,
+  updatePlayerRole,
   updateShirtNumber,
 }: Readonly<{
   player: PlayerListItem;
+  toggleCaptain: (id: string) => void;
+  togglePlayer: (id: string) => void;
+  toggleViceCaptain: (id: string) => void;
+  updatePlayerRole: (id: string, value: PlayerLineupRole) => void;
   updateShirtNumber: (id: string, value: number | null) => void;
 }>) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: player.id });
+  const statusTone = getPlayerStatusTone(player);
+  const disabled = !player.selected || player.suspended;
   return (
     <div
-      className="grid gap-2 rounded-xl border p-3 md:grid-cols-[48px_1fr_120px_160px]"
+      className={`grid min-w-[960px] grid-cols-[72px_2fr_140px_160px_240px_140px_90px] items-center gap-3 border-b px-3 py-3 text-sm last:border-b-0 ${
+        statusTone === "warning"
+          ? "border-l-4 border-l-yellow-400 bg-yellow-50"
+          : statusTone === "suspended"
+            ? "border-l-4 border-l-red-500 bg-red-50 opacity-80"
+            : ""
+      }`}
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
@@ -344,10 +442,22 @@ function SortablePlayerRow({
       >
         ↕
       </button>
-      <span className="self-center font-medium">
-        {player.lastName} {player.firstName}
-      </span>
+      <div className="flex items-center gap-3">
+        {player.photoUrl ? (
+          <Image
+            alt={`Foto ${player.lastName} ${player.firstName}`}
+            className="rounded-full bg-muted object-cover"
+            height={36}
+            src={player.photoUrl}
+            width={36}
+          />
+        ) : null}
+        <span className="font-medium">
+          {player.lastName} {player.firstName}
+        </span>
+      </div>
       <Input
+        disabled={disabled}
         min={1}
         onChange={(event) =>
           updateShirtNumber(player.id, event.target.valueAsNumber || null)
@@ -356,9 +466,58 @@ function SortablePlayerRow({
         type="number"
         value={player.shirtNumber ?? ""}
       />
-      <span className="rounded-lg bg-muted px-3 py-2 text-sm">
-        {player.role}
+      <select
+        className="rounded-lg border px-3 py-2 text-sm"
+        disabled={disabled}
+        onChange={(event) =>
+          updatePlayerRole(player.id, event.target.value as PlayerLineupRole)
+        }
+        value={player.role}
+      >
+        {lineupRoleOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <div className="flex flex-wrap gap-4">
+        <label className="flex items-center gap-2">
+          <input
+            checked={player.isCaptain}
+            disabled={disabled}
+            onChange={() => toggleCaptain(player.id)}
+            type="checkbox"
+          />
+          Capitano
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            checked={player.isViceCaptain}
+            disabled={disabled}
+            onChange={() => toggleViceCaptain(player.id)}
+            type="checkbox"
+          />
+          Vice capitano
+        </label>
+      </div>
+      <span
+        className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${
+          statusTone === "warning"
+            ? "bg-yellow-100 text-yellow-800"
+            : statusTone === "suspended"
+              ? "bg-red-100 text-red-800"
+              : "bg-green-100 text-green-800"
+        }`}
+      >
+        {getPlayerStatusLabel(player)}
       </span>
+      <input
+        aria-label={`Convoca ${player.lastName} ${player.firstName}`}
+        checked={player.selected}
+        disabled={player.suspended}
+        onChange={() => togglePlayer(player.id)}
+        type="checkbox"
+      />
     </div>
   );
 }
@@ -431,6 +590,10 @@ function SummaryStep({
             : "nessuno"}
         </li>
         <li>Giocatori non validi: {validation.invalidPlayers}</li>
+        <li>Portieri: {validation.goalkeepers}</li>
+        <li>Titolari: {validation.starters}</li>
+        <li>Capitani: {validation.captains}</li>
+        <li>Vice capitani: {validation.viceCaptains}</li>
       </ul>
       {validation.isValid ? (
         <p className="rounded-lg bg-green-100 p-3 text-sm text-green-900">

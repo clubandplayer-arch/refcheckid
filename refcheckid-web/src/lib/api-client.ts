@@ -90,12 +90,14 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
     firstName: String(player.firstName ?? player.first_name ?? ""),
     lastName: String(player.lastName ?? player.last_name ?? ""),
     photoUrl: String(player.photoUrl ?? player.photo_url ?? "/placeholder-player.svg"),
-    warning: Boolean(player.warning ?? false),
-    suspended: Boolean(player.suspended ?? false),
-    selected: false,
-    shirtNumber: null,
-    role: "player",
-  }));
+	    warning: Boolean(player.warning ?? false),
+	    suspended: Boolean(player.suspended ?? false),
+	    selected: false,
+	    shirtNumber: null,
+	    role: "starter",
+	    isCaptain: false,
+	    isViceCaptain: false,
+	  }));
 }
 
 export async function fetchStaff(): Promise<readonly StaffListItem[]> {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  getPlayerStatusTone,
   getMatchSheetSubmitError,
+  lineupRoleOptions,
   validateMatchSheet,
 } from "../../src/lib/match-sheet-validation";
 import { pilotPlayers, pilotStaff } from "../../src/lib/pilot-data";
@@ -12,6 +14,28 @@ describe("unit: manager match sheet validation", () => {
     expect(pilotPlayers.some((player) => player.photoUrl)).toBe(true);
     expect(pilotPlayers.some((player) => player.warning)).toBe(true);
     expect(pilotPlayers.some((player) => player.suspended)).toBe(true);
+  });
+
+  it("marks warned players yellow and suspended players red/non-selectable in lineup helpers", () => {
+    expect(getPlayerStatusTone(pilotPlayers.find((player) => player.warning)!)).toBe(
+      "warning",
+    );
+    expect(
+      getPlayerStatusTone(pilotPlayers.find((player) => player.suspended)!),
+    ).toBe("suspended");
+  });
+
+  it("offers editable lineup roles separated from captain assignments", () => {
+    expect(lineupRoleOptions.map((option) => option.label)).toEqual([
+      "Portiere",
+      "Titolare",
+      "Riserva",
+    ]);
+    expect(pilotPlayers[0]).toMatchObject({
+      isCaptain: false,
+      isViceCaptain: false,
+      role: "starter",
+    });
   });
 
   it("blocks empty match sheets", () => {
@@ -49,16 +73,50 @@ describe("unit: manager match sheet validation", () => {
     );
   });
 
+  it("blocks double captain, double vice captain, and captain/vice conflicts", () => {
+    const selectedPlayers = pilotPlayers
+      .filter((player) => !player.suspended)
+      .slice(0, 12)
+      .map((player, index) => ({
+        ...player,
+        isCaptain: index < 2,
+        isViceCaptain: index === 0 || index === 2 || index === 3,
+        role: index === 0 ? "goalkeeper" as const : "starter" as const,
+        selected: true,
+        shirtNumber: index + 1,
+      }));
+    const validation = validateMatchSheet(selectedPlayers, [pilotStaff[0]!]);
+    expect(validation).toMatchObject({
+      captainViceConflicts: 1,
+      captains: 2,
+      isValid: false,
+      viceCaptains: 3,
+    });
+    expect(validation.errors).toContain("Seleziona al massimo un Capitano.");
+    expect(validation.errors).toContain("Seleziona al massimo un Vice capitano.");
+  });
+
   it("allows a non-empty valid sheet", () => {
     const selectedPlayers = pilotPlayers
       .filter((player) => !player.suspended)
-      .slice(0, 11)
-      .map((player, index) => ({ ...player, selected: true, shirtNumber: index + 1 }));
+      .slice(0, 12)
+      .map((player, index) => ({
+        ...player,
+        isCaptain: index === 1,
+        isViceCaptain: index === 2,
+        role: index === 0 ? "goalkeeper" as const : "starter" as const,
+        selected: true,
+        shirtNumber: index + 1,
+      }));
     expect(validateMatchSheet(selectedPlayers, [pilotStaff[0]!])).toMatchObject({
+      captains: 1,
       duplicateShirtNumbers: [],
+      goalkeepers: 1,
       invalidPlayers: 0,
       isValid: true,
       missingNumbers: 0,
+      starters: 11,
+      viceCaptains: 1,
     });
     expect(
       getMatchSheetSubmitError(
