@@ -15,12 +15,8 @@ import type {
   TeamSheetVerification,
 } from "./referee-types";
 
-export async function fetchRefereeDashboard(
-  refereeId: string,
-): Promise<RefereeDashboard> {
-  const matches = await fetchMatches(
-    `?refereeId=${encodeURIComponent(refereeId)}`,
-  );
+export async function fetchRefereeDashboard(): Promise<RefereeDashboard> {
+  const matches = await fetchMatches();
   const nextMatch =
     [...matches].sort((a, b) =>
       a.scheduledAt.localeCompare(b.scheduledAt),

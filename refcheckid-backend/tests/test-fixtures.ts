@@ -43,4 +43,4 @@ export function matchSheet(id: UUID, clubId: UUID, overrides: Partial<MatchSheet
   };
 }
 
-export const authHeaders = { 'x-actor-id': ids.actor, 'x-roles': 'manager,referee,federation' };
+export const authHeaders = { authorization: 'Bearer eyJzdWIiOiI5MDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJlbWFpbCI6ImRpcmlnZW50ZUByZWZjaGVja2lkLmxvY2FsIiwicm9sZSI6Im1hbmFnZXIiLCJleHAiOjQxMDI0NDQ4MDAsInR5cCI6ImFjY2VzcyJ9.4HgrL-P9ZoeX9RL900wAjtIBQLv-MkMV9jVz_t5ceaE' };

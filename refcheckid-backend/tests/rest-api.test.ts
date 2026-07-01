@@ -3,7 +3,7 @@ import { createApplicationContainer } from '../src/config/application-container.
 import type { Match } from '../src/domain/index.js';
 import { createOpenApiDocument, createRestApiRouter } from '../src/api/index.js';
 
-const actorId = '60000000-0000-4000-8000-000000000001';
+const authHeaders = { authorization: 'Bearer eyJzdWIiOiI5MDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJlbWFpbCI6ImRpcmlnZW50ZUByZWZjaGVja2lkLmxvY2FsIiwicm9sZSI6Im1hbmFnZXIiLCJleHAiOjQxMDI0NDQ4MDAsInR5cCI6ImFjY2VzcyJ9.4HgrL-P9ZoeX9RL900wAjtIBQLv-MkMV9jVz_t5ceaE' };
 const match: Match = {
   id: '60000000-0000-4000-8000-000000000002',
   federationId: '60000000-0000-4000-8000-000000000003',
@@ -45,7 +45,7 @@ describe('REST API layer', () => {
       router.handle({
         method: 'POST',
         path: `/api/v1/matches/${match.id}/status`,
-        headers: { 'x-actor-id': actorId },
+        headers: authHeaders,
         query: {},
         body: { status: 'in_progress' },
       }),
@@ -59,7 +59,7 @@ describe('REST API layer', () => {
       router.handle({
         method: 'GET',
         path: '/api/v1/matches/not-a-uuid',
-        headers: { 'x-actor-id': actorId },
+        headers: authHeaders,
         query: {},
       }),
     ).resolves.toMatchObject({ status: 400, body: { error: 'VALIDATION_ERROR' } });

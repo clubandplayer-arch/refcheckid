@@ -1,4 +1,4 @@
-import { readStoredSession } from "./session";
+import { isSessionExpired, readStoredSession } from "./session";
 import type { ManagerDashboard, PlayerListItem, StaffListItem } from "./types";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
@@ -171,13 +171,15 @@ export async function request<TResponse>(
   init?: RequestInit,
 ): Promise<TResponse> {
   const session = readStoredSession();
+  if (session && isSessionExpired(session)) {
+    window.localStorage.removeItem("refcheckid.session");
+  }
+  const activeSession = session && !isSessionExpired(session) ? session : null;
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",
-      ...(session
-        ? { "x-actor-id": session.actorId, "x-roles": session.roles.join(",") }
-        : {}),
+      ...(activeSession ? { authorization: `Bearer ${activeSession.accessToken}` } : {}),
       ...(init?.headers ?? {}),
     },
   });

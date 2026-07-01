@@ -40,9 +40,9 @@ export function RefereeMatchWorkflow() {
   const [step, setStep] = useState(0);
   const { session } = useSession();
   const dashboardQuery = useQuery({
-    enabled: Boolean(session?.actorId),
-    queryFn: () => fetchRefereeDashboard(session?.actorId ?? ""),
-    queryKey: [...queryKeys.referees, "dashboard", session?.actorId],
+    enabled: Boolean(session),
+    queryFn: fetchRefereeDashboard,
+    queryKey: [...queryKeys.referees, "dashboard"],
   });
   const matchId = dashboardQuery.data?.nextMatch?.id ?? "";
 

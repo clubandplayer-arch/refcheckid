@@ -4,16 +4,27 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 export type AppRole = "manager" | "referee" | "federation";
 
+export interface AuthenticatedUser {
+  id: string;
+  email: string;
+  role: AppRole;
+  displayName: string;
+}
+
 export interface AppSession {
-  actorId: string;
-  roles: readonly AppRole[];
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+  user: AuthenticatedUser;
 }
 
 const storageKey = "refcheckid.session";
 
 interface SessionContextValue {
   session: AppSession | null;
+  isReady: boolean;
   login: (session: AppSession) => void;
+  refreshSession: () => Promise<AppSession | null>;
   logout: () => void;
 }
 
@@ -23,24 +34,45 @@ export function SessionProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const [session, setSession] = useState<AppSession | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     setSession(readStoredSession());
+    setIsReady(true);
   }, []);
 
   const value = useMemo<SessionContextValue>(
     () => ({
       session,
+      isReady,
       login(nextSession) {
-        window.localStorage.setItem(storageKey, JSON.stringify(nextSession));
+        writeStoredSession(nextSession);
         setSession(nextSession);
+      },
+      async refreshSession() {
+        const currentSession = readStoredSession();
+        if (currentSession === null) {
+          setSession(null);
+          return null;
+        }
+
+        const refreshedSession = await refreshStoredSession(currentSession.refreshToken);
+        if (refreshedSession === null) {
+          window.localStorage.removeItem(storageKey);
+          setSession(null);
+          return null;
+        }
+
+        writeStoredSession(refreshedSession);
+        setSession(refreshedSession);
+        return refreshedSession;
       },
       logout() {
         window.localStorage.removeItem(storageKey);
         setSession(null);
       },
     }),
-    [session],
+    [isReady, session],
   );
 
   return (
@@ -62,8 +94,42 @@ export function readStoredSession(): AppSession | null {
   if (!rawSession) return null;
   try {
     const session = JSON.parse(rawSession) as AppSession;
-    return session.actorId ? session : null;
+    return isValidSession(session) ? session : null;
   } catch {
     return null;
   }
+}
+
+export function writeStoredSession(session: AppSession): void {
+  window.localStorage.setItem(storageKey, JSON.stringify(session));
+}
+
+export function isSessionExpired(session: AppSession): boolean {
+  return Date.parse(session.expiresAt) <= Date.now();
+}
+
+async function refreshStoredSession(refreshToken: string): Promise<AppSession | null> {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
+  const response = await fetch(`${apiBaseUrl}/auth/refresh`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return (await response.json()) as AppSession;
+}
+
+function isValidSession(session: AppSession): boolean {
+  return Boolean(
+    session.accessToken &&
+      session.refreshToken &&
+      session.expiresAt &&
+      session.user?.id &&
+      session.user.email &&
+      session.user.role,
+  );
 }

@@ -24,6 +24,7 @@ Backend defaults are documented in `refcheckid-backend/.env.example`:
 PORT=4000
 HOST=0.0.0.0
 CORS_ORIGIN=*
+AUTH_SECRET=change-me-in-production
 ```
 
 Frontend defaults are documented in `refcheckid-web/.env.example`:
@@ -38,6 +39,14 @@ In Codespaces, set `NEXT_PUBLIC_API_BASE_URL` to the forwarded backend URL endin
 
 - Backend: `4000`
 - Frontend: `3000`
+
+## Demo pilot users
+
+Use these local MVP credentials to verify role-based redirects without manually entering actor IDs or roles:
+
+- Dirigente: `dirigente@refcheckid.local` / `Password123!`
+- Arbitro: `arbitro@refcheckid.local` / `Password123!`
+- Federazione: `federazione@refcheckid.local` / `Password123!`
 
 ## Run the backend
 
