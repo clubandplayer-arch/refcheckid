@@ -1,7 +1,7 @@
 import { isSessionExpired, readStoredSession } from "./session";
 import type { ManagerDashboard, PlayerListItem, StaffListItem } from "./types";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
 
 export interface ApiMatch {
   id: string;

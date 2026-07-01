@@ -109,7 +109,7 @@ export function isSessionExpired(session: AppSession): boolean {
 }
 
 async function refreshStoredSession(refreshToken: string): Promise<AppSession | null> {
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
   const response = await fetch(`${apiBaseUrl}/auth/refresh`, {
     method: "POST",
     headers: { "content-type": "application/json" },
