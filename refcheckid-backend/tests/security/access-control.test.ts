@@ -19,4 +19,16 @@ describe('security: JWT/RLS/roles/permissions/API/storage gates', () => {
     const router = createRestApiRouter(createApplicationContainer());
     await expect(router.handle({ method: 'GET', path: '/api/v1/identity-documents', headers: authHeaders, query: {} })).resolves.toMatchObject({ status: 200, body: [] });
   });
+
+  it('authorizes manager Bearer tokens on match-sheet routes', async () => {
+    const router = createRestApiRouter(createApplicationContainer());
+    await expect(
+      router.handle({
+        headers: authHeaders,
+        method: 'GET',
+        path: '/api/v1/match-sheets',
+        query: {},
+      }),
+    ).resolves.toMatchObject({ status: 200 });
+  });
 });

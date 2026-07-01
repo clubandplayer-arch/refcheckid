@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchManagerDashboard, request, submitMatchSheet } from "../../src/lib/api-client";
+import {
+  fetchManagerDashboard,
+  fetchMatchSheets,
+  request,
+  submitMatchSheet,
+} from "../../src/lib/api-client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -53,5 +58,76 @@ describe("unit: frontend API client", () => {
       expect.stringContaining("/api/v1/match-sheets/sheet-1/submit"),
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+  it("refreshes an expired manager session and sends Bearer auth to match-sheet APIs", async () => {
+    const storage = new Map<string, string>();
+    storage.set(
+      "refcheckid.session",
+      JSON.stringify({
+        accessToken: "expired-access-token",
+        refreshToken: "valid-refresh-token",
+        expiresAt: "2000-01-01T00:00:00.000Z",
+        user: {
+          id: "90000000-0000-4000-8000-000000000001",
+          email: "dirigente@refcheckid.local",
+          role: "manager",
+          displayName: "Dirigente Demo",
+        },
+      }),
+    );
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        removeItem: (key: string) => storage.delete(key),
+        setItem: (key: string, value: string) => storage.set(key, value),
+      },
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/auth/refresh")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            accessToken: "fresh-access-token",
+            refreshToken: "fresh-refresh-token",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+            user: {
+              id: "90000000-0000-4000-8000-000000000001",
+              email: "dirigente@refcheckid.local",
+              role: "manager",
+              displayName: "Dirigente Demo",
+            },
+          }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => [
+          {
+            id: "sheet-1",
+            matchId: "match-1",
+            clubId: "club-1",
+            submittedAt: null,
+            status: "draft",
+          },
+        ],
+        init,
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchMatchSheets()).resolves.toHaveLength(1);
+
+    const matchSheetCall = fetchMock.mock.calls.find(([input]) =>
+      String(input).endsWith("/match-sheets"),
+    );
+    expect(matchSheetCall?.[1]).toMatchObject({
+      headers: expect.objectContaining({
+        authorization: "Bearer fresh-access-token",
+      }),
+    });
   });
 });

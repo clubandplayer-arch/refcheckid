@@ -1,6 +1,11 @@
 import { getApiBaseUrl } from "./api-base-url";
 import { pilotPlayers, pilotStaff } from "./pilot-data";
-import { isSessionExpired, readStoredSession } from "./session";
+import {
+  isSessionExpired,
+  readStoredSession,
+  refreshStoredSession,
+  writeStoredSession,
+} from "./session";
 import type { ManagerDashboard, PlayerListItem, StaffListItem } from "./types";
 
 export interface ApiMatch {
@@ -172,11 +177,7 @@ export async function request<TResponse>(
   path: string,
   init?: RequestInit,
 ): Promise<TResponse> {
-  const session = readStoredSession();
-  if (session && isSessionExpired(session)) {
-    window.localStorage.removeItem("refcheckid.session");
-  }
-  const activeSession = session && !isSessionExpired(session) ? session : null;
+  const activeSession = await resolveActiveSession();
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     headers: {
@@ -195,4 +196,19 @@ export async function request<TResponse>(
   }
 
   return (await response.json()) as TResponse;
+}
+
+async function resolveActiveSession() {
+  const session = readStoredSession();
+  if (session === null) return null;
+  if (!isSessionExpired(session)) return session;
+
+  const refreshedSession = await refreshStoredSession(session.refreshToken);
+  if (refreshedSession === null) {
+    window.localStorage.removeItem("refcheckid.session");
+    return null;
+  }
+
+  writeStoredSession(refreshedSession);
+  return refreshedSession;
 }

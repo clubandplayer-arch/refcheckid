@@ -109,7 +109,7 @@ export function isSessionExpired(session: AppSession): boolean {
   return Date.parse(session.expiresAt) <= Date.now();
 }
 
-async function refreshStoredSession(refreshToken: string): Promise<AppSession | null> {
+export async function refreshStoredSession(refreshToken: string): Promise<AppSession | null> {
   const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
     method: "POST",
     headers: { "content-type": "application/json" },
