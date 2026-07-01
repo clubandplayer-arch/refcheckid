@@ -16,7 +16,10 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { useToast } from "@/components/ui/toast";
-import { validateMatchSheet } from "@/lib/match-sheet-validation";
+import {
+  getMatchSheetSubmitError,
+  validateMatchSheet,
+} from "@/lib/match-sheet-validation";
 import {
   fetchMatchSheets,
   fetchPlayers,
@@ -197,6 +200,7 @@ export function MatchSheetWorkflow() {
       {step === 3 ? (
         <SummaryStep
           isSubmitting={submitMutation.isPending}
+          onInvalidSubmit={(message) => notify(message, "error")}
           onSubmit={() => submitMutation.mutate()}
           players={calledPlayers}
           staff={calledStaff}
@@ -396,13 +400,23 @@ function SummaryStep({
   staff,
   isSubmitting,
   onSubmit,
+  onInvalidSubmit,
 }: Readonly<{
   players: readonly PlayerListItem[];
   staff: readonly StaffListItem[];
   isSubmitting: boolean;
   onSubmit: () => void;
+  onInvalidSubmit: (message: string) => void;
 }>) {
   const validation = validateMatchSheet(players, staff);
+  function handleSubmit() {
+    const submitError = getMatchSheetSubmitError(validation);
+    if (submitError) {
+      onInvalidSubmit(submitError);
+      return;
+    }
+    onSubmit();
+  }
   return (
     <Card className="space-y-4">
       <h2 className="text-xl font-bold">Riepilogo e controlli finali</h2>
@@ -410,6 +424,12 @@ function SummaryStep({
         <li>Giocatori convocati: {players.length}</li>
         <li>Staff selezionato: {staff.length}</li>
         <li>Numeri maglia mancanti: {validation.missingNumbers}</li>
+        <li>
+          Numeri maglia duplicati:{" "}
+          {validation.duplicateShirtNumbers.length > 0
+            ? validation.duplicateShirtNumbers.join(", ")
+            : "nessuno"}
+        </li>
         <li>Giocatori non validi: {validation.invalidPlayers}</li>
       </ul>
       {validation.isValid ? (
@@ -418,7 +438,7 @@ function SummaryStep({
         </p>
       ) : (
         <div className="rounded-lg bg-yellow-100 p-3 text-sm text-yellow-900">
-          <p className="font-semibold">Distinta non valida.</p>
+          <p className="font-semibold">Controlli non superati.</p>
           <ul className="mt-2 list-disc pl-5">
             {validation.errors.map((error) => (
               <li key={error}>{error}</li>
@@ -428,7 +448,7 @@ function SummaryStep({
       )}
       <Button
         disabled={!validation.isValid || isSubmitting}
-        onClick={onSubmit}
+        onClick={handleSubmit}
         type="button"
       >
         {isSubmitting ? "Invio..." : "Invia distinta"}

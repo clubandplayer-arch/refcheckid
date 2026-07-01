@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { validateMatchSheet } from "../../src/lib/match-sheet-validation";
+import {
+  getMatchSheetSubmitError,
+  validateMatchSheet,
+} from "../../src/lib/match-sheet-validation";
 import { pilotPlayers, pilotStaff } from "../../src/lib/pilot-data";
 
 describe("unit: manager match sheet validation", () => {
@@ -30,15 +33,37 @@ describe("unit: manager match sheet validation", () => {
     });
   });
 
+  it("blocks duplicate shirt numbers before submit with a clear regression message", () => {
+    const selectedPlayers = [
+      { ...pilotPlayers[0]!, selected: true, shirtNumber: 10 },
+      { ...pilotPlayers[1]!, selected: true, shirtNumber: 10 },
+    ];
+    const validation = validateMatchSheet(selectedPlayers, [pilotStaff[0]!]);
+    expect(validation).toMatchObject({
+      duplicateShirtNumbers: [10],
+      isValid: false,
+    });
+    expect(validation.errors).toContain("Numeri di maglia duplicati: 10.");
+    expect(getMatchSheetSubmitError(validation)).toBe(
+      "Numeri di maglia duplicati",
+    );
+  });
+
   it("allows a non-empty valid sheet", () => {
     const selectedPlayers = pilotPlayers
       .filter((player) => !player.suspended)
       .slice(0, 11)
       .map((player, index) => ({ ...player, selected: true, shirtNumber: index + 1 }));
     expect(validateMatchSheet(selectedPlayers, [pilotStaff[0]!])).toMatchObject({
+      duplicateShirtNumbers: [],
       invalidPlayers: 0,
       isValid: true,
       missingNumbers: 0,
     });
+    expect(
+      getMatchSheetSubmitError(
+        validateMatchSheet(selectedPlayers, [pilotStaff[0]!]),
+      ),
+    ).toBeNull();
   });
 });
