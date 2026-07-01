@@ -8,6 +8,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import Image from "next/image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { useToast } from "@/components/ui/toast";
+import { validateMatchSheet } from "@/lib/match-sheet-validation";
 import {
   fetchMatchSheets,
   fetchPlayers,
@@ -235,9 +237,19 @@ function PlayersStep({
         ) : null}
         {players.map((player) => (
           <label className="flex items-center gap-3 p-3" key={player.id}>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs">
-              Foto
-            </div>
+            {player.photoUrl ? (
+              <Image
+                alt={`Foto ${player.lastName} ${player.firstName}`}
+                className="rounded-full bg-muted object-cover"
+                height={40}
+                src={player.photoUrl}
+                width={40}
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs">
+                Foto
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <p className="font-medium">
                 {player.lastName} {player.firstName}
@@ -390,28 +402,32 @@ function SummaryStep({
   isSubmitting: boolean;
   onSubmit: () => void;
 }>) {
-  const missingNumbers = players.filter(
-    (player) => player.shirtNumber === null,
-  ).length;
+  const validation = validateMatchSheet(players, staff);
   return (
     <Card className="space-y-4">
       <h2 className="text-xl font-bold">Riepilogo e controlli finali</h2>
       <ul className="space-y-2 text-sm">
         <li>Giocatori convocati: {players.length}</li>
         <li>Staff selezionato: {staff.length}</li>
-        <li>Numeri maglia mancanti: {missingNumbers}</li>
+        <li>Numeri maglia mancanti: {validation.missingNumbers}</li>
+        <li>Giocatori non validi: {validation.invalidPlayers}</li>
       </ul>
-      {missingNumbers > 0 ? (
-        <p className="rounded-lg bg-yellow-100 p-3 text-sm text-yellow-900">
-          Completa i numeri maglia prima dell’invio.
-        </p>
-      ) : (
+      {validation.isValid ? (
         <p className="rounded-lg bg-green-100 p-3 text-sm text-green-900">
           Controlli superati.
         </p>
+      ) : (
+        <div className="rounded-lg bg-yellow-100 p-3 text-sm text-yellow-900">
+          <p className="font-semibold">Distinta non valida.</p>
+          <ul className="mt-2 list-disc pl-5">
+            {validation.errors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        </div>
       )}
       <Button
-        disabled={missingNumbers > 0 || isSubmitting}
+        disabled={!validation.isValid || isSubmitting}
         onClick={onSubmit}
         type="button"
       >

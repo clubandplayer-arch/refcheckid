@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "./api-base-url";
+import { pilotPlayers, pilotStaff } from "./pilot-data";
 import { isSessionExpired, readStoredSession } from "./session";
 import type { ManagerDashboard, PlayerListItem, StaffListItem } from "./types";
 
@@ -78,13 +79,14 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboard> {
 
 export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
   const players = await request<readonly Record<string, unknown>[]>("/players");
+  if (players.length === 0) return pilotPlayers;
   return players.map((player) => ({
     id: String(player.id),
     firstName: String(player.firstName ?? player.first_name ?? ""),
     lastName: String(player.lastName ?? player.last_name ?? ""),
-    photoUrl: null,
-    warning: false,
-    suspended: false,
+    photoUrl: String(player.photoUrl ?? player.photo_url ?? "/placeholder-player.svg"),
+    warning: Boolean(player.warning ?? false),
+    suspended: Boolean(player.suspended ?? false),
     selected: false,
     shirtNumber: null,
     role: "player",
@@ -94,6 +96,7 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
 export async function fetchStaff(): Promise<readonly StaffListItem[]> {
   const staff =
     await request<readonly Record<string, unknown>[]>("/staff-members");
+  if (staff.length === 0) return pilotStaff;
   return staff.map((staffMember) => ({
     id: String(staffMember.id),
     fullName: String(
