@@ -40,7 +40,7 @@ export function saveSubmittedMatchSheetSnapshot(input: {
         firstName: firstName ?? staffMember.fullName,
         id: staffMember.id,
         lastName: lastNameParts.join(" ") || staffMember.role,
-        photoUrl: "/placeholder-player.svg",
+        photoUrl: staffMember.photoUrl,
         roleLabel: staffMember.role,
         shirtNumber: null,
         subjectKind: "staff",
@@ -90,11 +90,45 @@ export function buildPilotSubmittedMatchSheetSnapshot(input: {
         firstName: firstName ?? staffMember.fullName,
         id: staffMember.id,
         lastName: lastNameParts.join(" ") || staffMember.role,
-        photoUrl: "/placeholder-player.svg",
+        photoUrl: staffMember.photoUrl,
         roleLabel: staffMember.role,
         shirtNumber: null,
         subjectKind: "staff",
         teamName: "Casa",
+      };
+    }),
+  };
+}
+
+export function buildPilotAwaySubmittedMatchSheetSnapshot(input: {
+  players: readonly PlayerListItem[];
+  staff: readonly StaffListItem[];
+}): SubmittedMatchSheetSnapshot {
+  return {
+    players: input.players
+      .filter((player) => !player.suspended)
+      .slice(0, 11)
+      .map((player, index) => ({
+        firstName: player.firstName,
+        id: `away-${player.id}`,
+        lastName: player.lastName,
+        photoUrl: player.photoUrl,
+        roleLabel: toLineupRoleLabel(player.role),
+        shirtNumber: player.shirtNumber ?? index + 1,
+        subjectKind: "player",
+        teamName: "Ospite",
+      })),
+    staff: input.staff.slice(0, 2).map((staffMember) => {
+      const [firstName, ...lastNameParts] = staffMember.fullName.split(" ");
+      return {
+        firstName: firstName ?? staffMember.fullName,
+        id: `away-${staffMember.id}`,
+        lastName: lastNameParts.join(" ") || staffMember.role,
+        photoUrl: staffMember.photoUrl,
+        roleLabel: staffMember.role,
+        shirtNumber: null,
+        subjectKind: "staff",
+        teamName: "Ospite",
       };
     }),
   };

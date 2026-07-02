@@ -49,6 +49,7 @@ const reportSteps = [
 export function RefereeMatchWorkflow() {
   const [step, setStep] = useState(0);
   const [recognitionLocked, setRecognitionLocked] = useState(false);
+  const [fullRecognitionComplete, setFullRecognitionComplete] = useState(false);
   const { session } = useSession();
   const dashboardQuery = useQuery({
     enabled: Boolean(session),
@@ -99,11 +100,17 @@ export function RefereeMatchWorkflow() {
           matchId={matchId}
           onComplete={() => {
             setRecognitionLocked(true);
+            setFullRecognitionComplete(true);
             setStep(2);
           }}
         />
       ) : null}
-      {step === 2 ? <MatchReportStep matchId={matchId} /> : null}
+      {step === 2 ? (
+        <MatchReportStep
+          fullRecognitionComplete={fullRecognitionComplete}
+          matchId={matchId}
+        />
+      ) : null}
     </div>
   );
 }
@@ -129,6 +136,9 @@ function SheetVerificationStep({
       />
     );
   const sheets = query.data ?? [];
+  const missingAwaySheet = sheets.some(
+    (sheet) => sheet.team === "away" && sheet.status === "missing",
+  );
   const canStart =
     sheets.length > 0 && sheets.every((sheet) => sheet.status !== "missing");
   return (
@@ -148,6 +158,11 @@ function SheetVerificationStep({
           ))}
         </div>
       )}
+      {missingAwaySheet ? (
+        <p className="rounded-lg bg-red-100 p-3 text-sm font-semibold text-red-900">
+          Distinta ospite mancante
+        </p>
+      ) : null}
       <Button
         disabled={!canStart || mutation.isPending}
         onClick={() => mutation.mutate()}
@@ -255,6 +270,12 @@ function RecognitionStep({
   const subjects = query.data ?? [];
   const currentSubject = subjects[index] ?? null;
   const completedCount = Object.keys(decisions).length;
+  const recognizedSubjects = subjects.filter((subject) => decisions[subject.id]);
+  const recognizedTeams = new Set(recognizedSubjects.map((subject) => subject.teamName));
+  const hasHomeRecognition = recognizedTeams.has("Casa");
+  const hasAwayRecognition = recognizedTeams.has("Ospite");
+  const fullRecognitionComplete =
+    completedCount === subjects.length && hasHomeRecognition && hasAwayRecognition;
   function decide(decision: Exclude<RecognitionDecision, "pending">) {
     if (!currentSubject) return;
     setDecisions((current) => ({ ...current, [currentSubject.id]: decision }));
@@ -268,10 +289,16 @@ function RecognitionStep({
       <Card className="space-y-4 text-center">
         <h2 className="text-2xl font-bold">Riconoscimento completato</h2>
         <p className="text-sm text-slate-500">
-          {completedCount} tesserati verificati. Puoi procedere al referto.
+          {completedCount} tesserati verificati. Puoi procedere al referto solo
+          dopo il riconoscimento di Casa e Ospite.
         </p>
+        {!fullRecognitionComplete ? (
+          <p className="rounded-lg bg-red-100 p-3 text-sm font-semibold text-red-900">
+            Riconoscimento non completato per entrambe le squadre
+          </p>
+        ) : null}
         <Button
-          disabled={mutation.isPending}
+          disabled={!fullRecognitionComplete || mutation.isPending}
           onClick={() => mutation.mutate()}
           type="button"
         >
@@ -294,8 +321,8 @@ function RecognitionStep({
         </span>
       </div>
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-        <div className="flex aspect-[3/4] items-center justify-center rounded-2xl bg-muted text-lg font-semibold">
-          Foto tesserato
+        <div className="flex aspect-[3/4] items-center justify-center rounded-2xl bg-muted text-center text-lg font-semibold">
+          {currentSubject.photoUrl ? "Foto tesserato" : "Placeholder · foto mancante"}
         </div>
         <div className="space-y-4">
           <div>
@@ -358,7 +385,10 @@ function RecognitionStep({
   );
 }
 
-function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
+function MatchReportStep({
+  fullRecognitionComplete,
+  matchId,
+}: Readonly<{ fullRecognitionComplete: boolean; matchId: string }>) {
   const queryClient = useQueryClient();
   const { notify } = useToast();
   const query = useQuery({
@@ -370,6 +400,10 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const currentReport = report ?? query.data;
   const reportErrors = currentReport ? validateReportDraft(currentReport) : [];
+  const recognitionErrors = fullRecognitionComplete
+    ? []
+    : ["Riconoscimento non completato per entrambe le squadre"];
+  const blockingErrors = [...recognitionErrors, ...reportErrors];
   const isReadOnly = isSubmitted || currentReport?.status === "submitted";
   const submitMutation = useMutation({
     mutationFn: () =>
@@ -469,7 +503,7 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
       ) : null}
       {currentStep === "Riepilogo" ? (
         <div className="space-y-4">
-          {reportErrors.length === 0 ? (
+          {blockingErrors.length === 0 ? (
             <p className="rounded-lg bg-green-100 p-3 text-sm text-green-900">
               Riepilogo pronto per l’invio.
             </p>
@@ -477,7 +511,7 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
             <div className="rounded-lg bg-red-100 p-3 text-sm text-red-900">
               <p className="font-semibold">Referto non valido.</p>
               <ul className="mt-2 list-disc pl-5">
-                {reportErrors.map((error) => (
+                {blockingErrors.map((error) => (
                   <li key={error}>{error}</li>
                 ))}
               </ul>
@@ -507,7 +541,7 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
           </dl>
           <Button
             disabled={
-              isReadOnly || reportErrors.length > 0 || submitMutation.isPending
+              isReadOnly || blockingErrors.length > 0 || submitMutation.isPending
             }
             onClick={() => submitMutation.mutate()}
             type="button"

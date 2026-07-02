@@ -30,5 +30,6 @@ export interface StaffListItem {
   id: string;
   fullName: string;
   role: string;
+  photoUrl: string | null;
   selected: boolean;
 }

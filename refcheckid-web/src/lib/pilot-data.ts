@@ -21,7 +21,7 @@ export const pilotPlayers: readonly PlayerListItem[] = Array.from(
 );
 
 export const pilotStaff: readonly StaffListItem[] = [
-  { id: "pilot-staff-1", fullName: "Mario Rossi", role: "Allenatore", selected: false },
-  { id: "pilot-staff-2", fullName: "Lucia Bianchi", role: "Medico", selected: false },
-  { id: "pilot-staff-3", fullName: "Paolo Verdi", role: "Dirigente accompagnatore", selected: false },
+  { id: "pilot-staff-1", fullName: "Mario Rossi", role: "Allenatore", photoUrl: null, selected: false },
+  { id: "pilot-staff-2", fullName: "Lucia Bianchi", role: "Medico", photoUrl: null, selected: false },
+  { id: "pilot-staff-3", fullName: "Paolo Verdi", role: "Dirigente accompagnatore", photoUrl: null, selected: false },
 ];

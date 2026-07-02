@@ -47,4 +47,14 @@ describe("regression: referee smoke workflow", () => {
     expect(source).toContain("isReadOnly");
     expect(source).toContain("disabled={readOnly}");
   });
+
+  it("blocks report submission until both teams are recognized", () => {
+    expect(source).toContain("Riconoscimento non completato per entrambe le squadre");
+    expect(source).toContain("Distinta ospite mancante");
+    expect(source).toContain("fullRecognitionComplete");
+    expect(source).toContain("hasHomeRecognition");
+    expect(source).toContain("hasAwayRecognition");
+    expect(source).toContain("blockingErrors");
+  });
+
 });

@@ -43,6 +43,8 @@ const EMPTY_STAFF: readonly StaffListItem[] = [];
 export function MatchSheetWorkflow() {
   const [step, setStep] = useState(0);
   const [query, setQuery] = useState("");
+  const [photoDraft, setPhotoDraft] = useState<{ id: string; previewUrl: string } | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { notify } = useToast();
   const playersQuery = useQuery({
@@ -115,6 +117,48 @@ export function MatchSheetWorkflow() {
     updater: (current: readonly StaffListItem[]) => readonly StaffListItem[],
   ) {
     setSelectedStaff(updater(staff));
+  }
+  function updatePlayerPhoto(playerId: string, photoUrl: string) {
+    setPlayerList((current) =>
+      current.map((player) =>
+        player.id === playerId ? { ...player, photoUrl } : player,
+      ),
+    );
+  }
+  function updateStaffPhoto(staffId: string, photoUrl: string) {
+    setStaffList((current) =>
+      current.map((staffMember) =>
+        staffMember.id === staffId ? { ...staffMember, photoUrl } : staffMember,
+      ),
+    );
+  }
+  function handlePhotoSelected(subjectId: string, file: File | null) {
+    setPhotoError(null);
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setPhotoError("Carica solo file immagine.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError("La foto supera la dimensione massima di 5 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      if (typeof reader.result === "string") {
+        setPhotoDraft({ id: subjectId, previewUrl: reader.result });
+      }
+    });
+    reader.readAsDataURL(file);
+  }
+  function confirmPhoto(subjectId: string, applyPhoto: (photoUrl: string) => void) {
+    if (!photoDraft || photoDraft.id !== subjectId) {
+      setPhotoError("Conferma una preview prima del salvataggio.");
+      return;
+    }
+    applyPhoto(photoDraft.previewUrl);
+    setPhotoDraft(null);
+    setPhotoError(null);
   }
   function togglePlayer(playerId: string) {
     setPlayerList((current) =>
@@ -231,6 +275,12 @@ export function MatchSheetWorkflow() {
       </aside>
       {step === 0 ? (
         <PlayersStep
+          onConfirmPhoto={(playerId) =>
+            confirmPhoto(playerId, (photoUrl) => updatePlayerPhoto(playerId, photoUrl))
+          }
+          onPhotoSelected={handlePhotoSelected}
+          photoDraft={photoDraft}
+          photoError={photoError}
           players={filteredPlayers}
           query={query}
           setQuery={setQuery}
@@ -249,7 +299,16 @@ export function MatchSheetWorkflow() {
         />
       ) : null}
       {step === 2 ? (
-        <StaffStep staff={staff} toggleStaff={toggleStaff} />
+        <StaffStep
+          onConfirmPhoto={(staffId) =>
+            confirmPhoto(staffId, (photoUrl) => updateStaffPhoto(staffId, photoUrl))
+          }
+          onPhotoSelected={handlePhotoSelected}
+          photoDraft={photoDraft}
+          photoError={photoError}
+          staff={staff}
+          toggleStaff={toggleStaff}
+        />
       ) : null}
       {step === 3 ? (
         <SummaryStep
@@ -265,11 +324,19 @@ export function MatchSheetWorkflow() {
 }
 
 function PlayersStep({
+  onConfirmPhoto,
+  onPhotoSelected,
+  photoDraft,
+  photoError,
   players,
   query,
   setQuery,
   togglePlayer,
 }: Readonly<{
+  onConfirmPhoto: (id: string) => void;
+  onPhotoSelected: (id: string, file: File | null) => void;
+  photoDraft: { id: string; previewUrl: string } | null;
+  photoError: string | null;
   players: readonly PlayerListItem[];
   query: string;
   setQuery: (value: string) => void;
@@ -326,8 +393,17 @@ function PlayersStep({
               <p className="text-xs text-slate-500">
                 {player.warning ? "Diffida" : "Nessuna diffida"} ·{" "}
                 {player.suspended ? "Squalificato" : "Disponibile"}
+                {!player.photoUrl ? " · Foto mancante" : ""}
               </p>
             </div>
+            <PhotoCaptureControls
+              currentPhotoUrl={player.photoUrl}
+              onConfirm={() => onConfirmPhoto(player.id)}
+              onPhotoSelected={(file) => onPhotoSelected(player.id, file)}
+              photoDraft={photoDraft?.id === player.id ? photoDraft : null}
+              photoError={photoError}
+              subjectLabel={`${player.lastName} ${player.firstName}`}
+            />
             <input
               aria-label={`Convoca ${player.lastName} ${player.firstName}`}
               checked={player.selected}
@@ -340,6 +416,63 @@ function PlayersStep({
         })}
       </div>
     </Card>
+  );
+}
+
+function PhotoCaptureControls({
+  currentPhotoUrl,
+  onConfirm,
+  onPhotoSelected,
+  photoDraft,
+  photoError,
+  subjectLabel,
+}: Readonly<{
+  currentPhotoUrl: string | null;
+  onConfirm: () => void;
+  onPhotoSelected: (file: File | null) => void;
+  photoDraft: { id: string; previewUrl: string } | null;
+  photoError: string | null;
+  subjectLabel: string;
+}>) {
+  return (
+    <div className="min-w-[180px] space-y-2 text-xs">
+      <p className="font-semibold text-slate-600">
+        {currentPhotoUrl ? "Modifica foto" : "Aggiungi foto"}
+      </p>
+      <label className="block rounded-lg border border-dashed p-2 text-center">
+        <span>Scatta/carica foto</span>
+        <input
+          accept="image/*"
+          aria-label={`${currentPhotoUrl ? "Modifica" : "Aggiungi"} foto ${subjectLabel}`}
+          capture="environment"
+          className="sr-only"
+          onChange={(event) => onPhotoSelected(event.target.files?.[0] ?? null)}
+          type="file"
+        />
+      </label>
+      <p className="text-[11px] text-slate-500">
+        Smartphone consigliato: usa la fotocamera e centra il volto nell’ovale.
+        Da desktop puoi caricare un file immagine.
+      </p>
+      {photoDraft ? (
+        <div className="space-y-2 rounded-lg bg-muted p-2">
+          <div className="relative mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-lg bg-white">
+            <Image
+              alt={`Preview foto ${subjectLabel}`}
+              className="h-full w-full object-cover"
+              height={96}
+              src={photoDraft.previewUrl}
+              width={96}
+            />
+            <div className="pointer-events-none absolute inset-3 rounded-[50%] border-2 border-white/80 shadow-[0_0_0_999px_rgba(15,23,42,0.20)]" />
+          </div>
+          <Button className="w-full py-1 text-xs" onClick={onConfirm} type="button">
+            Conferma caricamento
+          </Button>
+        </div>
+      ) : null}
+      {photoError ? <p className="text-red-600">{photoError}</p> : null}
+    </div>
   );
 }
 
@@ -528,9 +661,17 @@ function SortablePlayerRow({
 }
 
 function StaffStep({
+  onConfirmPhoto,
+  onPhotoSelected,
+  photoDraft,
+  photoError,
   staff,
   toggleStaff,
 }: Readonly<{
+  onConfirmPhoto: (id: string) => void;
+  onPhotoSelected: (id: string, file: File | null) => void;
+  photoDraft: { id: string; previewUrl: string } | null;
+  photoError: string | null;
   staff: readonly StaffListItem[];
   toggleStaff: (id: string) => void;
 }>) {
@@ -541,19 +682,34 @@ function StaffStep({
         <EmptyState message="Nessuno staff disponibile." />
       ) : null}
       {staff.map((staffMember) => (
-        <label
-          className="flex items-center justify-between rounded-xl border p-3"
+        <div
+          className="flex items-center justify-between gap-3 rounded-xl border p-3"
           key={staffMember.id}
         >
-          <span>
-            <strong>{staffMember.fullName}</strong> · {staffMember.role}
-          </span>
-          <input
-            checked={staffMember.selected}
-            onChange={() => toggleStaff(staffMember.id)}
-            type="checkbox"
+          <label className="flex flex-1 items-center gap-3">
+            <input
+              checked={staffMember.selected}
+              onChange={() => toggleStaff(staffMember.id)}
+              type="checkbox"
+            />
+            <span>
+              <strong>{staffMember.fullName}</strong> · {staffMember.role}
+              {!staffMember.photoUrl ? (
+                <span className="block text-xs font-semibold text-red-600">
+                  Foto mancante
+                </span>
+              ) : null}
+            </span>
+          </label>
+          <PhotoCaptureControls
+            currentPhotoUrl={staffMember.photoUrl}
+            onConfirm={() => onConfirmPhoto(staffMember.id)}
+            onPhotoSelected={(file) => onPhotoSelected(staffMember.id, file)}
+            photoDraft={photoDraft?.id === staffMember.id ? photoDraft : null}
+            photoError={photoError}
+            subjectLabel={staffMember.fullName}
           />
-        </label>
+        </div>
       ))}
     </Card>
   );

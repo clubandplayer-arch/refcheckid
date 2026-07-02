@@ -110,6 +110,7 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
       staffMember.fullName ?? staffMember.full_name ?? staffMember.id,
     ),
     role: String(staffMember.role ?? "staff"),
+    photoUrl: staffMember.photoUrl ? String(staffMember.photoUrl) : null,
     selected: false,
   }));
 }

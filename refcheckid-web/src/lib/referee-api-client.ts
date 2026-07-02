@@ -10,6 +10,7 @@ import {
 } from "./api-client";
 import { pilotPlayers, pilotStaff } from "./pilot-data";
 import {
+  buildPilotAwaySubmittedMatchSheetSnapshot,
   buildPilotSubmittedMatchSheetSnapshot,
   readSubmittedMatchSheetSnapshot,
 } from "./submitted-match-sheet";
@@ -45,13 +46,22 @@ export async function fetchRefereeMatchSheets(
 export async function fetchRecognitionSubjects(): Promise<
   readonly RecognitionSubject[]
 > {
-  const snapshot =
+  const homeSnapshot =
     readSubmittedMatchSheetSnapshot() ??
     buildPilotSubmittedMatchSheetSnapshot({
       players: pilotPlayers,
       staff: pilotStaff,
     });
-  return [...snapshot.players, ...snapshot.staff].map((subject) => ({
+  const awaySnapshot = buildPilotAwaySubmittedMatchSheetSnapshot({
+    players: pilotPlayers,
+    staff: pilotStaff,
+  });
+  return [
+    ...homeSnapshot.players,
+    ...homeSnapshot.staff,
+    ...awaySnapshot.players,
+    ...awaySnapshot.staff,
+  ].map((subject) => ({
     id: subject.id,
     firstName: subject.firstName,
     lastName: subject.lastName,

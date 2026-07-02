@@ -96,7 +96,7 @@ describe("unit: referee workflow API client", () => {
   });
 
 
-  it("recognizes only submitted sheet players and staff from the saved match sheet", async () => {
+  it("recognizes submitted home sheet subjects plus away sheet players and staff", async () => {
     const snapshot = {
       players: Array.from({ length: 14 }, (_, index) => ({
         firstName: `Nome${index + 1}`,
@@ -130,9 +130,11 @@ describe("unit: referee workflow API client", () => {
 
     const subjects = await fetchRecognitionSubjects();
 
-    expect(subjects).toHaveLength(17);
-    expect(subjects.filter((subject) => subject.subjectKind === "player")).toHaveLength(14);
-    expect(subjects.filter((subject) => subject.subjectKind === "staff")).toHaveLength(3);
+    expect(subjects).toHaveLength(30);
+    expect(subjects.filter((subject) => subject.teamName === "Casa")).toHaveLength(17);
+    expect(subjects.filter((subject) => subject.teamName === "Ospite")).toHaveLength(13);
+    expect(subjects.filter((subject) => subject.subjectKind === "player")).toHaveLength(25);
+    expect(subjects.filter((subject) => subject.subjectKind === "staff")).toHaveLength(5);
     expect(subjects[14]).toMatchObject({
       roleLabel: "Allenatore",
       shirtNumber: null,
