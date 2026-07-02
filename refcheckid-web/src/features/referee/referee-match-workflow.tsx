@@ -69,16 +69,24 @@ export function RefereeMatchWorkflow() {
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
       <aside className="space-y-2">
-        {steps.map((label, index) => (
-          <button
-            className={`w-full rounded-lg px-3 py-2 text-left text-sm ${step === index ? "bg-primary text-white" : "bg-muted"}`}
-            key={label}
-            onClick={() => setStep(index)}
-            type="button"
-          >
-            {index + 1}. {label}
-          </button>
-        ))}
+        {steps.map((label, index) => {
+          const isRecognitionStepDisabled = recognitionLocked && index === 1;
+          return (
+            <button
+              className={`w-full rounded-lg px-3 py-2 text-left text-sm ${
+                step === index ? "bg-primary text-white" : "bg-muted"
+              } ${isRecognitionStepDisabled ? "cursor-not-allowed opacity-50" : ""}`}
+              disabled={isRecognitionStepDisabled}
+              key={label}
+              onClick={() => {
+                if (!isRecognitionStepDisabled) setStep(index);
+              }}
+              type="button"
+            >
+              {index + 1}. {label}
+            </button>
+          );
+        })}
       </aside>
       {step === 0 ? (
         <SheetVerificationStep matchId={matchId} onStart={() => setStep(1)} />
@@ -219,7 +227,7 @@ function RecognitionStep({
   });
   const mutation = useMutation({
     mutationFn: () => completeRecognition(matchId),
-    onSuccess: onComplete,
+    onMutate: onComplete,
   });
   if (isLocked) {
     return (
