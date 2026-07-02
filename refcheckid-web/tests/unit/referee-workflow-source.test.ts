@@ -29,6 +29,9 @@ describe("regression: referee smoke workflow", () => {
     expect(source).toContain('eventKey="substitutions"');
     expect(source).toContain("Aggiungi");
     expect(source).toContain("Rimuovi");
+    expect(source).toContain("Gol casa inseriti");
+    expect(source).toContain("Gol ospite inseriti");
+    expect(source).toContain("goalLimitReached");
     expect(source).toContain("Tipo gol");
     expect(source).toContain("Numero uscente");
     expect(source).toContain("Numero entrante");

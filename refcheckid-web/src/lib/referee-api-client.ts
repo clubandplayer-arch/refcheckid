@@ -3,11 +3,15 @@ import {
   fetchMatches,
   fetchMatchReports,
   fetchMatchSheets,
-  fetchPlayers,
   lockMatchSheet,
   startRecognition,
   submitMatchReport,
 } from "./api-client";
+import { pilotPlayers, pilotStaff } from "./pilot-data";
+import {
+  buildPilotSubmittedMatchSheetSnapshot,
+  readSubmittedMatchSheetSnapshot,
+} from "./submitted-match-sheet";
 import type { ApiMatch, ApiMatchSheet, ApiReport } from "./api-client";
 import type {
   MatchReportDraft,
@@ -40,17 +44,24 @@ export async function fetchRefereeMatchSheets(
 export async function fetchRecognitionSubjects(): Promise<
   readonly RecognitionSubject[]
 > {
-  const players = await fetchPlayers();
-  return players.map((player) => ({
-    id: player.id,
-    firstName: player.firstName,
-    lastName: player.lastName,
-    shirtNumber: player.shirtNumber ?? 0,
-    teamName: "Club",
-    photoUrl: player.photoUrl,
+  const snapshot =
+    readSubmittedMatchSheetSnapshot() ??
+    buildPilotSubmittedMatchSheetSnapshot({
+      players: pilotPlayers,
+      staff: pilotStaff,
+    });
+  return [...snapshot.players, ...snapshot.staff].map((subject) => ({
+    id: subject.id,
+    firstName: subject.firstName,
+    lastName: subject.lastName,
+    shirtNumber: subject.shirtNumber,
+    teamName: subject.teamName,
+    roleLabel: subject.roleLabel,
+    subjectKind: subject.subjectKind,
+    photoUrl: subject.photoUrl,
     document: {
-      type: "Documento",
-      number: player.id,
+      type: subject.subjectKind === "player" ? "Documento atleta" : "Documento staff",
+      number: subject.id,
       expiresAt: new Date().toISOString(),
     },
     decision: "pending",

@@ -23,6 +23,7 @@ import {
   lineupRoleOptions,
   validateMatchSheet,
 } from "@/lib/match-sheet-validation";
+import { saveSubmittedMatchSheetSnapshot } from "@/lib/submitted-match-sheet";
 import {
   fetchMatchSheets,
   fetchPlayers,
@@ -66,6 +67,10 @@ export function MatchSheetWorkflow() {
     mutationFn: () => {
       const firstSheet = sheetsQuery.data?.[0];
       if (!firstSheet) throw new Error("Nessuna distinta disponibile.");
+      saveSubmittedMatchSheetSnapshot({
+        players: calledPlayers,
+        staff: calledStaff,
+      });
       return submitMatchSheet(firstSheet.id);
     },
     onSuccess() {

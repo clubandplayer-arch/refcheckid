@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { queryKeys } from "@/lib/api-client";
 import {
   cautionReasons,
+  countGoalsByTeam,
   expulsionReasons,
   goalTypes,
   reportTeams,
@@ -303,7 +304,12 @@ function RecognitionStep({
             <h3 className="text-3xl font-bold">
               {currentSubject.firstName} {currentSubject.lastName}
             </h3>
-            <p className="text-lg">Maglia #{currentSubject.shirtNumber}</p>
+            {currentSubject.subjectKind === "player" ? (
+              <p className="text-lg">Maglia #{currentSubject.shirtNumber}</p>
+            ) : (
+              <p className="text-lg">Qualifica: {currentSubject.roleLabel}</p>
+            )}
+            <p className="text-sm text-slate-500">Ruolo: {currentSubject.roleLabel}</p>
           </div>
           <button
             className="w-full rounded-xl border p-3 text-left"
@@ -529,6 +535,9 @@ function EventsPanel({
   title: string;
 }>) {
   const events = report[eventKey];
+  const goalCounts = countGoalsByTeam(report);
+  const goalLimitReached =
+    eventKey === "goals" && events.length >= report.homeGoals + report.awayGoals;
 
   function setEvents(nextEvents: readonly MatchReportEvent[]) {
     setReport({ ...report, [eventKey]: nextEvents });
@@ -545,7 +554,7 @@ function EventsPanel({
       minute: nextMinute(),
       playerName: "",
       shirtNumber: null,
-      teamName: "Casa",
+      teamName: goalCounts.home < report.homeGoals ? "Casa" : "Ospite",
     };
     setEvents([
       ...events,
@@ -597,10 +606,24 @@ function EventsPanel({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-semibold">{title}</h3>
-        <Button disabled={readOnly} onClick={addEvent} type="button">
+        <Button
+          disabled={readOnly || goalLimitReached}
+          onClick={addEvent}
+          type="button"
+        >
           Aggiungi
         </Button>
       </div>
+      {eventKey === "goals" ? (
+        <div className="grid gap-2 text-sm sm:grid-cols-2">
+          <p className="rounded-lg bg-muted p-2">
+            Gol casa inseriti {goalCounts.home}/{report.homeGoals}
+          </p>
+          <p className="rounded-lg bg-muted p-2">
+            Gol ospite inseriti {goalCounts.away}/{report.awayGoals}
+          </p>
+        </div>
+      ) : null}
       {events.length === 0 ? (
         <p className="rounded-lg bg-muted p-3 text-sm text-slate-600">
           Nessun evento inserito.

@@ -49,6 +49,66 @@ describe("regression: referee report validation", () => {
     expect(errors).toContain("Gol: eventi non in ordine cronologico.");
   });
 
+
+  it("blocks report submission when goal events do not match the final score", () => {
+    const errors = validateReportDraft(
+      report({
+        awayGoals: 1,
+        goals: [
+          {
+            detail: goalTypes[0],
+            id: "goal-1",
+            minute: 1,
+            playerName: "Casa #9",
+            shirtNumber: 9,
+            teamName: "Casa",
+          },
+          {
+            detail: goalTypes[0],
+            id: "goal-2",
+            minute: 2,
+            playerName: "Casa #10",
+            shirtNumber: 10,
+            teamName: "Casa",
+          },
+          {
+            detail: goalTypes[0],
+            id: "goal-3",
+            minute: 3,
+            playerName: "Ospite #7",
+            shirtNumber: 7,
+            teamName: "Ospite",
+          },
+        ],
+        homeGoals: 1,
+      }),
+    );
+
+    expect(errors).toContain("Gol: gol Casa inseriti 2/1.");
+    expect(errors).toContain("Gol: numero eventi superiore al risultato finale.");
+  });
+
+  it("requires goal events to match both home and away final score totals", () => {
+    const errors = validateReportDraft(
+      report({
+        awayGoals: 1,
+        goals: [
+          {
+            detail: goalTypes[0],
+            id: "goal-1",
+            minute: 1,
+            playerName: "Casa #9",
+            shirtNumber: 9,
+            teamName: "Casa",
+          },
+        ],
+        homeGoals: 1,
+      }),
+    );
+
+    expect(errors).toContain("Gol: gol Ospite inseriti 0/1.");
+  });
+
   it("resolves player name from team and shirt number", () => {
     expect(resolveReportPlayerName("Ospite", 8)).toBe("Ospite #8");
   });

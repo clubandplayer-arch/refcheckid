@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  fetchRecognitionSubjects,
   fetchRefereeMatchSheets,
   fetchRefereeReport,
   lockSubmittedSheetsAndStartRecognition,
@@ -91,6 +92,51 @@ describe("unit: referee workflow API client", () => {
       expect.stringContaining("/recognitions/start"),
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+
+  it("recognizes only submitted sheet players and staff from the saved match sheet", async () => {
+    const snapshot = {
+      players: Array.from({ length: 14 }, (_, index) => ({
+        firstName: `Nome${index + 1}`,
+        id: `player-${index + 1}`,
+        lastName: `Giocatore${index + 1}`,
+        photoUrl: "/placeholder-player.svg",
+        roleLabel: index === 0 ? "Portiere" : "Titolare",
+        shirtNumber: index + 1,
+        subjectKind: "player",
+        teamName: "Casa",
+      })),
+      staff: Array.from({ length: 3 }, (_, index) => ({
+        firstName: `Staff${index + 1}`,
+        id: `staff-${index + 1}`,
+        lastName: "Demo",
+        photoUrl: "/placeholder-player.svg",
+        roleLabel: "Allenatore",
+        shirtNumber: null,
+        subjectKind: "staff",
+        teamName: "Casa",
+      })),
+    };
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) =>
+          key === "refcheckid.submittedMatchSheet"
+            ? JSON.stringify(snapshot)
+            : null,
+      },
+    });
+
+    const subjects = await fetchRecognitionSubjects();
+
+    expect(subjects).toHaveLength(17);
+    expect(subjects.filter((subject) => subject.subjectKind === "player")).toHaveLength(14);
+    expect(subjects.filter((subject) => subject.subjectKind === "staff")).toHaveLength(3);
+    expect(subjects[14]).toMatchObject({
+      roleLabel: "Allenatore",
+      shirtNumber: null,
+      subjectKind: "staff",
+    });
   });
 
   it("keeps the report id so report submission uses the report resource", async () => {

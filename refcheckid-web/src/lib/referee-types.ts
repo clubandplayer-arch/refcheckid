@@ -35,8 +35,10 @@ export interface RecognitionSubject {
   id: string;
   firstName: string;
   lastName: string;
-  shirtNumber: number;
+  shirtNumber: number | null;
   teamName: string;
+  roleLabel: string;
+  subjectKind: "player" | "staff";
   photoUrl: string | null;
   document: {
     type: string;

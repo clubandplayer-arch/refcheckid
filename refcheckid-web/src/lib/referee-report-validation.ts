@@ -50,17 +50,45 @@ export function isSuspendedReportPlayer(shirtNumber: number | null | undefined) 
 
 export function validateReportDraft(report: MatchReportDraft): readonly string[] {
   return [
-    ...validateEventList("Gol", report.goals),
-    ...validateEventList("Ammonizioni", report.cautions),
-    ...validateEventList("Espulsioni", report.expulsions),
-    ...validateEventList("Sostituzioni", report.substitutions),
+    ...validateGoalTotals(report),
+    ...validateEventList("Gol", report.goals, true),
+    ...validateEventList("Ammonizioni", report.cautions, true),
+    ...validateEventList("Espulsioni", report.expulsions, true),
+    ...validateEventList("Sostituzioni", report.substitutions, false),
     ...validateSubstitutions(report.substitutions),
   ];
+}
+
+export function countGoalsByTeam(report: MatchReportDraft): { home: number; away: number } {
+  return {
+    away: report.goals.filter((event) => event.teamName === "Ospite").length,
+    home: report.goals.filter((event) => event.teamName === "Casa").length,
+  };
+}
+
+function validateGoalTotals(report: MatchReportDraft): readonly string[] {
+  const errors: string[] = [];
+  const goalCounts = countGoalsByTeam(report);
+  if (goalCounts.home !== report.homeGoals) {
+    errors.push(
+      `Gol: gol Casa inseriti ${goalCounts.home}/${report.homeGoals}.`,
+    );
+  }
+  if (goalCounts.away !== report.awayGoals) {
+    errors.push(
+      `Gol: gol Ospite inseriti ${goalCounts.away}/${report.awayGoals}.`,
+    );
+  }
+  if (report.goals.length > report.homeGoals + report.awayGoals) {
+    errors.push("Gol: numero eventi superiore al risultato finale.");
+  }
+  return errors;
 }
 
 function validateEventList(
   label: string,
   events: readonly MatchReportEvent[],
+  requiresPrimaryPlayer: boolean,
 ): readonly string[] {
   const errors: string[] = [];
   let previousMinute = 0;
@@ -74,6 +102,9 @@ function validateEventList(
     previousMinute = event.minute;
     if (!reportTeams.includes(event.teamName as (typeof reportTeams)[number])) {
       errors.push(`${label}: squadra mancante alla riga ${index + 1}.`);
+    }
+    if (requiresPrimaryPlayer && (event.shirtNumber === null || event.shirtNumber === undefined || event.shirtNumber < 1)) {
+      errors.push(`${label}: numero maglia mancante alla riga ${index + 1}.`);
     }
     if (isSuspendedReportPlayer(event.shirtNumber)) {
       errors.push(`${label}: tesserato squalificato non selezionabile.`);
