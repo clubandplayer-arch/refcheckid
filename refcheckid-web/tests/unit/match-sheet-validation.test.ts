@@ -54,6 +54,7 @@ describe("unit: manager match sheet validation", () => {
       invalidPlayers: 1,
       isValid: false,
       missingNumbers: 1,
+      missingShirtNumberPlayers: [`${pilotPlayers[0]!.lastName} ${pilotPlayers[0]!.firstName}`],
     });
   });
 
@@ -94,6 +95,26 @@ describe("unit: manager match sheet validation", () => {
     });
     expect(validation.errors).toContain("Seleziona al massimo un Capitano.");
     expect(validation.errors).toContain("Seleziona al massimo un Vice capitano.");
+  });
+
+  it("counts goalkeeper plus ten starters as a valid eleven-person starting lineup", () => {
+    const selectedPlayers = pilotPlayers
+      .filter((player) => !player.suspended)
+      .slice(0, 12)
+      .map((player, index) => ({
+        ...player,
+        isCaptain: index === 1,
+        isViceCaptain: index === 2,
+        role: index === 0 || index === 11 ? "goalkeeper" as const : "starter" as const,
+        selected: true,
+        shirtNumber: index + 1,
+      }));
+    expect(validateMatchSheet(selectedPlayers, [pilotStaff[0]!])).toMatchObject({
+      goalkeepers: 2,
+      isValid: true,
+      starters: 10,
+      startingLineup: 12,
+    });
   });
 
   it("allows a non-empty valid sheet", () => {

@@ -842,7 +842,12 @@ function SummaryStep({
       <ul className="space-y-2 text-sm">
         <li>Giocatori convocati: {players.length}</li>
         <li>Staff selezionato: {staff.length}</li>
-        <li>Numeri maglia mancanti: {validation.missingNumbers}</li>
+        <li>
+          Numeri maglia mancanti: {validation.missingNumbers}
+          {validation.missingShirtNumberPlayers.length > 0
+            ? ` (${validation.missingShirtNumberPlayers.join(", ")})`
+            : ""}
+        </li>
         <li>
           Numeri maglia duplicati:{" "}
           {validation.duplicateShirtNumbers.length > 0
@@ -852,6 +857,7 @@ function SummaryStep({
         <li>Giocatori non validi: {validation.invalidPlayers}</li>
         <li>Portieri: {validation.goalkeepers}</li>
         <li>Titolari: {validation.starters}</li>
+        <li>Titolari/Portieri: {validation.startingLineup}</li>
         <li>Capitani: {validation.captains}</li>
         <li>Vice capitani: {validation.viceCaptains}</li>
       </ul>

@@ -31,16 +31,22 @@ export interface MatchSheetValidationResult {
   readonly captains: number;
   readonly viceCaptains: number;
   readonly captainViceConflicts: number;
+  readonly missingShirtNumberPlayers: readonly string[];
+  readonly startingLineup: number;
 }
 
 export function validateMatchSheet(
   players: readonly PlayerListItem[],
   staff: readonly StaffListItem[],
 ): MatchSheetValidationResult {
-  const missingNumbers = players.filter((player) => player.shirtNumber === null).length;
+  const missingShirtNumberPlayers = players
+    .filter((player) => player.shirtNumber === null)
+    .map((player) => `${player.lastName} ${player.firstName}`);
+  const missingNumbers = missingShirtNumberPlayers.length;
   const invalidPlayers = players.filter((player) => player.suspended).length;
   const goalkeepers = players.filter((player) => player.role === "goalkeeper").length;
   const starters = players.filter((player) => player.role === "starter").length;
+  const startingLineup = goalkeepers + starters;
   const captains = players.filter((player) => player.isCaptain).length;
   const viceCaptains = players.filter((player) => player.isViceCaptain).length;
   const captainViceConflicts = players.filter(
@@ -61,13 +67,17 @@ export function validateMatchSheet(
   const errors = [
     ...(players.length === 0 ? ["Seleziona almeno un giocatore convocato."] : []),
     ...(staff.length === 0 ? ["Seleziona almeno un membro dello staff."] : []),
-    ...(missingNumbers > 0 ? ["Completa tutti i numeri maglia."] : []),
+    ...(missingNumbers > 0
+      ? [`Completa i numeri maglia per: ${missingShirtNumberPlayers.join(", ")}.`]
+      : []),
     ...(duplicateShirtNumbers.length > 0
       ? [`Numeri di maglia duplicati: ${duplicateShirtNumbers.join(", ")}.`]
       : []),
     ...(invalidPlayers > 0 ? ["Rimuovi i giocatori non validi dalla distinta."] : []),
     ...(goalkeepers === 0 ? ["Seleziona almeno un Portiere."] : []),
-    ...(starters < 11 ? ["Seleziona almeno 11 Titolari per lo smoke test."] : []),
+    ...(startingLineup < 11
+      ? ["Seleziona almeno 11 titolari/portieri per lo smoke test."]
+      : []),
     ...(captains > 1 ? ["Seleziona al massimo un Capitano."] : []),
     ...(viceCaptains > 1 ? ["Seleziona al massimo un Vice capitano."] : []),
     ...(captainViceConflicts > 0
@@ -84,7 +94,9 @@ export function validateMatchSheet(
     invalidPlayers,
     isValid: errors.length === 0,
     missingNumbers,
+    missingShirtNumberPlayers,
     starters,
+    startingLineup,
     viceCaptains,
   };
 }
