@@ -84,7 +84,7 @@ export function buildPilotSubmittedMatchSheetSnapshot(input: {
         roleLabel: toLineupRoleLabel(player.role),
         shirtNumber: player.shirtNumber ?? index + 1,
         subjectKind: "player",
-        teamName: "Casa",
+        teamName: managerTeamConfig.home.label,
       })),
     staff: input.staff.slice(0, 3).map((staffMember) => {
       const [firstName, ...lastNameParts] = staffMember.fullName.split(" ");
@@ -96,7 +96,7 @@ export function buildPilotSubmittedMatchSheetSnapshot(input: {
         roleLabel: staffMember.role,
         shirtNumber: null,
         subjectKind: "staff",
-        teamName: "Casa",
+        teamName: managerTeamConfig.home.label,
       };
     }),
   };
@@ -118,7 +118,7 @@ export function buildPilotAwaySubmittedMatchSheetSnapshot(input: {
         roleLabel: toLineupRoleLabel(player.role),
         shirtNumber: player.shirtNumber ?? index + 1,
         subjectKind: "player",
-        teamName: "Ospite",
+        teamName: managerTeamConfig.away.label,
       })),
     staff: input.staff.slice(0, 2).map((staffMember) => {
       const [firstName, ...lastNameParts] = staffMember.fullName.split(" ");
@@ -130,7 +130,7 @@ export function buildPilotAwaySubmittedMatchSheetSnapshot(input: {
         roleLabel: staffMember.role,
         shirtNumber: null,
         subjectKind: "staff",
-        teamName: "Ospite",
+        teamName: managerTeamConfig.away.label,
       };
     }),
   };

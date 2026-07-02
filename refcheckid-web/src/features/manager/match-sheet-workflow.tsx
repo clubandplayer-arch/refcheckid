@@ -24,6 +24,7 @@ import {
   validateMatchSheet,
 } from "@/lib/match-sheet-validation";
 import { managerTeamConfig, getCurrentManagerTeam } from "@/lib/manager-team";
+import { saveManagerSubjectPhoto } from "@/lib/manager-photo-store";
 import { clearSubmittedMatchSheetSnapshot, saveSubmittedMatchSheetSnapshot } from "@/lib/submitted-match-sheet";
 import {
   fetchMatchSheets,
@@ -147,6 +148,7 @@ export function MatchSheetWorkflow() {
     setSelectedStaff(updater(staff));
   }
   function updatePlayerPhoto(playerId: string, photoUrl: string) {
+    saveManagerSubjectPhoto(managerTeam, playerId, photoUrl);
     setPlayerList((current) =>
       current.map((player) =>
         player.id === playerId ? { ...player, photoUrl } : player,
@@ -154,6 +156,7 @@ export function MatchSheetWorkflow() {
     );
   }
   function updateStaffPhoto(staffId: string, photoUrl: string) {
+    saveManagerSubjectPhoto(managerTeam, staffId, photoUrl);
     setStaffList((current) =>
       current.map((staffMember) =>
         staffMember.id === staffId ? { ...staffMember, photoUrl } : staffMember,

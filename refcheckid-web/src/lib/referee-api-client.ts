@@ -131,11 +131,11 @@ export async function submitRefereeReport(
 
 function toSubmittedReportSummary(matchId: string, report: MatchReportDraft) {
   return {
-    awayTeam: "Ospite",
+    awayTeam: managerTeamConfig.away.label,
     cautions: report.cautions,
     expulsions: report.expulsions,
     goals: report.goals,
-    homeTeam: "Casa",
+    homeTeam: managerTeamConfig.home.label,
     matchId,
     refereeName: "Arbitro Demo",
     refereeNotes: report.refereeNotes,
@@ -174,7 +174,9 @@ function toTeamSheetVerification(
   return {
     id: sheet.id,
     clubName:
-      team === "home" ? `Casa · ${sheet.clubId}` : `Ospite · ${sheet.clubId}`,
+      team === "home"
+        ? `${managerTeamConfig.home.label} · ${sheet.clubId}`
+        : `${managerTeamConfig.away.label} · ${sheet.clubId}`,
     playerCount: 0,
     staffCount: 0,
     status:

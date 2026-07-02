@@ -5,13 +5,13 @@ export type ManagerTeam = "home" | "away";
 export const managerTeamConfig = {
   home: {
     clubId: "70000000-0000-4000-8000-000000000003",
-    label: "Casa",
-    opponent: "Ospite",
+    label: "Atletico Aurora",
+    opponent: "Sporting Litorale",
   },
   away: {
     clubId: "70000000-0000-4000-8000-000000000004",
-    label: "Ospite",
-    opponent: "Casa",
+    label: "Sporting Litorale",
+    opponent: "Atletico Aurora",
   },
 } as const;
 

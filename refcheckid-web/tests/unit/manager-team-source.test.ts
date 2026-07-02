@@ -6,8 +6,8 @@ describe("regression: two manager pilot teams", () => {
   it("maps the pilot manager accounts to home and away teams", () => {
     expect(getManagerTeamByEmail("dirigente@refcheckid.local")).toBe("home");
     expect(getManagerTeamByEmail("dirigenteospite@refcheckid.local")).toBe("away");
-    expect(managerTeamConfig.home.label).toBe("Casa");
-    expect(managerTeamConfig.away.label).toBe("Ospite");
+    expect(managerTeamConfig.home.label).toBe("Atletico Aurora");
+    expect(managerTeamConfig.away.label).toBe("Sporting Litorale");
   });
 
   it("keeps separate home and away pilot rosters", () => {

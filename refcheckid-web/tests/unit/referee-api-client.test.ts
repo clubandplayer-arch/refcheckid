@@ -39,12 +39,12 @@ describe("unit: referee workflow API client", () => {
 
     await expect(fetchRefereeMatchSheets("match-1")).resolves.toEqual([
       expect.objectContaining({
-        clubName: "Casa · 70000000-0000-4000-8000-000000000003",
+        clubName: "Atletico Aurora · 70000000-0000-4000-8000-000000000003",
         status: "submitted",
         team: "home",
       }),
       expect.objectContaining({
-        clubName: "Ospite · 70000000-0000-4000-8000-000000000004",
+        clubName: "Sporting Litorale · 70000000-0000-4000-8000-000000000004",
         status: "missing",
         team: "away",
       }),
@@ -106,7 +106,7 @@ describe("unit: referee workflow API client", () => {
         roleLabel: index === 0 ? "Portiere" : "Titolare",
         shirtNumber: index + 1,
         subjectKind: "player",
-        teamName: "Casa",
+        teamName: "Atletico Aurora",
       })),
       staff: Array.from({ length: 3 }, (_, index) => ({
         firstName: `Staff${index + 1}`,
@@ -116,7 +116,7 @@ describe("unit: referee workflow API client", () => {
         roleLabel: "Allenatore",
         shirtNumber: null,
         subjectKind: "staff",
-        teamName: "Casa",
+        teamName: "Atletico Aurora",
       })),
     };
     const fetchMock = vi.fn(async () => ({
@@ -148,8 +148,8 @@ describe("unit: referee workflow API client", () => {
     const subjects = await fetchRecognitionSubjects();
 
     expect(subjects).toHaveLength(30);
-    expect(subjects.filter((subject) => subject.teamName === "Casa")).toHaveLength(17);
-    expect(subjects.filter((subject) => subject.teamName === "Ospite")).toHaveLength(13);
+    expect(subjects.filter((subject) => subject.teamName === "Atletico Aurora")).toHaveLength(17);
+    expect(subjects.filter((subject) => subject.teamName === "Sporting Litorale")).toHaveLength(13);
     expect(subjects.filter((subject) => subject.subjectKind === "player")).toHaveLength(25);
     expect(subjects.filter((subject) => subject.subjectKind === "staff")).toHaveLength(5);
     expect(subjects[14]).toMatchObject({
@@ -206,7 +206,7 @@ describe("unit: referee workflow API client", () => {
           id: "goal-1",
           minute: 12,
           playerName: "Rossi",
-          teamName: "Casa",
+          teamName: "Atletico Aurora",
         },
       ],
       homeGoals: 1,
