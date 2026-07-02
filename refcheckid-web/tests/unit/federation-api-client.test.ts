@@ -121,4 +121,30 @@ describe("regression: federation report reception", () => {
       reportId: "report-1",
     });
   });
+
+  it("shows a backend-submitted report when local browser storage is empty", async () => {
+    vi.mocked(readSubmittedFederationReports).mockReturnValue([]);
+    vi.mocked(fetchMatchReports).mockResolvedValue({
+      id: "backend-report-1",
+      matchId: "match-1",
+      refereeId: "Arbitro Demo",
+      status: "submitted",
+      submittedAt: "2026-07-01T20:00:00.000Z",
+      summary: JSON.stringify(submittedReport),
+    });
+
+    const [dashboard, reports, matches] = await Promise.all([
+      fetchFederationDashboard(),
+      fetchFederationReports(),
+      fetchFederationMatches(),
+    ]);
+
+    expect(dashboard.reportsReceived).toBe(1);
+    expect(matches[0]?.reportStatus).toBe("submitted");
+    expect(reports[0]).toMatchObject({
+      goals: [{ playerName: "Rossi" }],
+      result: { homeGoals: 1, awayGoals: 0 },
+    });
+  });
+
 });

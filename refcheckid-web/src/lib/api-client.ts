@@ -168,6 +168,16 @@ export function completeRecognition(matchId: string) {
   });
 }
 
+export function updateMatchReport(
+  reportId: string,
+  summary: string,
+): Promise<ApiReport> {
+  return request<ApiReport>(`/match-reports/${encodeURIComponent(reportId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ summary }),
+  });
+}
+
 export function submitMatchReport(reportId: string): Promise<ApiReport> {
   return request<ApiReport>(
     `/match-reports/${encodeURIComponent(reportId)}/submit`,

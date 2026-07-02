@@ -177,6 +177,25 @@ function toFederationReport(
       submittedAt: report.submittedAt,
     };
   }
+  const summary = parseSubmittedReportSummary(report.summary);
+  if (summary) {
+    return {
+      id: report.id,
+      awayTeam: summary.awayTeam,
+      cautions: summary.cautions,
+      commissionerNotes: null,
+      expulsions: summary.expulsions,
+      goals: summary.goals,
+      homeTeam: summary.homeTeam,
+      matchId: report.matchId,
+      refereeName: summary.refereeName,
+      refereeNotes: summary.refereeNotes,
+      result: summary.result,
+      substitutions: summary.substitutions,
+      submittedAt: report.submittedAt ?? new Date().toISOString(),
+    };
+  }
+
   return {
     id: report.id,
     cautions: [],
@@ -192,6 +211,20 @@ function toFederationReport(
     substitutions: [],
     submittedAt: report.submittedAt ?? new Date().toISOString(),
   };
+}
+
+function parseSubmittedReportSummary(
+  summary: string | null,
+): SubmittedFederationReport | null {
+  if (!summary) return null;
+  try {
+    const parsed = JSON.parse(summary) as SubmittedFederationReport;
+    return parsed && typeof parsed === "object" && "result" in parsed
+      ? parsed
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function toPhotoRequest(photo: ApiPhoto): PhotoRequest {

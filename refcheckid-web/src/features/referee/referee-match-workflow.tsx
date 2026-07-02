@@ -24,7 +24,7 @@ import {
   fetchRefereeMatchSheets,
   fetchRefereeReport,
   lockSubmittedSheetsAndStartRecognition,
-  submitMatchReport,
+  submitRefereeReport,
 } from "@/lib/referee-api-client";
 import type {
   MatchReportDraft,
@@ -372,7 +372,10 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
   const reportErrors = currentReport ? validateReportDraft(currentReport) : [];
   const isReadOnly = isSubmitted || currentReport?.status === "submitted";
   const submitMutation = useMutation({
-    mutationFn: () => submitMatchReport(currentReport?.id ?? matchId),
+    mutationFn: () =>
+      currentReport
+        ? submitRefereeReport(matchId, currentReport)
+        : Promise.reject(new Error("Nessun referto disponibile.")),
     onSuccess() {
       if (currentReport) saveSubmittedFederationReport(matchId, currentReport);
       setIsSubmitted(true);

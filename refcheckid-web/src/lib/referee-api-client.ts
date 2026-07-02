@@ -6,6 +6,7 @@ import {
   lockMatchSheet,
   startRecognition,
   submitMatchReport,
+  updateMatchReport,
 } from "./api-client";
 import { pilotPlayers, pilotStaff } from "./pilot-data";
 import {
@@ -92,7 +93,38 @@ export async function lockSubmittedSheetsAndStartRecognition(
   return startRecognition(matchId);
 }
 
-export { completeRecognition, submitMatchReport };
+export { completeRecognition };
+
+export async function submitRefereeReport(
+  matchId: string,
+  report: MatchReportDraft,
+): Promise<ApiReport> {
+  const reportId = report.id ?? matchId;
+  await updateMatchReport(
+    reportId,
+    JSON.stringify(toSubmittedReportSummary(matchId, report)),
+  );
+  return submitMatchReport(reportId);
+}
+
+function toSubmittedReportSummary(matchId: string, report: MatchReportDraft) {
+  return {
+    awayTeam: "Ospite",
+    cautions: report.cautions,
+    expulsions: report.expulsions,
+    goals: report.goals,
+    homeTeam: "Casa",
+    matchId,
+    refereeName: "Arbitro Demo",
+    refereeNotes: report.refereeNotes,
+    result: {
+      awayGoals: report.awayGoals,
+      homeGoals: report.homeGoals,
+    },
+    substitutions: report.substitutions,
+  };
+}
+
 
 function toRefereeMatch(
   match: ApiMatch,

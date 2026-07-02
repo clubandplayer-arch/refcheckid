@@ -4,6 +4,7 @@ import {
   fetchRefereeMatchSheets,
   fetchRefereeReport,
   lockSubmittedSheetsAndStartRecognition,
+  submitRefereeReport,
 } from "../../src/lib/referee-api-client";
 
 afterEach(() => {
@@ -160,4 +161,55 @@ describe("unit: referee workflow API client", () => {
       refereeNotes: "Note arbitro",
     });
   });
+
+  it("persists report content before submitting the report", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "report-1",
+        matchId: "match-1",
+        refereeId: "Arbitro Demo",
+        status: "submitted",
+        submittedAt: "2026-07-01T20:00:00.000Z",
+        summary: null,
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await submitRefereeReport("match-1", {
+      awayGoals: 0,
+      cautions: [],
+      expulsions: [],
+      goals: [
+        {
+          detail: "Azione",
+          id: "goal-1",
+          minute: 12,
+          playerName: "Rossi",
+          teamName: "Casa",
+        },
+      ],
+      homeGoals: 1,
+      id: "report-1",
+      refereeNotes: "Note arbitro",
+      status: "draft",
+      substitutions: [],
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("/match-reports/report-1"),
+      expect.objectContaining({
+        body: expect.stringContaining("Rossi"),
+        method: "PATCH",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("/match-reports/report-1/submit"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
 });
