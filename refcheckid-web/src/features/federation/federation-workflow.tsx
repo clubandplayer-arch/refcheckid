@@ -92,12 +92,12 @@ function FederationDashboardPanel() {
           value={String(federationDashboard.reportsReceived)}
         />
         <StatCard
-          label="Richieste foto"
-          value={String(federationDashboard.pendingPhotoRequests)}
+          label="Gare in attesa"
+          value={String(federationDashboard.matchesPending)}
         />
         <StatCard
-          label="Sincronizzazioni"
-          value={federationDashboard.syncStatus.toUpperCase()}
+          label="Richieste foto"
+          value={String(federationDashboard.pendingPhotoRequests)}
         />
       </div>
       <Card>
@@ -298,7 +298,7 @@ function ReportList({
           </p>
           <p className="text-xs text-slate-500">
             {report.refereeName} ·{" "}
-            {new Date(report.submittedAt).toLocaleString("it-IT")}
+            {formatSubmittedAt(report.submittedAt)}
           </p>
         </button>
       ))}
@@ -563,6 +563,10 @@ function HistoryCard({ item }: Readonly<{ item: FederationHistoryItem }>) {
       </ul>
     </div>
   );
+}
+
+function formatSubmittedAt(value: string) {
+  return value ? new Date(value).toLocaleString("it-IT") : "Invio registrato";
 }
 
 function StatusBadge({ label }: Readonly<{ label: string }>) {

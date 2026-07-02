@@ -33,6 +33,7 @@ import type {
   TeamSheetVerification,
 } from "@/lib/referee-types";
 import { useSession } from "@/lib/session";
+import { saveSubmittedFederationReport } from "@/lib/submitted-report";
 
 const steps = ["Distinte", "Riconoscimento", "Referto"] as const;
 const reportSteps = [
@@ -373,6 +374,7 @@ function MatchReportStep({ matchId }: Readonly<{ matchId: string }>) {
   const submitMutation = useMutation({
     mutationFn: () => submitMatchReport(currentReport?.id ?? matchId),
     onSuccess() {
+      if (currentReport) saveSubmittedFederationReport(matchId, currentReport);
       setIsSubmitted(true);
       notify("Referto inviato", "success");
       void queryClient.invalidateQueries({ queryKey: queryKeys.matchReports });

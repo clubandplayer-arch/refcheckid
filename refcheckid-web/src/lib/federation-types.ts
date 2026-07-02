@@ -13,6 +13,7 @@ export type SyncStatus = "ok" | "warning" | "failed";
 
 export interface FederationDashboard {
   reportsReceived: number;
+  matchesPending: number;
   pendingPhotoRequests: number;
   syncStatus: SyncStatus;
   notifications: readonly string[];
