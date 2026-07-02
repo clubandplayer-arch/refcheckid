@@ -26,6 +26,9 @@ describe("regression: manager photo capture flow", () => {
 
   it("opens crop controls before saving the photo", () => {
     expect(source).toContain("Zoom foto");
+    expect(source).toContain("min={0.4}");
+    expect(source).toContain("max={3}");
+    expect(source).toContain("object-contain");
     expect(source).toContain("Sposta foto orizzontale");
     expect(source).toContain("Sposta foto verticale");
     expect(source).toContain("cropPhotoDraft");

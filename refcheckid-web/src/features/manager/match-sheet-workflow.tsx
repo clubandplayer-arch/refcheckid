@@ -517,7 +517,7 @@ function PhotoCaptureControls({
           <div className="relative mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-lg bg-white">
             <Image
               alt={`Preview foto ${subjectLabel}`}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
               height={96}
               src={photoDraft.previewUrl}
               style={{ transform: `translate(${photoDraft.offsetX}px, ${photoDraft.offsetY}px) scale(${photoDraft.zoom})` }}
@@ -526,12 +526,12 @@ function PhotoCaptureControls({
             <div className="pointer-events-none absolute inset-3 rounded-[50%] border-2 border-white/80 shadow-[0_0_0_999px_rgba(15,23,42,0.20)]" />
           </div>
           <label className="block text-[11px] text-slate-600">
-            Zoom
+            Zoom / riduci foto
             <input
               aria-label="Zoom foto"
               className="w-full"
-              max={2}
-              min={1}
+              max={3}
+              min={0.4}
               onChange={(event) => onPhotoTransform({ zoom: Number(event.target.value) })}
               step={0.05}
               type="range"
