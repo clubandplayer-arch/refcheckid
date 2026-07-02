@@ -23,12 +23,14 @@ import {
   lineupRoleOptions,
   validateMatchSheet,
 } from "@/lib/match-sheet-validation";
-import { saveSubmittedMatchSheetSnapshot } from "@/lib/submitted-match-sheet";
+import { managerTeamConfig, getCurrentManagerTeam } from "@/lib/manager-team";
+import { clearSubmittedMatchSheetSnapshot, saveSubmittedMatchSheetSnapshot } from "@/lib/submitted-match-sheet";
 import {
   fetchMatchSheets,
   fetchPlayers,
   fetchStaff,
   queryKeys,
+  resetSmokeMatchSheet,
   submitMatchSheet,
 } from "@/lib/api-client";
 import type {
@@ -43,8 +45,11 @@ const EMPTY_STAFF: readonly StaffListItem[] = [];
 export function MatchSheetWorkflow() {
   const [step, setStep] = useState(0);
   const [query, setQuery] = useState("");
-  const [photoDraft, setPhotoDraft] = useState<{ id: string; previewUrl: string } | null>(null);
+  const [photoDraft, setPhotoDraft] = useState<{ id: string; previewUrl: string; zoom: number; offsetX: number; offsetY: number } | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const managerTeam = getCurrentManagerTeam();
+  const managerTeamLabel = managerTeamConfig[managerTeam].label;
+  const managerClubId = managerTeamConfig[managerTeam].clubId;
   const queryClient = useQueryClient();
   const { notify } = useToast();
   const playersQuery = useQuery({
@@ -56,7 +61,7 @@ export function MatchSheetWorkflow() {
     queryKey: queryKeys.staff,
   });
   const sheetsQuery = useQuery({
-    queryFn: () => fetchMatchSheets(),
+    queryFn: () => fetchMatchSheets(`?clubId=${encodeURIComponent(managerClubId)}`),
     queryKey: queryKeys.matchSheets,
   });
   const [selectedPlayers, setSelectedPlayers] = useState<
@@ -69,14 +74,33 @@ export function MatchSheetWorkflow() {
     mutationFn: () => {
       const firstSheet = sheetsQuery.data?.[0];
       if (!firstSheet) throw new Error("Nessuna distinta disponibile.");
+      if (firstSheet.status !== "draft") throw new Error("Distinta già inviata. Usa reset distinta smoke per crearne una nuova.");
       saveSubmittedMatchSheetSnapshot({
         players: calledPlayers,
         staff: calledStaff,
+        team: managerTeam,
       });
       return submitMatchSheet(firstSheet.id);
     },
     onSuccess() {
       notify("Distinta inviata", "success");
+      void queryClient.invalidateQueries({ queryKey: queryKeys.matchSheets });
+    },
+    onError(error) {
+      notify(error.message, "error");
+    },
+  });
+  const resetSmokeMutation = useMutation({
+    mutationFn: async () => {
+      const firstSheet = sheetsQuery.data?.[0];
+      if (!firstSheet) throw new Error("Nessuna distinta disponibile.");
+      clearSubmittedMatchSheetSnapshot(managerTeam);
+      setSelectedPlayers([]);
+      setSelectedStaff([]);
+      return resetSmokeMatchSheet(firstSheet.id);
+    },
+    onSuccess() {
+      notify("Reset distinta smoke completato", "success");
       void queryClient.invalidateQueries({ queryKey: queryKeys.matchSheets });
     },
     onError(error) {
@@ -107,15 +131,19 @@ export function MatchSheetWorkflow() {
   );
   const calledPlayers = players.filter((player) => player.selected);
   const calledStaff = staff.filter((staffMember) => staffMember.selected);
+  const matchSheetStatus = sheetsQuery.data?.[0]?.status ?? "draft";
+  const isReadOnly = matchSheetStatus !== "draft";
 
   function setPlayerList(
     updater: (current: readonly PlayerListItem[]) => readonly PlayerListItem[],
   ) {
+    if (isReadOnly) return;
     setSelectedPlayers(updater(players));
   }
   function setStaffList(
     updater: (current: readonly StaffListItem[]) => readonly StaffListItem[],
   ) {
+    if (isReadOnly) return;
     setSelectedStaff(updater(staff));
   }
   function updatePlayerPhoto(playerId: string, photoUrl: string) {
@@ -133,6 +161,7 @@ export function MatchSheetWorkflow() {
     );
   }
   function handlePhotoSelected(subjectId: string, file: File | null) {
+    if (isReadOnly) return;
     setPhotoError(null);
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -146,19 +175,24 @@ export function MatchSheetWorkflow() {
     const reader = new FileReader();
     reader.addEventListener("load", () => {
       if (typeof reader.result === "string") {
-        setPhotoDraft({ id: subjectId, previewUrl: reader.result });
+        setPhotoDraft({ id: subjectId, offsetX: 0, offsetY: 0, previewUrl: reader.result, zoom: 1 });
       }
     });
     reader.readAsDataURL(file);
   }
-  function confirmPhoto(subjectId: string, applyPhoto: (photoUrl: string) => void) {
+  async function confirmPhoto(subjectId: string, applyPhoto: (photoUrl: string) => void) {
     if (!photoDraft || photoDraft.id !== subjectId) {
       setPhotoError("Conferma una preview prima del salvataggio.");
       return;
     }
-    applyPhoto(photoDraft.previewUrl);
+    applyPhoto(await cropPhotoDraft(photoDraft));
     setPhotoDraft(null);
     setPhotoError(null);
+  }
+  function updatePhotoDraftTransform(subjectId: string, transform: Partial<Pick<NonNullable<typeof photoDraft>, "zoom" | "offsetX" | "offsetY">>) {
+    setPhotoDraft((current) =>
+      current?.id === subjectId ? { ...current, ...transform } : current,
+    );
   }
   function togglePlayer(playerId: string) {
     setPlayerList((current) =>
@@ -259,6 +293,23 @@ export function MatchSheetWorkflow() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+      <div className="lg:col-span-2 rounded-xl border bg-muted/40 p-4 text-sm">
+        <p className="font-semibold">Distinta {managerTeamLabel}</p>
+        <p>Stato: <span className="uppercase">{matchSheetStatus}</span></p>
+        {isReadOnly ? (
+          <p className="mt-1 text-slate-600">Distinta inviata: le modifiche ordinarie sono bloccate. Usa il reset solo in dev/smoke.</p>
+        ) : null}
+        {isSmokeResetAvailable() ? (
+          <Button
+            className="mt-3"
+            disabled={resetSmokeMutation.isPending}
+            onClick={() => resetSmokeMutation.mutate()}
+            type="button"
+          >
+            Reset distinta smoke
+          </Button>
+        ) : null}
+      </div>
       <aside className="space-y-2">
         {["Compilazione", "Ordine", "Staff", "Riepilogo"].map(
           (label, index) => (
@@ -280,6 +331,7 @@ export function MatchSheetWorkflow() {
           }
           onPhotoSelected={handlePhotoSelected}
           photoDraft={photoDraft}
+          onPhotoTransform={updatePhotoDraftTransform}
           photoError={photoError}
           players={filteredPlayers}
           query={query}
@@ -304,6 +356,7 @@ export function MatchSheetWorkflow() {
             confirmPhoto(staffId, (photoUrl) => updateStaffPhoto(staffId, photoUrl))
           }
           onPhotoSelected={handlePhotoSelected}
+          onPhotoTransform={updatePhotoDraftTransform}
           photoDraft={photoDraft}
           photoError={photoError}
           staff={staff}
@@ -312,7 +365,7 @@ export function MatchSheetWorkflow() {
       ) : null}
       {step === 3 ? (
         <SummaryStep
-          isSubmitting={submitMutation.isPending}
+          isSubmitting={submitMutation.isPending || isReadOnly}
           onInvalidSubmit={(message) => notify(message, "error")}
           onSubmit={() => submitMutation.mutate()}
           players={calledPlayers}
@@ -326,6 +379,7 @@ export function MatchSheetWorkflow() {
 function PlayersStep({
   onConfirmPhoto,
   onPhotoSelected,
+  onPhotoTransform,
   photoDraft,
   photoError,
   players,
@@ -335,7 +389,8 @@ function PlayersStep({
 }: Readonly<{
   onConfirmPhoto: (id: string) => void;
   onPhotoSelected: (id: string, file: File | null) => void;
-  photoDraft: { id: string; previewUrl: string } | null;
+  onPhotoTransform: (id: string, transform: Partial<{ zoom: number; offsetX: number; offsetY: number }>) => void;
+  photoDraft: { id: string; previewUrl: string; zoom: number; offsetX: number; offsetY: number } | null;
   photoError: string | null;
   players: readonly PlayerListItem[];
   query: string;
@@ -400,6 +455,7 @@ function PlayersStep({
               currentPhotoUrl={player.photoUrl}
               onConfirm={() => onConfirmPhoto(player.id)}
               onPhotoSelected={(file) => onPhotoSelected(player.id, file)}
+              onPhotoTransform={(transform) => onPhotoTransform(player.id, transform)}
               photoDraft={photoDraft?.id === player.id ? photoDraft : null}
               photoError={photoError}
               subjectLabel={`${player.lastName} ${player.firstName}`}
@@ -423,6 +479,7 @@ function PhotoCaptureControls({
   currentPhotoUrl,
   onConfirm,
   onPhotoSelected,
+  onPhotoTransform,
   photoDraft,
   photoError,
   subjectLabel,
@@ -430,7 +487,8 @@ function PhotoCaptureControls({
   currentPhotoUrl: string | null;
   onConfirm: () => void;
   onPhotoSelected: (file: File | null) => void;
-  photoDraft: { id: string; previewUrl: string } | null;
+  onPhotoTransform: (transform: Partial<{ zoom: number; offsetX: number; offsetY: number }>) => void;
+  photoDraft: { id: string; previewUrl: string; zoom: number; offsetX: number; offsetY: number } | null;
   photoError: string | null;
   subjectLabel: string;
 }>) {
@@ -462,10 +520,48 @@ function PhotoCaptureControls({
               className="h-full w-full object-cover"
               height={96}
               src={photoDraft.previewUrl}
+              style={{ transform: `translate(${photoDraft.offsetX}px, ${photoDraft.offsetY}px) scale(${photoDraft.zoom})` }}
               width={96}
             />
             <div className="pointer-events-none absolute inset-3 rounded-[50%] border-2 border-white/80 shadow-[0_0_0_999px_rgba(15,23,42,0.20)]" />
           </div>
+          <label className="block text-[11px] text-slate-600">
+            Zoom
+            <input
+              aria-label="Zoom foto"
+              className="w-full"
+              max={2}
+              min={1}
+              onChange={(event) => onPhotoTransform({ zoom: Number(event.target.value) })}
+              step={0.05}
+              type="range"
+              value={photoDraft.zoom}
+            />
+          </label>
+          <label className="block text-[11px] text-slate-600">
+            Sposta orizzontale
+            <input
+              aria-label="Sposta foto orizzontale"
+              className="w-full"
+              max={24}
+              min={-24}
+              onChange={(event) => onPhotoTransform({ offsetX: Number(event.target.value) })}
+              type="range"
+              value={photoDraft.offsetX}
+            />
+          </label>
+          <label className="block text-[11px] text-slate-600">
+            Sposta verticale
+            <input
+              aria-label="Sposta foto verticale"
+              className="w-full"
+              max={24}
+              min={-24}
+              onChange={(event) => onPhotoTransform({ offsetY: Number(event.target.value) })}
+              type="range"
+              value={photoDraft.offsetY}
+            />
+          </label>
           <Button className="w-full py-1 text-xs" onClick={onConfirm} type="button">
             Conferma caricamento
           </Button>
@@ -663,6 +759,7 @@ function SortablePlayerRow({
 function StaffStep({
   onConfirmPhoto,
   onPhotoSelected,
+  onPhotoTransform,
   photoDraft,
   photoError,
   staff,
@@ -670,7 +767,8 @@ function StaffStep({
 }: Readonly<{
   onConfirmPhoto: (id: string) => void;
   onPhotoSelected: (id: string, file: File | null) => void;
-  photoDraft: { id: string; previewUrl: string } | null;
+  onPhotoTransform: (id: string, transform: Partial<{ zoom: number; offsetX: number; offsetY: number }>) => void;
+  photoDraft: { id: string; previewUrl: string; zoom: number; offsetX: number; offsetY: number } | null;
   photoError: string | null;
   staff: readonly StaffListItem[];
   toggleStaff: (id: string) => void;
@@ -705,6 +803,7 @@ function StaffStep({
             currentPhotoUrl={staffMember.photoUrl}
             onConfirm={() => onConfirmPhoto(staffMember.id)}
             onPhotoSelected={(file) => onPhotoSelected(staffMember.id, file)}
+            onPhotoTransform={(transform) => onPhotoTransform(staffMember.id, transform)}
             photoDraft={photoDraft?.id === staffMember.id ? photoDraft : null}
             photoError={photoError}
             subjectLabel={staffMember.fullName}
@@ -779,4 +878,42 @@ function SummaryStep({
       </Button>
     </Card>
   );
+}
+
+
+function isSmokeResetAvailable(): boolean {
+  return process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_REFCHECKID_SMOKE_RESET === "true";
+}
+
+async function cropPhotoDraft(photoDraft: { previewUrl: string; zoom: number; offsetX: number; offsetY: number }): Promise<string> {
+  const image = await loadImage(photoDraft.previewUrl);
+  const canvas = document.createElement("canvas");
+  const size = 256;
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) return photoDraft.previewUrl;
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, size, size);
+  const scale = Math.max(size / image.width, size / image.height) * photoDraft.zoom;
+  const width = image.width * scale;
+  const height = image.height * scale;
+  const x = (size - width) / 2 + photoDraft.offsetX * (size / 96);
+  const y = (size - height) / 2 + photoDraft.offsetY * (size / 96);
+  context.save();
+  context.beginPath();
+  context.ellipse(size / 2, size / 2, size * 0.34, size * 0.43, 0, 0, Math.PI * 2);
+  context.clip();
+  context.drawImage(image, x, y, width, height);
+  context.restore();
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Impossibile preparare il ritaglio foto."));
+    image.src = src;
+  });
 }

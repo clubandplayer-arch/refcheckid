@@ -25,3 +25,20 @@ export const pilotStaff: readonly StaffListItem[] = [
   { id: "pilot-staff-2", fullName: "Lucia Bianchi", role: "Medico", photoUrl: null, selected: false },
   { id: "pilot-staff-3", fullName: "Paolo Verdi", role: "Dirigente accompagnatore", photoUrl: null, selected: false },
 ];
+
+
+export const pilotAwayPlayers: readonly PlayerListItem[] = pilotPlayers.map((player, index) => ({
+  ...player,
+  id: `pilot-away-player-${index + 1}`,
+  firstName: `OspiteNome${index + 1}`,
+  lastName: `Ospite${String(index + 1).padStart(2, "0")}`,
+  selected: false,
+  shirtNumber: null,
+}));
+
+export const pilotAwayStaff: readonly StaffListItem[] = pilotStaff.map((staffMember, index) => ({
+  ...staffMember,
+  id: `pilot-away-staff-${index + 1}`,
+  fullName: `${staffMember.fullName} Ospite`,
+  selected: false,
+}));

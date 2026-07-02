@@ -8,7 +8,8 @@ import {
   submitMatchReport,
   updateMatchReport,
 } from "./api-client";
-import { pilotPlayers, pilotStaff } from "./pilot-data";
+import { managerTeamConfig } from "./manager-team";
+import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
 import {
   buildPilotAwaySubmittedMatchSheetSnapshot,
   buildPilotSubmittedMatchSheetSnapshot,
@@ -46,21 +47,32 @@ export async function fetchRefereeMatchSheets(
 export async function fetchRecognitionSubjects(): Promise<
   readonly RecognitionSubject[]
 > {
-  const homeSnapshot =
-    readSubmittedMatchSheetSnapshot() ??
-    buildPilotSubmittedMatchSheetSnapshot({
-      players: pilotPlayers,
-      staff: pilotStaff,
-    });
-  const awaySnapshot = buildPilotAwaySubmittedMatchSheetSnapshot({
-    players: pilotPlayers,
-    staff: pilotStaff,
-  });
+  const sheets = await fetchMatchSheets();
+  const homeSubmitted = sheets.some(
+    (sheet) => sheet.clubId === managerTeamConfig.home.clubId && sheet.status !== "draft",
+  );
+  const awaySubmitted = sheets.some(
+    (sheet) => sheet.clubId === managerTeamConfig.away.clubId && sheet.status !== "draft",
+  );
+  const homeSnapshot = homeSubmitted
+    ? readSubmittedMatchSheetSnapshot("home") ??
+      buildPilotSubmittedMatchSheetSnapshot({
+        players: pilotPlayers,
+        staff: pilotStaff,
+      })
+    : null;
+  const awaySnapshot = awaySubmitted
+    ? readSubmittedMatchSheetSnapshot("away") ??
+      buildPilotAwaySubmittedMatchSheetSnapshot({
+        players: pilotAwayPlayers,
+        staff: pilotAwayStaff,
+      })
+    : null;
   return [
-    ...homeSnapshot.players,
-    ...homeSnapshot.staff,
-    ...awaySnapshot.players,
-    ...awaySnapshot.staff,
+    ...(homeSnapshot?.players ?? []),
+    ...(homeSnapshot?.staff ?? []),
+    ...(awaySnapshot?.players ?? []),
+    ...(awaySnapshot?.staff ?? []),
   ].map((subject) => ({
     id: subject.id,
     firstName: subject.firstName,
@@ -97,7 +109,7 @@ export async function lockSubmittedSheetsAndStartRecognition(
   );
   await Promise.all(
     sheets
-      .filter((sheet) => sheet.status !== "locked")
+      .filter((sheet) => sheet.status === "submitted")
       .map((sheet) => lockMatchSheet(sheet.id)),
   );
   return startRecognition(matchId);
@@ -156,9 +168,9 @@ function toRefereeMatch(
 
 function toTeamSheetVerification(
   sheet: ApiMatchSheet,
-  index: number,
+  _index: number,
 ): TeamSheetVerification {
-  const team = index === 0 ? "home" : "away";
+  const team = sheet.clubId === managerTeamConfig.away.clubId ? "away" : "home";
   return {
     id: sheet.id,
     clubName:

@@ -22,14 +22,14 @@ describe("unit: referee workflow API client", () => {
           {
             id: "sheet-home",
             matchId: "match-1",
-            clubId: "club-home",
+            clubId: "70000000-0000-4000-8000-000000000003",
             submittedAt: "2026-07-01T10:00:00.000Z",
             status: "submitted",
           },
           {
             id: "sheet-away",
             matchId: "match-1",
-            clubId: "club-away",
+            clubId: "70000000-0000-4000-8000-000000000004",
             submittedAt: null,
             status: "draft",
           },
@@ -39,12 +39,12 @@ describe("unit: referee workflow API client", () => {
 
     await expect(fetchRefereeMatchSheets("match-1")).resolves.toEqual([
       expect.objectContaining({
-        clubName: "Casa · club-home",
+        clubName: "Casa · 70000000-0000-4000-8000-000000000003",
         status: "submitted",
         team: "home",
       }),
       expect.objectContaining({
-        clubName: "Ospite · club-away",
+        clubName: "Ospite · 70000000-0000-4000-8000-000000000004",
         status: "missing",
         team: "away",
       }),
@@ -81,9 +81,9 @@ describe("unit: referee workflow API client", () => {
       expect.stringContaining("/match-sheets/sheet-home/lock"),
       expect.objectContaining({ method: "POST" }),
     );
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining("/match-sheets/sheet-away/lock"),
-      expect.objectContaining({ method: "POST" }),
+      expect.anything(),
     );
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining("/match-sheets/sheet-locked/lock"),
@@ -119,10 +119,27 @@ describe("unit: referee workflow API client", () => {
         teamName: "Casa",
       })),
     };
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          clubId: "70000000-0000-4000-8000-000000000003",
+          id: "sheet-home",
+          status: "submitted",
+        },
+        {
+          clubId: "70000000-0000-4000-8000-000000000004",
+          id: "sheet-away",
+          status: "submitted",
+        },
+      ],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("window", {
       localStorage: {
         getItem: (key: string) =>
-          key === "refcheckid.submittedMatchSheet"
+          key === "refcheckid.submittedMatchSheet.home"
             ? JSON.stringify(snapshot)
             : null,
       },

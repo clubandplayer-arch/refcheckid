@@ -65,6 +65,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/match-sheets/:id', controllers.getMatchSheet);
   router.register('POST', '/api/v1/match-sheets/:id/submit', controllers.submitMatchSheet);
   router.register('POST', '/api/v1/match-sheets/:id/lock', controllers.lockMatchSheet);
+  router.register('POST', '/api/v1/match-sheets/:id/reset-smoke', controllers.resetSmokeMatchSheet);
   router.register('GET', '/api/v1/recognitions', controllers.listRecognitions);
   router.register('GET', '/api/v1/recognitions/:id', controllers.getRecognition);
   router.register('POST', '/api/v1/recognitions/start', controllers.startRecognition);

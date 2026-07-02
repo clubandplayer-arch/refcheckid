@@ -23,4 +23,19 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("Conferma caricamento");
     expect(source).toContain("Foto mancante");
   });
+
+  it("opens crop controls before saving the photo", () => {
+    expect(source).toContain("Zoom foto");
+    expect(source).toContain("Sposta foto orizzontale");
+    expect(source).toContain("Sposta foto verticale");
+    expect(source).toContain("cropPhotoDraft");
+    expect(source).toContain("context.ellipse");
+  });
+
+  it("exposes a smoke-only reset for submitted sheets", () => {
+    expect(source).toContain("Reset distinta smoke");
+    expect(source).toContain("isSmokeResetAvailable");
+    expect(source).toContain("resetSmokeMatchSheet");
+    expect(source).toContain("Distinta inviata: le modifiche ordinarie sono bloccate");
+  });
 });

@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from "./api-base-url";
-import { pilotPlayers, pilotStaff } from "./pilot-data";
+import { managerTeamConfig, getCurrentManagerTeam } from "./manager-team";
+import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
 import {
   isSessionExpired,
   readStoredSession,
@@ -57,9 +58,11 @@ export const queryKeys = {
 };
 
 export async function fetchManagerDashboard(): Promise<ManagerDashboard> {
+  const managerTeam = getCurrentManagerTeam();
+  const managerClubId = managerTeamConfig[managerTeam].clubId;
   const [matches, sheets] = await Promise.all([
-    fetchMatches(),
-    fetchMatchSheets(),
+    fetchMatches(`?clubId=${encodeURIComponent(managerClubId)}`),
+    fetchMatchSheets(`?clubId=${encodeURIComponent(managerClubId)}`),
   ]);
   const nextMatch =
     [...matches].sort((a, b) =>
@@ -72,7 +75,7 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboard> {
     nextMatch: nextMatch
       ? {
           id: nextMatch.id,
-          opponent: nextMatch.awayClubId,
+          opponent: managerTeamConfig[managerTeam].opponent,
           scheduledAt: nextMatch.scheduledAt,
           venue: nextMatch.venue ?? "Da definire",
         }
@@ -84,7 +87,8 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboard> {
 
 export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
   const players = await request<readonly Record<string, unknown>[]>("/players");
-  if (players.length === 0) return pilotPlayers;
+  const pilotRoster = getCurrentManagerTeam() === "away" ? pilotAwayPlayers : pilotPlayers;
+  if (players.length === 0) return pilotRoster;
   return players.map((player) => ({
     id: String(player.id),
     firstName: String(player.firstName ?? player.first_name ?? ""),
@@ -103,7 +107,8 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
 export async function fetchStaff(): Promise<readonly StaffListItem[]> {
   const staff =
     await request<readonly Record<string, unknown>[]>("/staff-members");
-  if (staff.length === 0) return pilotStaff;
+  const pilotRoster = getCurrentManagerTeam() === "away" ? pilotAwayStaff : pilotStaff;
+  if (staff.length === 0) return pilotRoster;
   return staff.map((staffMember) => ({
     id: String(staffMember.id),
     fullName: String(
@@ -123,6 +128,13 @@ export function fetchMatchSheets(
   query = "",
 ): Promise<readonly ApiMatchSheet[]> {
   return request<readonly ApiMatchSheet[]>(`/match-sheets${query}`);
+}
+
+export function resetSmokeMatchSheet(matchSheetId: string): Promise<ApiMatchSheet> {
+  return request<ApiMatchSheet>(
+    `/match-sheets/${encodeURIComponent(matchSheetId)}/reset-smoke`,
+    { method: "POST" },
+  );
 }
 
 export function fetchMatchReports(

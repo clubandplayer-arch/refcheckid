@@ -32,6 +32,14 @@ const users: readonly AuthUser[] = [
     enabled: true,
   },
   {
+    id: '90000000-0000-4000-8000-000000000005',
+    email: 'dirigenteospite@refcheckid.local',
+    password: 'Password123!',
+    role: 'manager',
+    displayName: 'Dirigente Ospite Demo',
+    enabled: true,
+  },
+  {
     id: '90000000-0000-4000-8000-000000000002',
     email: 'arbitro@refcheckid.local',
     password: 'Password123!',

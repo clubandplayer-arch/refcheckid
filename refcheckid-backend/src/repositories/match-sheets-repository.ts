@@ -32,6 +32,10 @@ export class MatchSheetRepository
         : null;
     return this.update(id, { status, submittedAt } as Partial<MatchSheet>);
   }
+
+  resetSmokeDraft(id: UUID): Promise<MatchSheet> {
+    return this.update(id, { status: 'draft', submittedAt: null } as Partial<MatchSheet>);
+  }
 }
 
 export class MatchSheetsRepository extends MatchSheetRepository {}

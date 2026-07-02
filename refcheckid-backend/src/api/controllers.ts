@@ -135,6 +135,13 @@ export function createControllers(container: ApplicationContainer): Record<strin
         200,
         await container.services.matchSheets.lockMatchSheet(requireUuid(request.params.id, 'id')),
       ),
+    resetSmokeMatchSheet: async (request) =>
+      json(
+        200,
+        await container.services.matchSheets.resetSmokeMatchSheet(
+          requireUuid(request.params.id, 'id'),
+        ),
+      ),
 
     listRecognitions: async (request) =>
       json(

@@ -29,7 +29,7 @@ describe("unit: frontend API client", () => {
     );
 
     await expect(fetchManagerDashboard()).resolves.toMatchObject({
-      nextMatch: { id: "match-1", opponent: "club-away", venue: "Da definire" },
+      nextMatch: { id: "match-1", opponent: "Ospite", venue: "Da definire" },
       matchSheetStatus: "submitted",
     });
   });

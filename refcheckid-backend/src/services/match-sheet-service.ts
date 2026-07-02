@@ -59,6 +59,17 @@ export class MatchSheetService {
     return this.transitionMatchSheetStatus(matchSheetId, 'locked');
   }
 
+  async resetSmokeMatchSheet(matchSheetId: UUID): Promise<MatchSheet> {
+    if (process.env.NODE_ENV === 'production' && process.env.REFCHECKID_SMOKE_RESET !== 'true') {
+      throw new Error('Smoke reset is available only in dev/smoke environments.');
+    }
+    const matchSheet = await this.dependencies.matchSheetsRepository.findById(matchSheetId);
+    if (matchSheet === null) {
+      throw new MatchSheetNotFoundError(matchSheetId);
+    }
+    return this.dependencies.matchSheetsRepository.updateStatus(matchSheetId, 'draft');
+  }
+
   private async transitionMatchSheetStatus(
     matchSheetId: UUID,
     nextStatus: MatchSheetStatus,

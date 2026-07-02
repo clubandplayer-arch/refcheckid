@@ -26,6 +26,23 @@ describe('auth: password login, token session, refresh, and role resolution', ()
     ).resolves.toMatchObject({ status: 200, body: { email: 'dirigente@refcheckid.local', role: 'manager' } });
   });
 
+  it('logs in the away pilot manager with the manager role', async () => {
+    const router = createRestApiRouter(createApplicationContainer());
+
+    await expect(
+      router.handle({
+        method: 'POST',
+        path: '/api/v1/auth/login',
+        headers: {},
+        query: {},
+        body: { email: 'dirigenteospite@refcheckid.local', password: 'Password123!' },
+      }),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: { user: { email: 'dirigenteospite@refcheckid.local', role: 'manager' } },
+    });
+  });
+
   it('returns pilot-ready authentication errors', async () => {
     const router = createRestApiRouter(createApplicationContainer());
 

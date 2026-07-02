@@ -1,6 +1,7 @@
+import { managerTeamConfig, type ManagerTeam } from "./manager-team";
 import type { PlayerListItem, StaffListItem } from "./types";
 
-const submittedMatchSheetKey = "refcheckid.submittedMatchSheet";
+const submittedMatchSheetKeyPrefix = "refcheckid.submittedMatchSheet";
 
 export interface SubmittedRecognitionSubject {
   id: string;
@@ -21,6 +22,7 @@ export interface SubmittedMatchSheetSnapshot {
 export function saveSubmittedMatchSheetSnapshot(input: {
   players: readonly PlayerListItem[];
   staff: readonly StaffListItem[];
+  team?: ManagerTeam;
 }): void {
   if (typeof window === "undefined") return;
   const snapshot: SubmittedMatchSheetSnapshot = {
@@ -32,7 +34,7 @@ export function saveSubmittedMatchSheetSnapshot(input: {
       roleLabel: toLineupRoleLabel(player.role),
       shirtNumber: player.shirtNumber,
       subjectKind: "player",
-      teamName: "Casa",
+      teamName: managerTeamConfig[input.team ?? "home"].label,
     })),
     staff: input.staff.map((staffMember) => {
       const [firstName, ...lastNameParts] = staffMember.fullName.split(" ");
@@ -44,16 +46,16 @@ export function saveSubmittedMatchSheetSnapshot(input: {
         roleLabel: staffMember.role,
         shirtNumber: null,
         subjectKind: "staff",
-        teamName: "Casa",
+        teamName: managerTeamConfig[input.team ?? "home"].label,
       };
     }),
   };
-  window.localStorage.setItem(submittedMatchSheetKey, JSON.stringify(snapshot));
+  window.localStorage.setItem(getSubmittedMatchSheetKey(input.team ?? "home"), JSON.stringify(snapshot));
 }
 
-export function readSubmittedMatchSheetSnapshot(): SubmittedMatchSheetSnapshot | null {
+export function readSubmittedMatchSheetSnapshot(team: ManagerTeam = "home"): SubmittedMatchSheetSnapshot | null {
   if (typeof window === "undefined") return null;
-  const rawSnapshot = window.localStorage.getItem(submittedMatchSheetKey);
+  const rawSnapshot = window.localStorage.getItem(getSubmittedMatchSheetKey(team));
   if (!rawSnapshot) return null;
   try {
     const parsed = JSON.parse(rawSnapshot) as SubmittedMatchSheetSnapshot;
@@ -138,4 +140,14 @@ function toLineupRoleLabel(role: PlayerListItem["role"]): string {
   if (role === "goalkeeper") return "Portiere";
   if (role === "starter") return "Titolare";
   return "Riserva";
+}
+
+
+export function clearSubmittedMatchSheetSnapshot(team: ManagerTeam): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(getSubmittedMatchSheetKey(team));
+}
+
+function getSubmittedMatchSheetKey(team: ManagerTeam): string {
+  return `${submittedMatchSheetKeyPrefix}.${team}`;
 }

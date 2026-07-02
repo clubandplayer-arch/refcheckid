@@ -47,8 +47,8 @@ export const pilotMatchSheets: readonly MatchSheet[] = [
     deletedAt: null,
     id: pilotIds.awaySheet,
     matchId: pilotIds.match,
-    status: 'submitted',
-    submittedAt: timestamp,
+    status: 'draft',
+    submittedAt: null,
     updatedAt: timestamp,
   },
 ];
