@@ -7,6 +7,7 @@
     "dev": "node scripts/dev.mjs",
     "dev:backend": "pnpm -C refcheckid-backend dev",
     "dev:web": "pnpm -C refcheckid-web dev",
+    "codespace:start": "node scripts/codespace-start.mjs",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "test:unit": "pnpm --filter refcheckid-backend test:unit && pnpm --filter refcheckid-web test:unit",
