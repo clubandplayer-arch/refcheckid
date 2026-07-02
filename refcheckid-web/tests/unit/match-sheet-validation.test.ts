@@ -27,12 +27,12 @@ describe("unit: manager match sheet validation", () => {
 
   it("offers editable lineup roles separated from captain assignments", () => {
     expect(lineupRoleOptions.map((option) => option.label)).toEqual([
-      "Portiere",
       "Titolare",
       "Riserva",
     ]);
     expect(pilotPlayers[0]).toMatchObject({
       isCaptain: false,
+      isGoalkeeper: true,
       isViceCaptain: false,
       role: "starter",
     });
@@ -82,7 +82,8 @@ describe("unit: manager match sheet validation", () => {
         ...player,
         isCaptain: index < 2,
         isViceCaptain: index === 0 || index === 2 || index === 3,
-        role: index === 0 ? "goalkeeper" as const : "starter" as const,
+        isGoalkeeper: index === 0,
+        role: "starter" as const,
         selected: true,
         shirtNumber: index + 1,
       }));
@@ -97,7 +98,7 @@ describe("unit: manager match sheet validation", () => {
     expect(validation.errors).toContain("Seleziona al massimo un Vice capitano.");
   });
 
-  it("counts goalkeeper plus ten starters as a valid eleven-person starting lineup", () => {
+  it("counts goalkeepers separately from the eleven starters", () => {
     const selectedPlayers = pilotPlayers
       .filter((player) => !player.suspended)
       .slice(0, 12)
@@ -105,15 +106,16 @@ describe("unit: manager match sheet validation", () => {
         ...player,
         isCaptain: index === 1,
         isViceCaptain: index === 2,
-        role: index === 0 || index === 11 ? "goalkeeper" as const : "starter" as const,
+        isGoalkeeper: index === 0 || index === 11,
+        role: index < 11 ? "starter" as const : "reserve" as const,
         selected: true,
         shirtNumber: index + 1,
       }));
     expect(validateMatchSheet(selectedPlayers, [pilotStaff[0]!])).toMatchObject({
       goalkeepers: 2,
       isValid: true,
-      starters: 10,
-      startingLineup: 12,
+      starters: 11,
+      startingLineup: 11,
     });
   });
 
@@ -125,7 +127,8 @@ describe("unit: manager match sheet validation", () => {
         ...player,
         isCaptain: index === 1,
         isViceCaptain: index === 2,
-        role: index === 0 ? "goalkeeper" as const : "starter" as const,
+        isGoalkeeper: index === 0,
+        role: index < 11 ? "starter" as const : "reserve" as const,
         selected: true,
         shirtNumber: index + 1,
       }));

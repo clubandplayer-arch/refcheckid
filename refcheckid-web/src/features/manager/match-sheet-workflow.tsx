@@ -234,6 +234,15 @@ export function MatchSheetWorkflow() {
       ),
     );
   }
+  function toggleGoalkeeper(playerId: string) {
+    setPlayerList((current) =>
+      current.map((player) =>
+        player.id === playerId
+          ? { ...player, isGoalkeeper: !player.isGoalkeeper }
+          : player,
+      ),
+    );
+  }
   function toggleCaptain(playerId: string) {
     setPlayerList((current) =>
       current.map((player) => {
@@ -347,6 +356,7 @@ export function MatchSheetWorkflow() {
           onDragEnd={handleDragEnd}
           players={players}
           toggleCaptain={toggleCaptain}
+          toggleGoalkeeper={toggleGoalkeeper}
           togglePlayer={togglePlayer}
           toggleViceCaptain={toggleViceCaptain}
           updatePlayerRole={updatePlayerRole}
@@ -579,6 +589,7 @@ function OrderStep({
   players,
   onDragEnd,
   toggleCaptain,
+  toggleGoalkeeper,
   togglePlayer,
   toggleViceCaptain,
   updatePlayerRole,
@@ -587,6 +598,7 @@ function OrderStep({
   players: readonly PlayerListItem[];
   onDragEnd: (event: DragEndEvent) => void;
   toggleCaptain: (id: string) => void;
+  toggleGoalkeeper: (id: string) => void;
   togglePlayer: (id: string) => void;
   toggleViceCaptain: (id: string) => void;
   updatePlayerRole: (id: string, value: PlayerLineupRole) => void;
@@ -611,7 +623,7 @@ function OrderStep({
             strategy={verticalListSortingStrategy}
           >
             <div className="overflow-x-auto rounded-xl border">
-              <div className="grid min-w-[960px] grid-cols-[72px_2fr_140px_160px_240px_140px_90px] border-b bg-muted/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <div className="grid min-w-[1120px] grid-cols-[72px_minmax(260px,2fr)_140px_160px_360px_140px_90px] border-b bg-muted/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <span>Ordine</span>
                 <span>Giocatore</span>
                 <span>Numero maglia</span>
@@ -625,6 +637,7 @@ function OrderStep({
                   key={player.id}
                   player={player}
                   toggleCaptain={toggleCaptain}
+                  toggleGoalkeeper={toggleGoalkeeper}
                   togglePlayer={togglePlayer}
                   toggleViceCaptain={toggleViceCaptain}
                   updatePlayerRole={updatePlayerRole}
@@ -642,6 +655,7 @@ function OrderStep({
 function SortablePlayerRow({
   player,
   toggleCaptain,
+  toggleGoalkeeper,
   togglePlayer,
   toggleViceCaptain,
   updatePlayerRole,
@@ -649,6 +663,7 @@ function SortablePlayerRow({
 }: Readonly<{
   player: PlayerListItem;
   toggleCaptain: (id: string) => void;
+  toggleGoalkeeper: (id: string) => void;
   togglePlayer: (id: string) => void;
   toggleViceCaptain: (id: string) => void;
   updatePlayerRole: (id: string, value: PlayerLineupRole) => void;
@@ -660,7 +675,7 @@ function SortablePlayerRow({
   const disabled = !player.selected || player.suspended;
   return (
     <div
-      className={`grid min-w-[960px] grid-cols-[72px_2fr_140px_160px_240px_140px_90px] items-center gap-3 border-b px-3 py-3 text-sm last:border-b-0 ${
+      className={`grid min-w-[1120px] grid-cols-[72px_minmax(260px,2fr)_140px_160px_360px_140px_90px] items-center gap-3 border-b px-3 py-3 text-sm last:border-b-0 ${
         statusTone === "warning"
           ? "border-l-4 border-l-yellow-400 bg-yellow-50"
           : statusTone === "suspended"
@@ -679,7 +694,7 @@ function SortablePlayerRow({
       >
         ↕
       </button>
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         {player.photoUrl ? (
           <Image
             alt={`Foto ${player.lastName} ${player.firstName}`}
@@ -689,7 +704,7 @@ function SortablePlayerRow({
             width={36}
           />
         ) : null}
-        <span className="font-medium">
+        <span className="whitespace-normal break-words font-medium leading-tight">
           {player.lastName} {player.firstName}
         </span>
       </div>
@@ -718,6 +733,15 @@ function SortablePlayerRow({
         ))}
       </select>
       <div className="flex flex-wrap gap-4">
+        <label className="flex items-center gap-2">
+          <input
+            checked={player.isGoalkeeper}
+            disabled={disabled}
+            onChange={() => toggleGoalkeeper(player.id)}
+            type="checkbox"
+          />
+          Portiere
+        </label>
         <label className="flex items-center gap-2">
           <input
             checked={player.isCaptain}
@@ -860,7 +884,6 @@ function SummaryStep({
         <li>Giocatori non validi: {validation.invalidPlayers}</li>
         <li>Portieri: {validation.goalkeepers}</li>
         <li>Titolari: {validation.starters}</li>
-        <li>Titolari/Portieri: {validation.startingLineup}</li>
         <li>Capitani: {validation.captains}</li>
         <li>Vice capitani: {validation.viceCaptains}</li>
       </ul>

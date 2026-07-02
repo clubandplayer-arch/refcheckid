@@ -1,7 +1,6 @@
 import type { PlayerListItem, StaffListItem } from "./types";
 
 export const lineupRoleOptions = [
-  { label: "Portiere", value: "goalkeeper" },
   { label: "Titolare", value: "starter" },
   { label: "Riserva", value: "reserve" },
 ] as const;
@@ -44,9 +43,9 @@ export function validateMatchSheet(
     .map((player) => `${player.lastName} ${player.firstName}`);
   const missingNumbers = missingShirtNumberPlayers.length;
   const invalidPlayers = players.filter((player) => player.suspended).length;
-  const goalkeepers = players.filter((player) => player.role === "goalkeeper").length;
+  const goalkeepers = players.filter((player) => player.isGoalkeeper).length;
   const starters = players.filter((player) => player.role === "starter").length;
-  const startingLineup = goalkeepers + starters;
+  const startingLineup = starters;
   const captains = players.filter((player) => player.isCaptain).length;
   const viceCaptains = players.filter((player) => player.isViceCaptain).length;
   const captainViceConflicts = players.filter(
@@ -76,7 +75,7 @@ export function validateMatchSheet(
     ...(invalidPlayers > 0 ? ["Rimuovi i giocatori non validi dalla distinta."] : []),
     ...(goalkeepers === 0 ? ["Seleziona almeno un Portiere."] : []),
     ...(startingLineup < 11
-      ? ["Seleziona almeno 11 titolari/portieri per lo smoke test."]
+      ? ["Seleziona almeno 11 Titolari per lo smoke test."]
       : []),
     ...(captains > 1 ? ["Seleziona al massimo un Capitano."] : []),
     ...(viceCaptains > 1 ? ["Seleziona al massimo un Vice capitano."] : []),

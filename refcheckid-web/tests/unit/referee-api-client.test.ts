@@ -103,7 +103,7 @@ describe("unit: referee workflow API client", () => {
         id: `player-${index + 1}`,
         lastName: `Giocatore${index + 1}`,
         photoUrl: "/placeholder-player.svg",
-        roleLabel: index === 0 ? "Portiere" : "Titolare",
+        roleLabel: index === 0 ? "Titolare · Portiere" : "Titolare",
         shirtNumber: index + 1,
         subjectKind: "player",
         teamName: "Atletico Aurora",

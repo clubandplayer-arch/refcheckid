@@ -58,6 +58,7 @@ function buildPilotPlayers(
       selected: false,
       shirtNumber: null,
       role: number <= 11 ? "starter" : "reserve",
+      isGoalkeeper: number === 1 || number === 12,
       isCaptain: false,
       isViceCaptain: false,
     };

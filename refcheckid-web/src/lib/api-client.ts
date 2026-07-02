@@ -101,6 +101,7 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
 	    selected: false,
 	    shirtNumber: null,
 	    role: "starter",
+	    isGoalkeeper: false,
 	    isCaptain: false,
 	    isViceCaptain: false,
 	  })));

@@ -31,7 +31,7 @@ export function saveSubmittedMatchSheetSnapshot(input: {
       id: player.id,
       lastName: player.lastName,
       photoUrl: player.photoUrl,
-      roleLabel: toLineupRoleLabel(player.role),
+      roleLabel: toLineupRoleLabel(player.role, player.isGoalkeeper),
       shirtNumber: player.shirtNumber,
       subjectKind: "player",
       teamName: managerTeamConfig[input.team ?? "home"].label,
@@ -81,7 +81,7 @@ export function buildPilotSubmittedMatchSheetSnapshot(input: {
         id: player.id,
         lastName: player.lastName,
         photoUrl: player.photoUrl,
-        roleLabel: toLineupRoleLabel(player.role),
+        roleLabel: toLineupRoleLabel(player.role, player.isGoalkeeper),
         shirtNumber: player.shirtNumber ?? index + 1,
         subjectKind: "player",
         teamName: managerTeamConfig.home.label,
@@ -115,7 +115,7 @@ export function buildPilotAwaySubmittedMatchSheetSnapshot(input: {
         id: `away-${player.id}`,
         lastName: player.lastName,
         photoUrl: player.photoUrl,
-        roleLabel: toLineupRoleLabel(player.role),
+        roleLabel: toLineupRoleLabel(player.role, player.isGoalkeeper),
         shirtNumber: player.shirtNumber ?? index + 1,
         subjectKind: "player",
         teamName: managerTeamConfig.away.label,
@@ -136,10 +136,9 @@ export function buildPilotAwaySubmittedMatchSheetSnapshot(input: {
   };
 }
 
-function toLineupRoleLabel(role: PlayerListItem["role"]): string {
-  if (role === "goalkeeper") return "Portiere";
-  if (role === "starter") return "Titolare";
-  return "Riserva";
+function toLineupRoleLabel(role: PlayerListItem["role"], isGoalkeeper: boolean): string {
+  const lineupRole = role === "starter" ? "Titolare" : "Riserva";
+  return isGoalkeeper ? `${lineupRole} · Portiere` : lineupRole;
 }
 
 
