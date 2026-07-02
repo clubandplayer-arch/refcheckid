@@ -3,10 +3,18 @@ import {
   fetchMatches,
   fetchMatchReports,
   fetchMatchSheets,
-  fetchPlayers,
+  lockMatchSheet,
   startRecognition,
   submitMatchReport,
+  updateMatchReport,
 } from "./api-client";
+import { managerTeamConfig } from "./manager-team";
+import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
+import {
+  buildPilotAwaySubmittedMatchSheetSnapshot,
+  buildPilotSubmittedMatchSheetSnapshot,
+  readSubmittedMatchSheetSnapshot,
+} from "./submitted-match-sheet";
 import type { ApiMatch, ApiMatchSheet, ApiReport } from "./api-client";
 import type {
   MatchReportDraft,
@@ -15,12 +23,8 @@ import type {
   TeamSheetVerification,
 } from "./referee-types";
 
-export async function fetchRefereeDashboard(
-  refereeId: string,
-): Promise<RefereeDashboard> {
-  const matches = await fetchMatches(
-    `?refereeId=${encodeURIComponent(refereeId)}`,
-  );
+export async function fetchRefereeDashboard(): Promise<RefereeDashboard> {
+  const matches = await fetchMatches();
   const nextMatch =
     [...matches].sort((a, b) =>
       a.scheduledAt.localeCompare(b.scheduledAt),
@@ -37,23 +41,50 @@ export async function fetchRefereeMatchSheets(
   const sheets = await fetchMatchSheets(
     `?matchId=${encodeURIComponent(matchId)}`,
   );
-  return sheets.map(toTeamSheetVerification);
+  return sheets.map((sheet, index) => toTeamSheetVerification(sheet, index));
 }
 
 export async function fetchRecognitionSubjects(): Promise<
   readonly RecognitionSubject[]
 > {
-  const players = await fetchPlayers();
-  return players.map((player) => ({
-    id: player.id,
-    firstName: player.firstName,
-    lastName: player.lastName,
-    shirtNumber: player.shirtNumber ?? 0,
-    teamName: "Club",
-    photoUrl: player.photoUrl,
+  const sheets = await fetchMatchSheets();
+  const homeSubmitted = sheets.some(
+    (sheet) => sheet.clubId === managerTeamConfig.home.clubId && sheet.status !== "draft",
+  );
+  const awaySubmitted = sheets.some(
+    (sheet) => sheet.clubId === managerTeamConfig.away.clubId && sheet.status !== "draft",
+  );
+  const homeSnapshot = homeSubmitted
+    ? readSubmittedMatchSheetSnapshot("home") ??
+      buildPilotSubmittedMatchSheetSnapshot({
+        players: pilotPlayers,
+        staff: pilotStaff,
+      })
+    : null;
+  const awaySnapshot = awaySubmitted
+    ? readSubmittedMatchSheetSnapshot("away") ??
+      buildPilotAwaySubmittedMatchSheetSnapshot({
+        players: pilotAwayPlayers,
+        staff: pilotAwayStaff,
+      })
+    : null;
+  return [
+    ...(homeSnapshot?.players ?? []),
+    ...(homeSnapshot?.staff ?? []),
+    ...(awaySnapshot?.players ?? []),
+    ...(awaySnapshot?.staff ?? []),
+  ].map((subject) => ({
+    id: subject.id,
+    firstName: subject.firstName,
+    lastName: subject.lastName,
+    shirtNumber: subject.shirtNumber,
+    teamName: subject.teamName,
+    roleLabel: subject.roleLabel,
+    subjectKind: subject.subjectKind,
+    photoUrl: subject.photoUrl,
     document: {
-      type: "Documento",
-      number: player.id,
+      type: subject.subjectKind === "player" ? "Documento atleta" : "Documento staff",
+      number: subject.id,
       expiresAt: new Date().toISOString(),
     },
     decision: "pending",
@@ -70,7 +101,52 @@ export async function fetchRefereeReport(
   return toReportDraft(report ?? null);
 }
 
-export { completeRecognition, startRecognition, submitMatchReport };
+export async function lockSubmittedSheetsAndStartRecognition(
+  matchId: string,
+): Promise<unknown> {
+  const sheets = await fetchMatchSheets(
+    `?matchId=${encodeURIComponent(matchId)}`,
+  );
+  await Promise.all(
+    sheets
+      .filter((sheet) => sheet.status === "submitted")
+      .map((sheet) => lockMatchSheet(sheet.id)),
+  );
+  return startRecognition(matchId);
+}
+
+export { completeRecognition };
+
+export async function submitRefereeReport(
+  matchId: string,
+  report: MatchReportDraft,
+): Promise<ApiReport> {
+  const reportId = report.id ?? matchId;
+  await updateMatchReport(
+    reportId,
+    JSON.stringify(toSubmittedReportSummary(matchId, report)),
+  );
+  return submitMatchReport(reportId);
+}
+
+function toSubmittedReportSummary(matchId: string, report: MatchReportDraft) {
+  return {
+    awayTeam: managerTeamConfig.away.label,
+    cautions: report.cautions,
+    expulsions: report.expulsions,
+    goals: report.goals,
+    homeTeam: managerTeamConfig.home.label,
+    matchId,
+    refereeName: "Arbitro Demo",
+    refereeNotes: report.refereeNotes,
+    result: {
+      awayGoals: report.awayGoals,
+      homeGoals: report.homeGoals,
+    },
+    substitutions: report.substitutions,
+  };
+}
+
 
 function toRefereeMatch(
   match: ApiMatch,
@@ -90,10 +166,17 @@ function toRefereeMatch(
   };
 }
 
-function toTeamSheetVerification(sheet: ApiMatchSheet): TeamSheetVerification {
+function toTeamSheetVerification(
+  sheet: ApiMatchSheet,
+  _index: number,
+): TeamSheetVerification {
+  const team = sheet.clubId === managerTeamConfig.away.clubId ? "away" : "home";
   return {
     id: sheet.id,
-    clubName: sheet.clubId,
+    clubName:
+      team === "home"
+        ? `${managerTeamConfig.home.label} · ${sheet.clubId}`
+        : `${managerTeamConfig.away.label} · ${sheet.clubId}`,
     playerCount: 0,
     staffCount: 0,
     status:
@@ -103,12 +186,14 @@ function toTeamSheetVerification(sheet: ApiMatchSheet): TeamSheetVerification {
           ? "submitted"
           : "missing",
     submittedAt: sheet.submittedAt,
-    team: "home",
+    team,
   };
 }
 
 function toReportDraft(report: ApiReport | null): MatchReportDraft {
   return {
+    id: report?.id ?? null,
+    status: report?.status ?? "draft",
     awayGoals: 0,
     cautions: [],
     expulsions: [],

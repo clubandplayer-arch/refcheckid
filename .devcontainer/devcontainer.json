@@ -1,0 +1,16 @@
+{
+  "postStartCommand": "corepack enable && pnpm install --frozen-lockfile=false && pnpm codespace:start",
+  "forwardPorts": [3000, 4000],
+  "portsAttributes": {
+    "3000": {
+      "label": "RefCheckID Web",
+      "onAutoForward": "openBrowser",
+      "protocol": "http"
+    },
+    "4000": {
+      "label": "RefCheckID Backend",
+      "onAutoForward": "notify",
+      "protocol": "http"
+    }
+  }
+}

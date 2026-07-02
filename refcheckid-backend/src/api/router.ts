@@ -1,4 +1,5 @@
 import type { ApplicationContainer } from '../config/application-container.js';
+import { loginHandler, logoutHandler, meHandler, refreshHandler } from './auth.js';
 import { createControllers } from './controllers.js';
 import { ApiRouter } from './http.js';
 import {
@@ -24,15 +25,25 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.use(authorizationMiddleware);
 
   router.register('GET', '/api/health', controllers.health);
-  router.register('GET', '/api/docs/openapi.json', () => ({
+  const openApiHandler = () => ({
     status: 200,
+    headers: { 'content-type': 'application/json' },
     body: createOpenApiDocument(),
-  }));
-  router.register('GET', '/api/docs/swagger', () => ({
+  });
+  const swaggerHandler = () => ({
     status: 200,
     headers: { 'content-type': 'text/html' },
     body: createSwaggerHtml(),
-  }));
+  });
+
+  router.register('GET', '/api/docs/openapi.json', openApiHandler);
+  router.register('GET', '/api/docs/swagger', swaggerHandler);
+  router.register('GET', '/api/v1/openapi.json', openApiHandler);
+  router.register('GET', '/api/v1/swagger', swaggerHandler);
+  router.register('POST', '/api/v1/auth/login', loginHandler);
+  router.register('POST', '/api/v1/auth/refresh', refreshHandler);
+  router.register('GET', '/api/v1/auth/me', meHandler);
+  router.register('POST', '/api/v1/auth/logout', logoutHandler);
 
   router.register('POST', '/api/v1/federation-sync', controllers.syncFederation);
   router.register('GET', '/api/v1/federations', controllers.listFederations);
@@ -54,6 +65,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/match-sheets/:id', controllers.getMatchSheet);
   router.register('POST', '/api/v1/match-sheets/:id/submit', controllers.submitMatchSheet);
   router.register('POST', '/api/v1/match-sheets/:id/lock', controllers.lockMatchSheet);
+  router.register('POST', '/api/v1/match-sheets/:id/reset-smoke', controllers.resetSmokeMatchSheet);
   router.register('GET', '/api/v1/recognitions', controllers.listRecognitions);
   router.register('GET', '/api/v1/recognitions/:id', controllers.getRecognition);
   router.register('POST', '/api/v1/recognitions/start', controllers.startRecognition);

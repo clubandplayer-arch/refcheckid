@@ -1,3 +1,4 @@
+import { authenticateBearerToken } from './auth.js';
 import type { ApiMiddleware } from './http.js';
 import { json } from './http.js';
 import { ValidationError } from './validation.js';
@@ -28,18 +29,21 @@ export const loggingMiddleware: ApiMiddleware = (next) => async (request) => {
 };
 
 export const authenticationMiddleware: ApiMiddleware = (next) => (request) => {
-  const actorId = request.headers['x-actor-id'];
-  const roles =
-    request.headers['x-roles']
-      ?.split(',')
-      .map((role) => role.trim())
-      .filter(Boolean) ?? [];
+  const bearerAuth = authenticateBearerToken(request.headers.authorization);
+  if (bearerAuth !== null) {
+    return next({ ...request, auth: bearerAuth });
+  }
 
-  return next(actorId === undefined ? request : { ...request, auth: { actorId, roles } });
+  return next(request);
 };
 
 export const authorizationMiddleware: ApiMiddleware = (next) => (request) => {
-  if (request.path === '/api/health' || request.path.startsWith('/api/docs')) {
+  if (request.path === '/api/health' ||
+    request.path.startsWith('/api/docs') ||
+    request.path === '/api/v1/openapi.json' ||
+    request.path === '/api/v1/swagger' ||
+    request.path === '/api/v1/auth/login' ||
+    request.path === '/api/v1/auth/refresh') {
     return next(request);
   }
 

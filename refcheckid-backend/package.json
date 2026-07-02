@@ -6,12 +6,21 @@
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
+    "dev": "pnpm build && node dist/src/server.js",
+    "start": "node dist/src/server.js",
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit tests/*.test.ts",
+    "test:integration": "vitest run tests/integration tests/*integration*.test.ts",
+    "test:e2e": "vitest run tests/e2e",
+    "test:regression": "vitest run tests/regression",
+    "test:security": "vitest run tests/security",
+    "test:performance": "vitest run tests/performance",
+    "coverage": "vitest run && node scripts/write-coverage-report.mjs"
   },
   "engines": {
     "node": ">=20.0.0",

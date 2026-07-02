@@ -92,12 +92,12 @@ function FederationDashboardPanel() {
           value={String(federationDashboard.reportsReceived)}
         />
         <StatCard
-          label="Richieste foto"
-          value={String(federationDashboard.pendingPhotoRequests)}
+          label="Gare in attesa"
+          value={String(federationDashboard.matchesPending)}
         />
         <StatCard
-          label="Sincronizzazioni"
-          value={federationDashboard.syncStatus.toUpperCase()}
+          label="Richieste foto"
+          value={String(federationDashboard.pendingPhotoRequests)}
         />
       </div>
       <Card>
@@ -298,7 +298,7 @@ function ReportList({
           </p>
           <p className="text-xs text-slate-500">
             {report.refereeName} ·{" "}
-            {new Date(report.submittedAt).toLocaleString("it-IT")}
+            {formatSubmittedAt(report.submittedAt)}
           </p>
         </button>
       ))}
@@ -497,7 +497,13 @@ function HistoryPanel() {
     queryFn: fetchFederationHistory,
     queryKey: queryKeys.audit,
   });
+  const reportsQuery = useQuery({
+    queryFn: fetchFederationReports,
+    queryKey: [...queryKeys.matchReports, "history-actions"],
+  });
   const [query, setQuery] = useState("");
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [selectedAuditId, setSelectedAuditId] = useState<string | null>(null);
   const filteredHistory = useMemo(
     () =>
       (historyQuery.data ?? []).filter((item) => {
@@ -507,13 +513,25 @@ function HistoryPanel() {
       }),
     [historyQuery.data, query],
   );
+  const selectedAuditItem =
+    filteredHistory.find((item) => item.id === selectedAuditId) ?? null;
+  const selectedReport =
+    (reportsQuery.data ?? []).find((report) => report.id === selectedReportId) ??
+    null;
 
-  if (historyQuery.isLoading) return <SkeletonBlock />;
+  if (historyQuery.isLoading || reportsQuery.isLoading) return <SkeletonBlock />;
   if (historyQuery.isError)
     return (
       <ErrorState
         message={historyQuery.error.message}
         onRetry={() => void historyQuery.refetch()}
+      />
+    );
+  if (reportsQuery.isError)
+    return (
+      <ErrorState
+        message={reportsQuery.error.message}
+        onRetry={() => void reportsQuery.refetch()}
       />
     );
   return (
@@ -534,14 +552,35 @@ function HistoryPanel() {
       ) : null}
       <div className="space-y-3">
         {filteredHistory.map((item) => (
-          <HistoryCard item={item} key={item.id} />
+          <HistoryCard
+            item={item}
+            key={item.id}
+            onOpenAudit={() => {
+              setSelectedAuditId(item.id);
+              setSelectedReportId(null);
+            }}
+            onOpenReport={() => {
+              setSelectedReportId(item.reportId);
+              setSelectedAuditId(null);
+            }}
+          />
         ))}
       </div>
+      {selectedReport ? <ReportDetail report={selectedReport} /> : null}
+      {selectedAuditItem ? <AuditSummaryPanel item={selectedAuditItem} /> : null}
     </Card>
   );
 }
 
-function HistoryCard({ item }: Readonly<{ item: FederationHistoryItem }>) {
+function HistoryCard({
+  item,
+  onOpenAudit,
+  onOpenReport,
+}: Readonly<{
+  item: FederationHistoryItem;
+  onOpenAudit: () => void;
+  onOpenReport: () => void;
+}>) {
   return (
     <div className="rounded-xl border p-4">
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
@@ -550,8 +589,14 @@ function HistoryCard({ item }: Readonly<{ item: FederationHistoryItem }>) {
           <p className="text-sm text-slate-500">Arbitro: {item.refereeName}</p>
         </div>
         <div className="flex gap-2">
-          <Button type="button">Apri referto</Button>
-          <Button className="bg-slate-700" type="button">
+          <Button onClick={onOpenReport} type="button">
+            Apri referto
+          </Button>
+          <Button
+            className="bg-slate-700"
+            onClick={onOpenAudit}
+            type="button"
+          >
             Audit sintetico
           </Button>
         </div>
@@ -563,6 +608,45 @@ function HistoryCard({ item }: Readonly<{ item: FederationHistoryItem }>) {
       </ul>
     </div>
   );
+}
+
+function AuditSummaryPanel({
+  item,
+}: Readonly<{ item: FederationHistoryItem }>) {
+  const auditEntries = [
+    "Distinta inviata dal dirigente",
+    "Riconoscimento completato dall’arbitro",
+    "Referto inviato dall’arbitro",
+    "Referto ricevuto dalla federazione",
+    ...item.auditSummary,
+  ];
+
+  return (
+    <Card className="space-y-3 border-slate-300 bg-slate-50">
+      <div>
+        <p className="text-sm font-semibold text-primary">Audit sintetico</p>
+        <h3 className="text-xl font-bold">{item.matchLabel}</h3>
+        <p className="text-sm text-slate-500">
+          Attore evento: {item.refereeName || "Arbitro Demo"}
+        </p>
+      </div>
+      <ol className="space-y-2 text-sm">
+        {auditEntries.map((entry, index) => (
+          <li className="rounded-lg bg-white p-3" key={`${entry}-${index}`}>
+            <span className="font-semibold">{index + 1}. </span>
+            {entry}
+            <span className="block text-xs text-slate-500">
+              Timestamp: {formatSubmittedAt(new Date().toISOString())}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </Card>
+  );
+}
+
+function formatSubmittedAt(value: string) {
+  return value ? new Date(value).toLocaleString("it-IT") : "Invio registrato";
 }
 
 function StatusBadge({ label }: Readonly<{ label: string }>) {

@@ -1,27 +1,20 @@
 "use client";
 
+import { AuthGate } from "@/components/auth/auth-gate";
+
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { queryKeys } from "@/lib/api-client";
 import { fetchRefereeDashboard } from "@/lib/referee-api-client";
-import { useSession } from "@/lib/session";
 
 export default function RefereeDashboardPage() {
-  const { session } = useSession();
   const dashboardQuery = useQuery({
-    enabled: Boolean(session?.actorId),
-    queryFn: () => fetchRefereeDashboard(session?.actorId ?? ""),
-    queryKey: [...queryKeys.referees, "dashboard", session?.actorId],
+    queryFn: fetchRefereeDashboard,
+    queryKey: [...queryKeys.referees, "dashboard"],
   });
 
-  if (!session)
-    return (
-      <main className="mx-auto max-w-6xl p-6">
-        <ErrorState message="Sessione richiesta." />
-      </main>
-    );
   if (dashboardQuery.isLoading)
     return (
       <main className="mx-auto max-w-6xl p-6">
@@ -50,7 +43,8 @@ export default function RefereeDashboardPage() {
   const nextMatch = dashboard.nextMatch;
 
   return (
-    <main className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
+    <AuthGate allowedRole="referee">
+      <main className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-sm font-semibold text-primary">Area Arbitro</p>
@@ -97,6 +91,7 @@ export default function RefereeDashboardPage() {
           )}
         </Card>
       </div>
-    </main>
+      </main>
+    </AuthGate>
   );
 }

@@ -28,7 +28,9 @@ export class MatchReportRepository
   }
 
   findByMatch(matchId: UUID): Promise<MatchReport | null> {
-    return Promise.resolve(this.values().find((report) => report.matchId === matchId) ?? null);
+    return Promise.resolve(
+      [...this.values()].reverse().find((report) => report.matchId === matchId) ?? null,
+    );
   }
 
   create(input: CreateMatchReportInput): Promise<MatchReport> {

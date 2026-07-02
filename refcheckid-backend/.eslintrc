@@ -9,11 +9,18 @@
     "project": "./tsconfig.json",
     "sourceType": "module"
   },
-  "plugins": ["@typescript-eslint"],
+  "plugins": [
+    "@typescript-eslint"
+  ],
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
     "plugin:@typescript-eslint/recommended-requiring-type-checking"
   ],
-  "ignorePatterns": ["dist/", "node_modules/", "coverage/"]
+  "ignorePatterns": [
+    "dist/",
+    "node_modules/",
+    "coverage/",
+    "tests/performance/profiles/*.js"
+  ]
 }

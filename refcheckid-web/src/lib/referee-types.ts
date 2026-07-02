@@ -35,8 +35,10 @@ export interface RecognitionSubject {
   id: string;
   firstName: string;
   lastName: string;
-  shirtNumber: number;
+  shirtNumber: number | null;
   teamName: string;
+  roleLabel: string;
+  subjectKind: "player" | "staff";
   photoUrl: string | null;
   document: {
     type: string;
@@ -47,6 +49,8 @@ export interface RecognitionSubject {
 }
 
 export interface MatchReportDraft {
+  id: string | null;
+  status: string;
   homeGoals: number;
   awayGoals: number;
   goals: readonly MatchReportEvent[];
@@ -62,4 +66,9 @@ export interface MatchReportEvent {
   teamName: string;
   playerName: string;
   detail: string;
+  shirtNumber?: number | null;
+  outgoingShirtNumber?: number | null;
+  outgoingPlayerName?: string;
+  incomingShirtNumber?: number | null;
+  incomingPlayerName?: string;
 }

@@ -24,8 +24,17 @@ export class MatchSheetRepository
     return Promise.resolve(this.values().filter((matchSheet) => matchSheet.clubId === clubId));
   }
 
-  updateStatus(id: UUID, status: MatchSheetStatus): Promise<MatchSheet> {
-    return this.update(id, { status } as Partial<MatchSheet>);
+  async updateStatus(id: UUID, status: MatchSheetStatus): Promise<MatchSheet> {
+    const existing = await this.findById(id);
+    const submittedAt =
+      status === 'submitted' || status === 'locked'
+        ? existing?.submittedAt ?? new Date().toISOString()
+        : null;
+    return this.update(id, { status, submittedAt } as Partial<MatchSheet>);
+  }
+
+  resetSmokeDraft(id: UUID): Promise<MatchSheet> {
+    return this.update(id, { status: 'draft', submittedAt: null } as Partial<MatchSheet>);
   }
 }
 

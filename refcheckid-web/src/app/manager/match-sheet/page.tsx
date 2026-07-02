@@ -1,9 +1,11 @@
+import { AuthGate } from "@/components/auth/auth-gate";
 import Link from "next/link";
 import { MatchSheetWorkflow } from "@/features/manager/match-sheet-workflow";
 
 export default function MatchSheetPage() {
   return (
-    <main className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
+    <AuthGate allowedRole="manager">
+      <main className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
       <header className="space-y-2">
         <Link className="text-sm text-primary" href="/manager">
           ← Dashboard
@@ -13,7 +15,8 @@ export default function MatchSheetPage() {
           Completa convocati, ordine, staff e riepilogo prima dell’invio.
         </p>
       </header>
-      <MatchSheetWorkflow />
-    </main>
+        <MatchSheetWorkflow />
+      </main>
+    </AuthGate>
   );
 }

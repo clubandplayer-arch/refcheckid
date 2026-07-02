@@ -1,7 +1,7 @@
 import type { BaseEntity, ISODateTime, UUID } from '../shared/types.js';
 
 export type RecognitionStatus = 'recognized' | 'rejected';
-export type RecognitionWorkflowStatus = 'not_started' | 'in_progress' | 'completed';
+export type RecognitionWorkflowStatus = 'not_started' | 'in_progress' | 'locked';
 
 export interface Recognition extends BaseEntity {
   matchId: UUID;

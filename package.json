@@ -1,0 +1,23 @@
+{
+  "name": "refcheckid",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:backend": "pnpm -C refcheckid-backend dev",
+    "dev:web": "pnpm -C refcheckid-web dev",
+    "codespace:start": "node scripts/codespace-start.mjs",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "test:unit": "pnpm --filter refcheckid-backend test:unit && pnpm --filter refcheckid-web test:unit",
+    "test:integration": "pnpm --filter refcheckid-backend test:integration && pnpm --filter refcheckid-web test:integration",
+    "test:e2e": "pnpm --filter refcheckid-backend test:e2e",
+    "test:regression": "pnpm --filter refcheckid-backend test:regression",
+    "test:security": "pnpm --filter refcheckid-backend test:security",
+    "test:performance": "pnpm --filter refcheckid-backend test:performance",
+    "coverage": "pnpm -r coverage",
+    "build": "pnpm -r build",
+    "smoke": "node scripts/smoke-test.mjs"
+  }
+}

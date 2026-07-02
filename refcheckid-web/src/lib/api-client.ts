@@ -1,7 +1,14 @@
-import { readStoredSession } from "./session";
+import { getApiBaseUrl } from "./api-base-url";
+import { managerTeamConfig, getCurrentManagerTeam } from "./manager-team";
+import { applyManagerPhotoOverrides } from "./manager-photo-store";
+import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
+import {
+  isSessionExpired,
+  readStoredSession,
+  refreshStoredSession,
+  writeStoredSession,
+} from "./session";
 import type { ManagerDashboard, PlayerListItem, StaffListItem } from "./types";
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
 
 export interface ApiMatch {
   id: string;
@@ -52,9 +59,11 @@ export const queryKeys = {
 };
 
 export async function fetchManagerDashboard(): Promise<ManagerDashboard> {
+  const managerTeam = getCurrentManagerTeam();
+  const managerClubId = managerTeamConfig[managerTeam].clubId;
   const [matches, sheets] = await Promise.all([
-    fetchMatches(),
-    fetchMatchSheets(),
+    fetchMatches(`?clubId=${encodeURIComponent(managerClubId)}`),
+    fetchMatchSheets(`?clubId=${encodeURIComponent(managerClubId)}`),
   ]);
   const nextMatch =
     [...matches].sort((a, b) =>
@@ -67,7 +76,7 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboard> {
     nextMatch: nextMatch
       ? {
           id: nextMatch.id,
-          opponent: nextMatch.awayClubId,
+          opponent: managerTeamConfig[managerTeam].opponent,
           scheduledAt: nextMatch.scheduledAt,
           venue: nextMatch.venue ?? "Da definire",
         }
@@ -79,30 +88,40 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboard> {
 
 export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
   const players = await request<readonly Record<string, unknown>[]>("/players");
-  return players.map((player) => ({
+  const managerTeam = getCurrentManagerTeam();
+  const pilotRoster = managerTeam === "away" ? pilotAwayPlayers : pilotPlayers;
+  if (players.length === 0) return applyManagerPhotoOverrides(managerTeam, pilotRoster);
+  return applyManagerPhotoOverrides(managerTeam, players.map((player) => ({
     id: String(player.id),
     firstName: String(player.firstName ?? player.first_name ?? ""),
     lastName: String(player.lastName ?? player.last_name ?? ""),
-    photoUrl: null,
-    warning: false,
-    suspended: false,
-    selected: false,
-    shirtNumber: null,
-    role: "player",
-  }));
+    photoUrl: String(player.photoUrl ?? player.photo_url ?? "/placeholder-player.svg"),
+	    warning: Boolean(player.warning ?? false),
+	    suspended: Boolean(player.suspended ?? false),
+	    selected: false,
+	    shirtNumber: null,
+	    role: "starter",
+	    isGoalkeeper: false,
+	    isCaptain: false,
+	    isViceCaptain: false,
+	  })));
 }
 
 export async function fetchStaff(): Promise<readonly StaffListItem[]> {
   const staff =
     await request<readonly Record<string, unknown>[]>("/staff-members");
-  return staff.map((staffMember) => ({
+  const managerTeam = getCurrentManagerTeam();
+  const pilotRoster = managerTeam === "away" ? pilotAwayStaff : pilotStaff;
+  if (staff.length === 0) return applyManagerPhotoOverrides(managerTeam, pilotRoster);
+  return applyManagerPhotoOverrides(managerTeam, staff.map((staffMember) => ({
     id: String(staffMember.id),
     fullName: String(
       staffMember.fullName ?? staffMember.full_name ?? staffMember.id,
     ),
     role: String(staffMember.role ?? "staff"),
+    photoUrl: staffMember.photoUrl ? String(staffMember.photoUrl) : null,
     selected: false,
-  }));
+  })));
 }
 
 export function fetchMatches(query = ""): Promise<readonly ApiMatch[]> {
@@ -113,6 +132,13 @@ export function fetchMatchSheets(
   query = "",
 ): Promise<readonly ApiMatchSheet[]> {
   return request<readonly ApiMatchSheet[]>(`/match-sheets${query}`);
+}
+
+export function resetSmokeMatchSheet(matchSheetId: string): Promise<ApiMatchSheet> {
+  return request<ApiMatchSheet>(
+    `/match-sheets/${encodeURIComponent(matchSheetId)}/reset-smoke`,
+    { method: "POST" },
+  );
 }
 
 export function fetchMatchReports(
@@ -159,6 +185,16 @@ export function completeRecognition(matchId: string) {
   });
 }
 
+export function updateMatchReport(
+  reportId: string,
+  summary: string,
+): Promise<ApiReport> {
+  return request<ApiReport>(`/match-reports/${encodeURIComponent(reportId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ summary }),
+  });
+}
+
 export function submitMatchReport(reportId: string): Promise<ApiReport> {
   return request<ApiReport>(
     `/match-reports/${encodeURIComponent(reportId)}/submit`,
@@ -170,14 +206,12 @@ export async function request<TResponse>(
   path: string,
   init?: RequestInit,
 ): Promise<TResponse> {
-  const session = readStoredSession();
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const activeSession = await resolveActiveSession();
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",
-      ...(session
-        ? { "x-actor-id": session.actorId, "x-roles": session.roles.join(",") }
-        : {}),
+      ...(activeSession ? { authorization: `Bearer ${activeSession.accessToken}` } : {}),
       ...(init?.headers ?? {}),
     },
   });
@@ -191,4 +225,19 @@ export async function request<TResponse>(
   }
 
   return (await response.json()) as TResponse;
+}
+
+async function resolveActiveSession() {
+  const session = readStoredSession();
+  if (session === null) return null;
+  if (!isSessionExpired(session)) return session;
+
+  const refreshedSession = await refreshStoredSession(session.refreshToken);
+  if (refreshedSession === null) {
+    window.localStorage.removeItem("refcheckid.session");
+    return null;
+  }
+
+  writeStoredSession(refreshedSession);
+  return refreshedSession;
 }

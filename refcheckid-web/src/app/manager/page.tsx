@@ -1,5 +1,7 @@
 "use client";
 
+import { AuthGate } from "@/components/auth/auth-gate";
+
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -41,7 +43,8 @@ export default function ManagerDashboardPage() {
   const nextMatch = dashboard.nextMatch;
 
   return (
-    <main className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
+    <AuthGate allowedRole="manager">
+      <main className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-sm font-semibold text-primary">Area Dirigente</p>
@@ -86,5 +89,6 @@ export default function ManagerDashboardPage() {
         </Card>
       </div>
     </main>
+    </AuthGate>
   );
 }

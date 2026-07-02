@@ -4,7 +4,7 @@ import type { FederationReport } from "../src/lib/federation-types";
 import type { AppSession } from "../src/lib/session";
 
 function sessionHeaders(session: AppSession) {
-  return { "x-actor-id": session.actorId, "x-roles": session.roles.join(",") };
+  return { authorization: `Bearer ${session.accessToken}` };
 }
 
 function filterReports(reports: readonly FederationReport[], query: string) {
@@ -25,12 +25,18 @@ describe("frontend backend integration contracts", () => {
   it("maps stored sessions to backend authentication headers", () => {
     expect(
       sessionHeaders({
-        actorId: "00000000-0000-4000-8000-000000000001",
-        roles: ["manager"],
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        expiresAt: "2026-07-01T10:00:00.000Z",
+        user: {
+          id: "00000000-0000-4000-8000-000000000001",
+          email: "dirigente@refcheckid.local",
+          role: "manager",
+          displayName: "Dirigente Demo",
+        },
       }),
     ).toEqual({
-      "x-actor-id": "00000000-0000-4000-8000-000000000001",
-      "x-roles": "manager",
+      authorization: "Bearer access-token",
     });
   });
 
