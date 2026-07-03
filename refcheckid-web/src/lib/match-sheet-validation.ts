@@ -32,6 +32,7 @@ export interface MatchSheetValidationResult {
   readonly captainViceConflicts: number;
   readonly missingShirtNumberPlayers: readonly string[];
   readonly startingLineup: number;
+  readonly benchPlayers: number;
 }
 
 export function validateMatchSheet(
@@ -46,6 +47,7 @@ export function validateMatchSheet(
   const goalkeepers = players.filter((player) => player.isGoalkeeper).length;
   const starters = players.filter((player) => player.role === "starter").length;
   const startingLineup = starters;
+  const benchPlayers = players.filter((player) => player.role === "reserve").length;
   const captains = players.filter((player) => player.isCaptain).length;
   const viceCaptains = players.filter((player) => player.isViceCaptain).length;
   const captainViceConflicts = players.filter(
@@ -77,6 +79,8 @@ export function validateMatchSheet(
     ...(startingLineup < 11
       ? ["Seleziona almeno 11 titolari per completare la distinta."]
       : []),
+    ...(benchPlayers > 20 ? ["Seleziona al massimo 20 giocatori in panchina."] : []),
+    ...(staff.length > 5 ? ["Seleziona al massimo 5 membri dello staff in panchina."] : []),
     ...(captains > 1 ? ["Seleziona al massimo un Capitano."] : []),
     ...(viceCaptains > 1 ? ["Seleziona al massimo un Vice capitano."] : []),
     ...(captainViceConflicts > 0
@@ -85,6 +89,7 @@ export function validateMatchSheet(
   ];
 
   return {
+    benchPlayers,
     captainViceConflicts,
     captains,
     duplicateShirtNumbers,

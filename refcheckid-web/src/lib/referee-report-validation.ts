@@ -191,6 +191,19 @@ function validatePlayerChronology(report: MatchReportDraft): readonly string[] {
     }
   }
 
+  for (const substitution of report.substitutions) {
+    const outgoingKey = playerKey(substitution.teamName, substitution.outgoingShirtNumber);
+    if (!outgoingKey) continue;
+    const expulsion = report.expulsions.find(
+      (event) => playerKey(event.teamName, event.shirtNumber) === outgoingKey,
+    );
+    if (expulsion && substitution.minute > expulsion.minute) {
+      errors.push(
+        `Sostituzioni: tesserato espulso al minuto ${expulsion.minute}, non può essere sostituito al minuto ${substitution.minute}.`,
+      );
+    }
+  }
+
   for (const event of activityEvents) {
     const key = playerKey(event.teamName, event.shirtNumber);
     if (!key) continue;

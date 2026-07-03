@@ -898,6 +898,8 @@ function SummaryStep({
         <li>Giocatori non validi: {validation.invalidPlayers}</li>
         <li>Portieri: {validation.goalkeepers}</li>
         <li>Titolari: {validation.starters}</li>
+        <li>Giocatori in panchina: {validation.benchPlayers}/20</li>
+        <li>Staff in panchina: {staff.length}/5</li>
         <li>Capitani: {validation.captains}</li>
         <li>Vice capitani: {validation.viceCaptains}</li>
       </ul>

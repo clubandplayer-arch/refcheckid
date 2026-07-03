@@ -119,6 +119,40 @@ describe("unit: manager match sheet validation", () => {
     });
   });
 
+
+  it("allows many registered players but limits bench players and staff", () => {
+    const selectedPlayers = Array.from({ length: 32 }, (_, index) => ({
+      ...pilotPlayers[index % pilotPlayers.length]!,
+      firstName: `Nome${index + 1}`,
+      id: `player-${index + 1}`,
+      isCaptain: index === 0,
+      isGoalkeeper: index === 0,
+      isViceCaptain: index === 1,
+      lastName: `Cognome${index + 1}`,
+      role: index < 11 ? "starter" as const : "reserve" as const,
+      selected: true,
+      shirtNumber: index + 1,
+      suspended: false,
+      warning: false,
+    }));
+    const selectedStaff = Array.from({ length: 6 }, (_, index) => ({
+      ...pilotStaff[index % pilotStaff.length]!,
+      fullName: `Staff ${index + 1}`,
+      id: `staff-${index + 1}`,
+      selected: true,
+    }));
+
+    const validation = validateMatchSheet(selectedPlayers, selectedStaff);
+
+    expect(validation).toMatchObject({
+      benchPlayers: 21,
+      isValid: false,
+      starters: 11,
+    });
+    expect(validation.errors).toContain("Seleziona al massimo 20 giocatori in panchina.");
+    expect(validation.errors).toContain("Seleziona al massimo 5 membri dello staff in panchina.");
+  });
+
   it("allows a non-empty valid sheet", () => {
     const selectedPlayers = pilotPlayers
       .filter((player) => !player.suspended)

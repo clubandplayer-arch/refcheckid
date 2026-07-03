@@ -261,6 +261,41 @@ describe("regression: referee report validation", () => {
     expect(errors).toContain("Ammonizioni: tesserato non ancora entrato al minuto 50.");
   });
 
+
+  it("blocks substitutions after the outgoing player was sent off", () => {
+    const errors = validateReportDraft(
+      report({
+        expulsions: [
+          {
+            detail: "Doppia ammonizione",
+            id: "expulsion-1",
+            minute: 42,
+            playerName: "Ospite #11",
+            shirtNumber: 11,
+            teamName: "Ospite",
+          },
+        ],
+        substitutions: [
+          {
+            detail: "",
+            id: "substitution-1",
+            incomingPlayerName: "Ospite #15",
+            incomingShirtNumber: 15,
+            minute: 50,
+            outgoingPlayerName: "Ospite #11",
+            outgoingShirtNumber: 11,
+            playerName: "",
+            teamName: "Ospite",
+          },
+        ],
+      }),
+    );
+
+    expect(errors).toContain(
+      "Sostituzioni: tesserato espulso al minuto 42, non può essere sostituito al minuto 50.",
+    );
+  });
+
   it("blocks duplicate substitution players across rows", () => {
     const errors = validateReportDraft(
       report({

@@ -866,6 +866,7 @@ function EventsPanel({
                     event={event}
                     onChange={(patch) => updateEvent(event.id, patch)}
                     readOnly={readOnly}
+                    expulsions={report.expulsions}
                     recognitionSubjects={recognitionSubjects}
                     substitutions={events}
                   />
@@ -1044,12 +1045,14 @@ function PlayerAndReasonFields({
 
 function SubstitutionFields({
   event,
+  expulsions,
   onChange,
   readOnly,
   recognitionSubjects,
   substitutions,
 }: Readonly<{
   event: MatchReportEvent;
+  expulsions: readonly MatchReportEvent[];
   onChange: (patch: Partial<MatchReportEvent>) => void;
   readOnly: boolean;
   recognitionSubjects: readonly RecognitionSubject[];
@@ -1070,6 +1073,12 @@ function SubstitutionFields({
         substitution.outgoingShirtNumber,
         substitution.incomingShirtNumber,
       ])
+      .filter((shirtNumber): shirtNumber is number => typeof shirtNumber === "number"),
+  );
+  const expelledBeforeThisSubstitution = new Set(
+    expulsions
+      .filter((expulsion) => expulsion.teamName === event.teamName && expulsion.minute < event.minute)
+      .map((expulsion) => expulsion.shirtNumber)
       .filter((shirtNumber): shirtNumber is number => typeof shirtNumber === "number"),
   );
   function optionLabel(subject: RecognitionSubject): string {
@@ -1095,7 +1104,9 @@ function SubstitutionFields({
           {starters.map((subject) => (
             <option
               disabled={
-                subject.shirtNumber !== null && usedSubstitutionNumbers.has(subject.shirtNumber)
+                subject.shirtNumber !== null &&
+                (usedSubstitutionNumbers.has(subject.shirtNumber) ||
+                  expelledBeforeThisSubstitution.has(subject.shirtNumber))
               }
               key={subject.id}
               value={subject.id}

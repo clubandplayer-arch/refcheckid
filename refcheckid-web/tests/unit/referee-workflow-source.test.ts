@@ -38,6 +38,7 @@ describe("regression: referee smoke workflow", () => {
     expect(source).toContain("Numero uscente");
     expect(source).toContain("Numero entrante");
     expect(source).toContain("usedSubstitutionNumbers");
+    expect(source).toContain("expelledBeforeThisSubstitution");
   });
 
   it("disables recognition navigation after the report transition", () => {
