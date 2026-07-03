@@ -134,11 +134,11 @@ function SheetVerificationStep({
   const [selectedStartTeam, setSelectedStartTeam] = useState<string | null>(null);
   const mutation = useMutation({
     mutationFn: () => lockSubmittedSheetsAndStartRecognition(matchId),
-    onSuccess: () => onStart(selectedStartTeam),
   });
   const sheets = query.data ?? [];
   const homeSheet = sheets.find((sheet) => sheet.team === "home");
   const defaultStartTeam = homeSheet?.clubName.split(" · ")[0] ?? null;
+  const effectiveStartTeam = selectedStartTeam ?? defaultStartTeam;
   useEffect(() => {
     if (!selectedStartTeam && defaultStartTeam) setSelectedStartTeam(defaultStartTeam);
   }, [defaultStartTeam, selectedStartTeam]);
@@ -171,7 +171,7 @@ function SheetVerificationStep({
             const teamName = sheet.clubName.split(" · ")[0] ?? sheet.clubName;
             return (
               <TeamSheetCard
-                isSelected={selectedStartTeam === teamName}
+                isSelected={effectiveStartTeam === teamName}
                 key={sheet.id}
                 onSelect={() => setSelectedStartTeam(teamName)}
                 sheet={sheet}
@@ -189,11 +189,14 @@ function SheetVerificationStep({
         Il riconoscimento deve iniziare dalla squadra di casa. Se l’arbitro deve partire da un’altra distinta, può selezionare la squadra prima di avviare.
       </p>
       <Button
-        disabled={!canStart || mutation.isPending}
-        onClick={() => mutation.mutate()}
+        disabled={!canStart}
+        onClick={() => {
+          onStart(effectiveStartTeam);
+          mutation.mutate();
+        }}
         type="button"
       >
-        Inizia riconoscimento
+        Inizia riconoscimento {effectiveStartTeam ? `con ${effectiveStartTeam}` : ""}
       </Button>
     </Card>
   );
@@ -233,11 +236,18 @@ function TeamSheetCard({
           </p>
           <h3 className="mt-1 text-lg font-bold">{sheet.clubName}</h3>
         </div>
-        <span
-          className={`max-w-[116px] rounded-xl px-3 py-2 text-center text-xs font-bold leading-tight ${statusClass}`}
-        >
-          {statusLabel}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          {isSelected ? (
+            <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-white">
+              Selezionata
+            </span>
+          ) : null}
+          <span
+            className={`max-w-[116px] rounded-xl px-3 py-2 text-center text-xs font-bold leading-tight ${statusClass}`}
+          >
+            {statusLabel}
+          </span>
+        </div>
       </div>
       <dl className="mt-3 grid gap-2 text-sm">
         <div className="flex justify-between">
@@ -288,18 +298,19 @@ function RecognitionStep({
     onMutate: onComplete,
   });
   const allSubjects = useMemo(() => query.data ?? [], [query.data]);
-  const subjects = useMemo(() => {
-    const teamSubjects = selectedTeamName
-      ? allSubjects.filter((subject) => subject.teamName === selectedTeamName)
-      : allSubjects;
-    return teamSubjects.filter((subject) => !decisions[subject.id]);
-  }, [allSubjects, decisions, selectedTeamName]);
   const teamNames = useMemo(
     () => Array.from(new Set(allSubjects.map((subject) => subject.teamName))),
     [allSubjects],
   );
-  const selectedTeamSubjects = selectedTeamName
-    ? allSubjects.filter((subject) => subject.teamName === selectedTeamName)
+  const activeTeamName = selectedTeamName ?? teamNames[0] ?? null;
+  const subjects = useMemo(() => {
+    const teamSubjects = activeTeamName
+      ? allSubjects.filter((subject) => subject.teamName === activeTeamName)
+      : allSubjects;
+    return teamSubjects.filter((subject) => !decisions[subject.id]);
+  }, [activeTeamName, allSubjects, decisions]);
+  const selectedTeamSubjects = activeTeamName
+    ? allSubjects.filter((subject) => subject.teamName === activeTeamName)
     : allSubjects;
   const selectedTeamCompletedCount = selectedTeamSubjects.filter(
     (subject) => decisions[subject.id],
@@ -315,6 +326,12 @@ function RecognitionStep({
       total: teamSubjects.length,
     };
   });
+  useEffect(() => {
+    if (!selectedTeamName && activeTeamName) {
+      setSelectedTeamName(activeTeamName);
+      setIndex(0);
+    }
+  }, [activeTeamName, selectedTeamName]);
   if (isLocked) {
     return (
       <Card className="space-y-4 text-center">
@@ -434,27 +451,17 @@ function RecognitionStep({
           {selectedTeamCompletedCount}/{selectedTeamTotal}
         </span>
       </div>
-      <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
-        Parti dalla squadra di casa. Puoi cambiare distinta selezionando la squadra qui sotto.
-        <div className="mt-2 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
+        {teamNames.map((teamName) => (
           <button
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${!selectedTeamName ? "bg-primary text-white" : "bg-white"}`}
-            onClick={() => { setSelectedTeamName(null); setIndex(0); }}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${activeTeamName === teamName ? "bg-primary text-white" : "bg-muted"}`}
+            key={teamName}
+            onClick={() => { setSelectedTeamName(teamName); setIndex(0); }}
             type="button"
           >
-            Tutte
+            {teamName}
           </button>
-          {teamNames.map((teamName) => (
-            <button
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${selectedTeamName === teamName ? "bg-primary text-white" : "bg-white"}`}
-              key={teamName}
-              onClick={() => { setSelectedTeamName(teamName); setIndex(0); }}
-              type="button"
-            >
-              {teamName}
-            </button>
-          ))}
-        </div>
+        ))}
       </div>
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
         <div className="relative mx-auto flex aspect-[3/4] w-full max-w-[260px] items-center justify-center overflow-hidden rounded-xl border-4 border-white bg-white text-center text-base font-semibold shadow-lg ring-1 ring-slate-200">
