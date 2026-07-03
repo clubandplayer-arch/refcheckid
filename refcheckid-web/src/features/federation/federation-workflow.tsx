@@ -297,8 +297,7 @@ function ReportList({
             {report.homeTeam} - {report.awayTeam}
           </p>
           <p className="text-xs text-slate-500">
-            {report.refereeName} ·{" "}
-            {formatSubmittedAt(report.submittedAt)}
+            {report.refereeName} · {formatSubmittedAt(report.submittedAt)}
           </p>
         </button>
       ))}
@@ -321,12 +320,34 @@ function ReportDetail({ report }: Readonly<{ report: FederationReport }>) {
             Arbitro: {report.refereeName}
           </p>
         </div>
-        <StatusBadge label={`${report.result.homeGoals}-${report.result.awayGoals}`} />
+        <StatusBadge
+          label={`${report.result.homeGoals}-${report.result.awayGoals}`}
+        />
       </div>
-      <ReportEvents homeTeam={report.homeTeam} title="Gol" awayTeam={report.awayTeam} events={report.goals} />
-      <ReportEvents homeTeam={report.homeTeam} title="Ammonizioni" awayTeam={report.awayTeam} events={report.cautions} />
-      <ReportEvents homeTeam={report.homeTeam} title="Espulsioni" awayTeam={report.awayTeam} events={report.expulsions} />
-      <ReportEvents homeTeam={report.homeTeam} title="Sostituzioni" awayTeam={report.awayTeam} events={report.substitutions} />
+      <ReportEvents
+        homeTeam={report.homeTeam}
+        title="Gol"
+        awayTeam={report.awayTeam}
+        events={report.goals}
+      />
+      <ReportEvents
+        homeTeam={report.homeTeam}
+        title="Ammonizioni"
+        awayTeam={report.awayTeam}
+        events={report.cautions}
+      />
+      <ReportEvents
+        homeTeam={report.homeTeam}
+        title="Espulsioni"
+        awayTeam={report.awayTeam}
+        events={report.expulsions}
+      />
+      <ReportEvents
+        homeTeam={report.homeTeam}
+        title="Sostituzioni"
+        awayTeam={report.awayTeam}
+        events={report.substitutions}
+      />
       <ReadOnlyNotes title="Note arbitro" value={report.refereeNotes} />
       {report.commissionerNotes ? (
         <ReadOnlyNotes
@@ -361,7 +382,9 @@ function ReportEvents({
           key={event.id}
         >
           <span>{event.minute}&apos;</span>
-          <span>{formatReportTeamName(event.teamName, homeTeam, awayTeam)}</span>
+          <span>
+            {formatReportTeamName(event.teamName, homeTeam, awayTeam)}
+          </span>
           <span>
             {event.playerName} · {event.detail}
           </span>
@@ -521,10 +544,12 @@ function HistoryPanel() {
   const selectedAuditItem =
     filteredHistory.find((item) => item.id === selectedAuditId) ?? null;
   const selectedReport =
-    (reportsQuery.data ?? []).find((report) => report.id === selectedReportId) ??
-    null;
+    (reportsQuery.data ?? []).find(
+      (report) => report.id === selectedReportId,
+    ) ?? null;
 
-  if (historyQuery.isLoading || reportsQuery.isLoading) return <SkeletonBlock />;
+  if (historyQuery.isLoading || reportsQuery.isLoading)
+    return <SkeletonBlock />;
   if (historyQuery.isError)
     return (
       <ErrorState
@@ -572,7 +597,9 @@ function HistoryPanel() {
         ))}
       </div>
       {selectedReport ? <ReportDetail report={selectedReport} /> : null}
-      {selectedAuditItem ? <AuditSummaryPanel item={selectedAuditItem} /> : null}
+      {selectedAuditItem ? (
+        <AuditSummaryPanel item={selectedAuditItem} />
+      ) : null}
     </Card>
   );
 }
@@ -593,12 +620,16 @@ function HistoryCard({
           <h3 className="font-bold">{item.matchLabel}</h3>
           <p className="text-sm text-slate-500">Arbitro: {item.refereeName}</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={onOpenReport} type="button">
+        <div className="flex flex-wrap gap-2 md:justify-end">
+          <Button
+            className="h-10 min-w-[120px] rounded-md px-4 text-center leading-none"
+            onClick={onOpenReport}
+            type="button"
+          >
             Apri referto
           </Button>
           <Button
-            className="bg-slate-700"
+            className="h-10 min-w-[130px] rounded-md bg-slate-700 px-4 text-center leading-none"
             onClick={onOpenAudit}
             type="button"
           >
@@ -654,46 +685,68 @@ function formatSubmittedAt(value: string) {
   return value ? new Date(value).toLocaleString("it-IT") : "Invio registrato";
 }
 
-function formatReportTeamName(teamName: string, homeTeam: string, awayTeam: string): string {
+function formatReportTeamName(
+  teamName: string,
+  homeTeam: string,
+  awayTeam: string,
+): string {
   if (teamName === "Casa") return homeTeam;
   if (teamName === "Ospite") return awayTeam;
   return teamName;
 }
 
 function formatStatusLabel(status: string): string {
-  return {
-    all: "Tutti",
-    archived: "Archiviata",
-    approved: "Approvata",
-    completed: "Completata",
-    draft: "Bozza",
-    failed: "Errore",
-    in_progress: "In corso",
-    missing: "Mancante",
-    pending: "In attesa",
-    rejected: "Rifiutata",
-    reviewed: "Revisionato",
-    scheduled: "Programmata",
-    submitted: "Inviato",
-    warning: "Attenzione",
-  }[status] ?? status;
+  return (
+    {
+      all: "Tutti",
+      archived: "Archiviata",
+      approved: "Approvata",
+      completed: "Completata",
+      draft: "Bozza",
+      failed: "Errore",
+      in_progress: "In corso",
+      missing: "Mancante",
+      pending: "In attesa",
+      rejected: "Rifiutata",
+      reviewed: "Revisionato",
+      scheduled: "Programmata",
+      submitted: "Inviato",
+      warning: "Attenzione",
+    }[status] ?? status
+  );
 }
 
 function statusBadgeClass(status: string): string {
-  if (["submitted", "reviewed", "completed", "approved", "ok"].includes(status)) {
+  if (
+    ["submitted", "reviewed", "completed", "approved", "ok"].includes(status)
+  ) {
     return "bg-green-100 text-green-800";
   }
-  if (["scheduled", "pending", "missing", "draft", "in_progress", "warning"].includes(status)) {
+  if (
+    [
+      "scheduled",
+      "pending",
+      "missing",
+      "draft",
+      "in_progress",
+      "warning",
+    ].includes(status)
+  ) {
     return "bg-amber-100 text-amber-900";
   }
   if (["failed", "rejected"].includes(status)) return "bg-red-100 text-red-800";
   return "bg-muted text-slate-700";
 }
 
-function StatusBadge({ label, status }: Readonly<{ label?: string; status?: string }>) {
+function StatusBadge({
+  label,
+  status,
+}: Readonly<{ label?: string; status?: string }>) {
   const displayValue = label ?? formatStatusLabel(status ?? "");
   return (
-    <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClass(status ?? "")}`}>
+    <span
+      className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClass(status ?? "")}`}
+    >
       {displayValue}
     </span>
   );
