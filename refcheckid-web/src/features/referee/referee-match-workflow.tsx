@@ -279,6 +279,7 @@ function RecognitionStep({
   const [decisions, setDecisions] = useState<
     Record<string, RecognitionDecision>
   >({});
+  const [decisionOrder, setDecisionOrder] = useState<readonly string[]>([]);
   const query = useQuery({
     queryFn: fetchRecognitionSubjects,
     queryKey: [...queryKeys.recognitions, matchId],
@@ -320,7 +321,7 @@ function RecognitionStep({
       />
     );
   const currentSubject = subjects[index] ?? null;
-  const completedCount = Object.keys(decisions).length;
+  const completedCount = decisionOrder.length;
   const recognizedSubjects = allSubjects.filter((subject) => decisions[subject.id]);
   const recognizedTeams = new Set(recognizedSubjects.map((subject) => subject.teamName));
   const hasHomeRecognition = teamNames[0] ? recognizedTeams.has(teamNames[0]) : false;
@@ -330,6 +331,21 @@ function RecognitionStep({
   function decide(decision: Exclude<RecognitionDecision, "pending">) {
     if (!currentSubject) return;
     setDecisions((current) => ({ ...current, [currentSubject.id]: decision }));
+    setDecisionOrder((current) => [...current.filter((subjectId) => subjectId !== currentSubject.id), currentSubject.id]);
+    setShowDocument(false);
+    setIndex(0);
+  }
+  function goBackToPreviousSubject() {
+    const previousSubjectId = decisionOrder.at(-1);
+    if (!previousSubjectId) return;
+    const previousSubject = allSubjects.find((subject) => subject.id === previousSubjectId);
+    setDecisions((current) => {
+      const next = { ...current };
+      delete next[previousSubjectId];
+      return next;
+    });
+    setDecisionOrder((current) => current.slice(0, -1));
+    if (previousSubject) setSelectedTeamName(previousSubject.teamName);
     setShowDocument(false);
     setIndex(0);
   }
@@ -456,8 +472,8 @@ function RecognitionStep({
           <div className="grid gap-2 sm:grid-cols-2">
             <Button
               className="bg-slate-700"
-              disabled={index === 0}
-              onClick={() => setIndex((current) => Math.max(current - 1, 0))}
+              disabled={decisionOrder.length === 0}
+              onClick={goBackToPreviousSubject}
               type="button"
             >
               Indietro

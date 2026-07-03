@@ -11,6 +11,7 @@ describe("regression: referee smoke workflow", () => {
   it("keeps one recognition advancement action plus back navigation", () => {
     expect(source).toContain("Conferma riconoscimento");
     expect(source).toContain("Indietro");
+    expect(source).toContain("goBackToPreviousSubject");
     expect(source).not.toContain("Swipe sinistra");
     expect(source).not.toContain("Swipe destra\n");
   });

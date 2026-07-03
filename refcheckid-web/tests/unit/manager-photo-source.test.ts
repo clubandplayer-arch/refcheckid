@@ -32,7 +32,8 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("Sposta foto orizzontale");
     expect(source).toContain("Sposta foto verticale");
     expect(source).toContain("cropPhotoDraft");
-    expect(source).toContain("context.ellipse");
+    expect(source).toContain("context.drawImage");
+    expect(source).not.toContain("context.ellipse");
   });
 
   it("exposes a smoke-only reset for submitted sheets", () => {

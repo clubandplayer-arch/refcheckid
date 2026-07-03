@@ -523,7 +523,7 @@ function PhotoCaptureControls({
         />
       </label>
       <p className="text-[11px] text-slate-500">
-        Smartphone consigliato: usa la fotocamera e centra il volto nell’ovale.
+        Smartphone consigliato: usa la fotocamera e inquadra tutto il volto.
         Da desktop puoi caricare un file immagine.
       </p>
       {photoDraft ? (
@@ -537,7 +537,7 @@ function PhotoCaptureControls({
               style={{ transform: `translate(${photoDraft.offsetX}px, ${photoDraft.offsetY}px) scale(${photoDraft.zoom})` }}
               width={96}
             />
-            <div className="pointer-events-none absolute inset-3 rounded-[50%] border-2 border-white/80 shadow-[0_0_0_999px_rgba(15,23,42,0.20)]" />
+            <div className="pointer-events-none absolute inset-1 rounded-md border-2 border-white/80 shadow-[0_0_0_999px_rgba(15,23,42,0.14)]" />
           </div>
           <label className="block text-[11px] text-slate-600">
             Zoom / riduci foto
@@ -941,12 +941,7 @@ async function cropPhotoDraft(photoDraft: { previewUrl: string; zoom: number; of
   const height = image.height * scale;
   const x = (size - width) / 2 + photoDraft.offsetX * (size / 96);
   const y = (size - height) / 2 + photoDraft.offsetY * (size / 96);
-  context.save();
-  context.beginPath();
-  context.ellipse(size / 2, size / 2, size * 0.34, size * 0.43, 0, 0, Math.PI * 2);
-  context.clip();
   context.drawImage(image, x, y, width, height);
-  context.restore();
   return canvas.toDataURL("image/jpeg", 0.9);
 }
 
