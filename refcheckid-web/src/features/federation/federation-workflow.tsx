@@ -320,8 +320,9 @@ function ReportDetail({ report }: Readonly<{ report: FederationReport }>) {
             Arbitro: {report.refereeName}
           </p>
         </div>
-        <StatusBadge
-          label={`${report.result.homeGoals}-${report.result.awayGoals}`}
+        <ScoreBadge
+          homeGoals={report.result.homeGoals}
+          awayGoals={report.result.awayGoals}
         />
       </div>
       <ReportEvents
@@ -745,9 +746,20 @@ function StatusBadge({
   const displayValue = label ?? formatStatusLabel(status ?? "");
   return (
     <span
-      className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClass(status ?? "")}`}
+      className={`inline-flex min-h-10 min-w-[112px] items-center justify-center rounded-md px-4 py-2 text-center text-xs font-semibold leading-none ${statusBadgeClass(status ?? "")}`}
     >
       {displayValue}
+    </span>
+  );
+}
+
+function ScoreBadge({
+  awayGoals,
+  homeGoals,
+}: Readonly<{ awayGoals: number; homeGoals: number }>) {
+  return (
+    <span className="inline-flex min-h-12 min-w-[88px] items-center justify-center rounded-xl bg-primary px-5 py-3 text-center text-xl font-black leading-none text-white shadow-md">
+      {homeGoals}-{awayGoals}
     </span>
   );
 }
