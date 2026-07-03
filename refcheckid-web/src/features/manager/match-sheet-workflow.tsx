@@ -444,6 +444,7 @@ function PlayersStep({
           convocazione.
         </p>
       </div>
+      <PhotoApprovalNotice />
       <Input
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Cerca giocatore"
@@ -457,7 +458,7 @@ function PlayersStep({
           const statusTone = getPlayerStatusTone(player);
           return (
           <div
-            className={`grid gap-3 p-4 md:grid-cols-[64px_minmax(0,1fr)_minmax(240px,340px)_32px] md:items-start ${
+            className={`grid gap-3 p-4 md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px] md:items-start ${
               statusTone === "warning"
                 ? "bg-yellow-50"
                 : statusTone === "suspended"
@@ -470,13 +471,13 @@ function PlayersStep({
               {player.photoUrl ? (
                 <Image
                   alt={`Foto ${player.lastName} ${player.firstName}`}
-                  className="h-16 w-12 shrink-0 rounded-md border bg-white object-cover shadow-sm"
-                  height={64}
+                  className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
+                  height={96}
                   src={player.photoUrl}
-                  width={48}
+                  width={80}
                 />
               ) : (
-                <div className="flex h-16 w-12 shrink-0 items-center justify-center rounded-md border bg-muted text-[10px]">
+                <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
                   Foto
                 </div>
               )}
@@ -518,6 +519,21 @@ function PlayersStep({
   );
 }
 
+function PhotoApprovalNotice() {
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-800">
+      <p className="font-semibold">Nota foto tesserati</p>
+      <p>
+        Smartphone consigliato: inquadra tutto il volto. Da desktop puoi
+        caricare un file immagine. Se modifichi una foto già presente, la nuova
+        immagine sostituirà quella attuale solo dopo approvazione della
+        Federazione; fino ad allora il Club continua a usare la foto attuale, a
+        proprio rischio in caso di incongruenza visiva durante il riconoscimento.
+      </p>
+    </div>
+  );
+}
+
 function PhotoCaptureControls({
   currentPhotoUrl,
   onConfirm,
@@ -551,18 +567,6 @@ function PhotoCaptureControls({
           type="file"
         />
       </label>
-      <p className="text-[11px] leading-relaxed text-slate-500">
-        Smartphone consigliato: inquadra tutto il volto. Da desktop puoi
-        caricare un file immagine.
-      </p>
-      {currentPhotoUrl ? (
-        <p className="rounded-md bg-amber-50 p-2 text-[11px] text-amber-700">
-          La nuova foto sostituirà quella attuale solo dopo approvazione della
-          Federazione. Fino all&apos;approvazione il Club continua a usare la foto
-          attuale, a proprio rischio in caso di incongruenza visiva durante il
-          riconoscimento.
-        </p>
-      ) : null}
       {photoDraft ? (
         <div className="space-y-2 rounded-lg bg-muted p-2">
           <div className="relative mx-auto flex aspect-[3/4] h-36 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
@@ -841,12 +845,13 @@ function StaffStep({
   return (
     <Card className="space-y-4">
       <h2 className="text-xl font-bold">Staff</h2>
+      <PhotoApprovalNotice />
       {staff.length === 0 ? (
         <EmptyState message="Nessuno staff disponibile." />
       ) : null}
       {staff.map((staffMember) => (
         <div
-          className="grid gap-3 rounded-xl border p-4 md:grid-cols-[32px_64px_minmax(0,1fr)_minmax(240px,340px)] md:items-start"
+          className="grid gap-3 rounded-xl border p-4 md:grid-cols-[32px_96px_minmax(0,1fr)_minmax(220px,340px)] md:items-start"
           key={staffMember.id}
         >
           <label className="flex items-center gap-2 text-sm md:justify-start">
@@ -860,13 +865,13 @@ function StaffStep({
           {staffMember.photoUrl ? (
             <Image
               alt={`Foto ${staffMember.fullName}`}
-              className="h-16 w-12 shrink-0 rounded-md border bg-white object-cover shadow-sm"
-              height={64}
+              className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
+              height={96}
               src={staffMember.photoUrl}
-              width={48}
+              width={80}
             />
           ) : (
-            <div className="flex h-16 w-12 shrink-0 items-center justify-center rounded-md border bg-muted text-[10px]">
+            <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
               Foto
             </div>
           )}
