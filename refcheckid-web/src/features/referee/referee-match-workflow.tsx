@@ -289,6 +289,7 @@ function RecognitionStep({
     Record<string, RecognitionDecision>
   >({});
   const [decisionOrder, setDecisionOrder] = useState<readonly string[]>([]);
+  const [isRecognitionClosed, setIsRecognitionClosed] = useState(false);
   const query = useQuery({
     queryFn: fetchRecognitionSubjects,
     queryKey: [...queryKeys.recognitions, matchId],
@@ -429,11 +430,15 @@ function RecognitionStep({
         </div>
         {fullRecognitionComplete ? (
           <Button
-            disabled={mutation.isPending}
-            onClick={() => mutation.mutate()}
+            className={isRecognitionClosed ? "bg-green-600 hover:bg-green-700" : undefined}
+            disabled={mutation.isPending || isRecognitionClosed}
+            onClick={() => {
+              setIsRecognitionClosed(true);
+              mutation.mutate();
+            }}
             type="button"
           >
-            Conferma chiusura riconoscimento
+            {isRecognitionClosed ? "Riconoscimento chiuso" : "Conferma chiusura riconoscimento"}
           </Button>
         ) : (
           <p className="rounded-lg bg-orange-100 p-3 text-sm font-semibold text-orange-900">
@@ -770,7 +775,7 @@ function EventsPanel({
       events.map((event) => {
         if (event.id !== eventId) return event;
         const nextEvent = { ...event, ...patch };
-        if ("teamName" in patch || "shirtNumber" in patch) {
+        if (("teamName" in patch || "shirtNumber" in patch) && !("playerName" in patch)) {
           nextEvent.playerName = resolveReportPlayerName(
             nextEvent.teamName,
             nextEvent.shirtNumber,
@@ -827,7 +832,7 @@ function EventsPanel({
         <div className="space-y-3">
           {events.map((event, index) => (
             <div className="rounded-xl border p-3" key={event.id}>
-              <div className="grid gap-2 md:grid-cols-5">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
                 <MinuteField
                   event={event}
                   index={index}
@@ -853,6 +858,7 @@ function EventsPanel({
                     eventKey={eventKey}
                     onChange={(patch) => updateEvent(event.id, patch)}
                     readOnly={readOnly}
+                    recognitionSubjects={recognitionSubjects}
                   />
                 )}
                 <Button
@@ -948,11 +954,13 @@ function PlayerAndReasonFields({
   eventKey,
   onChange,
   readOnly,
+  recognitionSubjects,
 }: Readonly<{
   event: MatchReportEvent;
   eventKey: Exclude<MatchReportEventKey, "substitutions">;
   onChange: (patch: Partial<MatchReportEvent>) => void;
   readOnly: boolean;
+  recognitionSubjects: readonly RecognitionSubject[];
 }>) {
   const reasonOptions =
     eventKey === "goals"
@@ -961,24 +969,42 @@ function PlayerAndReasonFields({
         ? cautionReasons
         : expulsionReasons;
   const detailLabel = eventKey === "goals" ? "Tipo gol" : "Motivo";
+  const teamNames = Array.from(new Set(recognitionSubjects.map((subject) => subject.teamName)));
+  const selectedTeamIndex = event.teamName === "Casa" ? 0 : 1;
+  const selectedTeamName = teamNames[selectedTeamIndex] ?? teamNames[0] ?? "";
+  const playerOptions = recognitionSubjects.filter(
+    (subject) => subject.subjectKind === "player" && subject.teamName === selectedTeamName,
+  );
+  function optionLabel(subject: RecognitionSubject): string {
+    return `#${subject.shirtNumber ?? "?"} ${subject.lastName} ${subject.firstName}`;
+  }
   return (
     <>
-      <label className="space-y-1 text-sm font-medium">
-        Numero maglia
-        <Input
+      <label className="space-y-1 text-sm font-medium sm:col-span-2 xl:col-span-2">
+        Tesserato
+        <select
+          className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
           disabled={readOnly}
-          max={99}
-          min={1}
-          onChange={(change) =>
-            onChange({ shirtNumber: change.target.valueAsNumber || null })
-          }
-          type="number"
-          value={event.shirtNumber ?? ""}
-        />
+          onChange={(change) => {
+            const subject = playerOptions.find((player) => player.id === change.target.value);
+            onChange({
+              playerName: subject ? `${subject.lastName} ${subject.firstName}` : "",
+              shirtNumber: subject?.shirtNumber ?? null,
+            });
+          }}
+          value={playerOptions.find((player) => player.shirtNumber === event.shirtNumber)?.id ?? ""}
+        >
+          <option value="">Seleziona tesserato</option>
+          {playerOptions.map((subject) => (
+            <option key={subject.id} value={subject.id}>
+              {optionLabel(subject)}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="space-y-1 text-sm font-medium">
-        Tesserato
-        <Input disabled readOnly value={event.playerName} />
+        Numero maglia
+        <Input disabled readOnly value={event.shirtNumber ?? ""} />
       </label>
       <label className="space-y-1 text-sm font-medium">
         {detailLabel}
@@ -1023,7 +1049,7 @@ function SubstitutionFields({
   }
   return (
     <>
-      <label className="space-y-1 text-sm font-medium">
+      <label className="space-y-1 text-sm font-medium sm:col-span-2 xl:col-span-2">
         Tesserato uscente
         <select
           className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
@@ -1049,7 +1075,7 @@ function SubstitutionFields({
         Numero uscente
         <Input disabled readOnly value={event.outgoingShirtNumber ?? ""} />
       </label>
-      <label className="space-y-1 text-sm font-medium">
+      <label className="space-y-1 text-sm font-medium sm:col-span-2 xl:col-span-2">
         Tesserato entrante
         <select
           className="w-full rounded-lg border bg-background px-3 py-2 text-sm"

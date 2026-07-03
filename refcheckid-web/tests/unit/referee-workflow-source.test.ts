@@ -20,6 +20,7 @@ describe("regression: referee smoke workflow", () => {
     expect(source).toContain("Riconoscimento LOCKED");
     expect(source).toContain("Puoi proseguire solo con il referto");
     expect(source).toContain("Conferma chiusura riconoscimento");
+    expect(source).toContain("Riconoscimento chiuso");
     expect(source).toContain("onMutate: onComplete");
   });
 
