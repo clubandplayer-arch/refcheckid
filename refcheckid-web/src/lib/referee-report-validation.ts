@@ -55,6 +55,7 @@ export function validateReportDraft(
     ...validateEventList("Espulsioni", report.expulsions, true, recognitionSubjects),
     ...validateEventList("Sostituzioni", report.substitutions, false, recognitionSubjects),
     ...validateSubstitutions(report.substitutions),
+    ...validatePlayerChronology(report),
   ];
 }
 
@@ -145,6 +146,84 @@ function resolveValidatedReportPlayerName(
       item.shirtNumber === shirtNumber,
   );
   return subject ? `${subject.lastName} ${subject.firstName}` : null;
+}
+
+function validatePlayerChronology(report: MatchReportDraft): readonly string[] {
+  const errors: string[] = [];
+  const activityEvents = [
+    ...report.goals.map((event) => ({ ...event, label: "Gol" })),
+    ...report.cautions.map((event) => ({ ...event, label: "Ammonizioni" })),
+  ];
+  const exitEvents = [
+    ...report.expulsions.map((event) => ({ ...event, label: "Espulsioni", shirtNumber: event.shirtNumber })),
+    ...report.substitutions.map((event) => ({
+      ...event,
+      label: "Sostituzioni",
+      shirtNumber: event.outgoingShirtNumber,
+    })),
+  ];
+  const entryMinuteByPlayer = new Map<string, number>();
+  const exitMinuteByPlayer = new Map<string, number>();
+
+  for (const substitution of report.substitutions) {
+    const incomingKey = playerKey(substitution.teamName, substitution.incomingShirtNumber);
+    if (incomingKey) {
+      entryMinuteByPlayer.set(
+        incomingKey,
+        Math.min(entryMinuteByPlayer.get(incomingKey) ?? Number.POSITIVE_INFINITY, substitution.minute + 1),
+      );
+    }
+    const outgoingKey = playerKey(substitution.teamName, substitution.outgoingShirtNumber);
+    if (outgoingKey) {
+      exitMinuteByPlayer.set(
+        outgoingKey,
+        Math.min(exitMinuteByPlayer.get(outgoingKey) ?? Number.POSITIVE_INFINITY, substitution.minute),
+      );
+    }
+  }
+  for (const expulsion of report.expulsions) {
+    const expelledKey = playerKey(expulsion.teamName, expulsion.shirtNumber);
+    if (expelledKey) {
+      exitMinuteByPlayer.set(
+        expelledKey,
+        Math.min(exitMinuteByPlayer.get(expelledKey) ?? Number.POSITIVE_INFINITY, expulsion.minute),
+      );
+    }
+  }
+
+  for (const event of activityEvents) {
+    const key = playerKey(event.teamName, event.shirtNumber);
+    if (!key) continue;
+    const entryMinute = entryMinuteByPlayer.get(key);
+    if (entryMinute !== undefined && event.minute < entryMinute) {
+      errors.push(`${event.label}: tesserato non ancora entrato al minuto ${event.minute}.`);
+    }
+    const exitMinute = exitMinuteByPlayer.get(key);
+    if (exitMinute !== undefined && event.minute >= exitMinute) {
+      errors.push(`${event.label}: tesserato già uscito o espulso al minuto ${event.minute}.`);
+    }
+  }
+
+  for (const exitEvent of exitEvents) {
+    const key = playerKey(exitEvent.teamName, exitEvent.shirtNumber);
+    if (!key) continue;
+    const latestActivityMinute = Math.max(
+      ...activityEvents
+        .filter((event) => playerKey(event.teamName, event.shirtNumber) === key)
+        .map((event) => event.minute),
+      0,
+    );
+    if (latestActivityMinute > 0 && exitEvent.minute <= latestActivityMinute) {
+      errors.push(
+        `${exitEvent.label}: tesserato con evento al minuto ${latestActivityMinute}, uscita/espulsione solo dal minuto ${latestActivityMinute + 1}.`,
+      );
+    }
+  }
+  return errors;
+}
+
+function playerKey(teamName: string, shirtNumber: number | null | undefined): string | null {
+  return shirtNumber === null || shirtNumber === undefined ? null : `${teamName}:${shirtNumber}`;
 }
 
 function validateSubstitutions(

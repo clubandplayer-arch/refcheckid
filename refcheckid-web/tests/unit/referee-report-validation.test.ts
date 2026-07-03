@@ -193,6 +193,74 @@ describe("regression: referee report validation", () => {
   });
 
 
+
+  it("blocks substitutions and expulsions before a player's prior events", () => {
+    const errors = validateReportDraft(
+      report({
+        goals: [
+          {
+            detail: goalTypes[0],
+            id: "goal-1",
+            minute: 32,
+            playerName: "Casa #10",
+            shirtNumber: 10,
+            teamName: "Casa",
+          },
+        ],
+        homeGoals: 1,
+        substitutions: [
+          {
+            detail: "",
+            id: "substitution-1",
+            incomingPlayerName: "Casa #15",
+            incomingShirtNumber: 15,
+            minute: 32,
+            outgoingPlayerName: "Casa #10",
+            outgoingShirtNumber: 10,
+            playerName: "",
+            teamName: "Casa",
+          },
+        ],
+      }),
+    );
+
+    expect(errors).toContain(
+      "Sostituzioni: tesserato con evento al minuto 32, uscita/espulsione solo dal minuto 33.",
+    );
+  });
+
+  it("blocks events before a substitute has entered", () => {
+    const errors = validateReportDraft(
+      report({
+        cautions: [
+          {
+            detail: "Proteste",
+            id: "caution-1",
+            minute: 50,
+            playerName: "Casa #15",
+            shirtNumber: 15,
+            teamName: "Casa",
+          },
+        ],
+        substitutions: [
+          {
+            detail: "",
+            id: "substitution-1",
+            incomingPlayerName: "Casa #15",
+            incomingShirtNumber: 15,
+            minute: 60,
+            outgoingPlayerName: "Casa #10",
+            outgoingShirtNumber: 10,
+            playerName: "",
+            teamName: "Casa",
+          },
+        ],
+      }),
+    );
+
+    expect(errors).toContain("Ammonizioni: tesserato non ancora entrato al minuto 50.");
+  });
+
   it("blocks duplicate substitution players across rows", () => {
     const errors = validateReportDraft(
       report({
