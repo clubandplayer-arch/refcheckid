@@ -316,6 +316,10 @@ function RecognitionStep({
     (subject) => decisions[subject.id],
   ).length;
   const selectedTeamTotal = selectedTeamSubjects.length;
+  const currentTeamDecisionOrder = decisionOrder.filter((subjectId) => {
+    const subject = allSubjects.find((item) => item.id === subjectId);
+    return subject?.teamName === activeTeamName;
+  });
   const teamRecognitionSummaries = teamNames.map((teamName) => {
     const teamSubjects = allSubjects.filter((subject) => subject.teamName === teamName);
     const completed = teamSubjects.filter((subject) => decisions[subject.id]).length;
@@ -369,7 +373,7 @@ function RecognitionStep({
     setIndex(0);
   }
   function goBackToPreviousSubject() {
-    const previousSubjectId = decisionOrder.at(-1);
+    const previousSubjectId = currentTeamDecisionOrder.at(-1);
     if (!previousSubjectId) return;
     const previousSubject = allSubjects.find((subject) => subject.id === previousSubjectId);
     setDecisions((current) => {
@@ -451,18 +455,7 @@ function RecognitionStep({
           {selectedTeamCompletedCount}/{selectedTeamTotal}
         </span>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {teamNames.map((teamName) => (
-          <button
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${activeTeamName === teamName ? "bg-primary text-white" : "bg-muted"}`}
-            key={teamName}
-            onClick={() => { setSelectedTeamName(teamName); setIndex(0); }}
-            type="button"
-          >
-            {teamName}
-          </button>
-        ))}
-      </div>
+
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
         <div className="relative mx-auto flex aspect-[3/4] w-full max-w-[260px] items-center justify-center overflow-hidden rounded-xl border-4 border-white bg-white text-center text-base font-semibold shadow-lg ring-1 ring-slate-200">
           {currentSubject.photoUrl ? (
@@ -518,7 +511,7 @@ function RecognitionStep({
           <div className="grid gap-2 sm:grid-cols-2">
             <Button
               className="bg-slate-700"
-              disabled={decisionOrder.length === 0}
+              disabled={currentTeamDecisionOrder.length === 0}
               onClick={goBackToPreviousSubject}
               type="button"
             >
