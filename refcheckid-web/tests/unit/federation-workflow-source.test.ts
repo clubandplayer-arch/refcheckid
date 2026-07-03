@@ -11,7 +11,9 @@ describe("regression: federation history actions", () => {
   it("opens the read-only report detail from history", () => {
     expect(source).toContain("onOpenReport");
     expect(source).toContain("setSelectedReportId(item.reportId)");
-    expect(source).toContain("selectedReport ? <ReportDetail report={selectedReport} />");
+    expect(source).toContain(
+      "selectedReport ? <ReportDetail report={selectedReport} />",
+    );
     expect(source).toContain("Dettaglio referto in sola lettura");
   });
 
@@ -24,5 +26,20 @@ describe("regression: federation history actions", () => {
     expect(source).toContain("Referto ricevuto dalla federazione");
     expect(source).toContain("Timestamp:");
     expect(source).toContain("Attore evento:");
+  });
+
+  it("localizes federation navigation, statuses and team sides", () => {
+    expect(source).toContain('"Cruscotto"');
+    expect(source).toContain('scheduled: "Programmata"');
+    expect(source).toContain('submitted: "Inviato"');
+    expect(source).toContain(
+      "formatReportTeamName(event.teamName, homeTeam, awayTeam)",
+    );
+    expect(source).toContain("statusBadgeClass");
+    expect(source).toContain("min-h-10 min-w-[112px]");
+    expect(source).toContain("ScoreBadge");
+    expect(source).toContain("min-h-12 min-w-[88px]");
+    expect(source).toContain("min-w-[120px] rounded-md");
+    expect(source).toContain("min-w-[130px] rounded-md bg-slate-700");
   });
 });

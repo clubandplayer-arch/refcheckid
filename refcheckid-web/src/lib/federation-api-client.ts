@@ -5,6 +5,7 @@ import {
   request,
 } from "./api-client";
 import type { ApiMatch, ApiPhoto, ApiReport } from "./api-client";
+import { managerTeamConfig } from "./manager-team";
 import { readSubmittedFederationReports } from "./submitted-report";
 import type { SubmittedFederationReport } from "./submitted-report";
 import type {
@@ -64,8 +65,11 @@ export async function fetchFederationMatches(): Promise<
 export async function fetchFederationReports(): Promise<
   readonly FederationReport[]
 > {
-  const localReports = readSubmittedFederationReports().map(toFederationReport);
   const matches = await fetchMatches();
+  const matchById = new Map(matches.map((match) => [match.id, match]));
+  const localReports = readSubmittedFederationReports().map((report) =>
+    toFederationReport(report, matchById.get(report.matchId)),
+  );
   const backendReports = await Promise.all(
     matches.map((match) => fetchReportForMatch(match.id)),
   );
@@ -73,7 +77,7 @@ export async function fetchFederationReports(): Promise<
   const backendSubmittedReports = backendReports
     .filter(isSubmittedApiReport)
     .filter((report) => !localIds.has(report.id))
-    .map(toFederationReport);
+    .map((report) => toFederationReport(report, matchById.get(report.matchId)));
   return [...localReports, ...backendSubmittedReports];
 }
 
@@ -85,18 +89,23 @@ export async function fetchPhotoRequests(): Promise<readonly PhotoRequest[]> {
 export async function fetchFederationHistory(): Promise<
   readonly FederationHistoryItem[]
 > {
-  const reportHistory = readSubmittedFederationReports().map((report) => ({
-    id: `history-${report.id}`,
-    auditSummary: [
-      "Referto ricevuto dalla Federazione",
-      `Risultato ${report.result.homeGoals}-${report.result.awayGoals}`,
-      `Eventi: ${report.goals.length} gol, ${report.cautions.length} ammonizioni, ${report.expulsions.length} espulsioni, ${report.substitutions.length} sostituzioni`,
-    ],
-    clubNames: [report.homeTeam, report.awayTeam],
-    matchLabel: `${report.homeTeam} - ${report.awayTeam}`,
-    refereeName: report.refereeName,
-    reportId: report.id,
-  }));
+  const matches = await fetchMatches();
+  const matchById = new Map(matches.map((match) => [match.id, match]));
+  const reportHistory = readSubmittedFederationReports().map((report) => {
+    const teams = resolveReportTeams(report, matchById.get(report.matchId));
+    return {
+      id: `history-${report.id}`,
+      auditSummary: [
+        "Referto ricevuto dalla Federazione",
+        `Risultato ${report.result.homeGoals}-${report.result.awayGoals}`,
+        `Eventi: ${report.goals.length} gol, ${report.cautions.length} ammonizioni, ${report.expulsions.length} espulsioni, ${report.substitutions.length} sostituzioni`,
+      ],
+      clubNames: [teams.homeTeam, teams.awayTeam],
+      matchLabel: `${teams.homeTeam} - ${teams.awayTeam}`,
+      refereeName: report.refereeName,
+      reportId: report.id,
+    };
+  });
 
   const audit = await request<readonly Record<string, unknown>[]>(
     "/audit/by-action?action=MATCH_ARCHIVED",
@@ -136,8 +145,8 @@ function toFederationMatch(
   const normalizedReportStatus = normalizeReportStatus(reportStatus);
   return {
     id: match.id,
-    awayTeam: match.awayClubId,
-    homeTeam: match.homeClubId,
+    awayTeam: formatClubName(match.awayClubId),
+    homeTeam: formatClubName(match.homeClubId),
     matchStatus:
       match.status === "completed"
         ? "completed"
@@ -151,6 +160,13 @@ function toFederationMatch(
   };
 }
 
+function formatClubName(clubIdOrName: string): string {
+  const club = Object.values(managerTeamConfig).find(
+    (team) => team.clubId === clubIdOrName,
+  );
+  return club?.label ?? clubIdOrName;
+}
+
 function normalizeReportStatus(status?: string) {
   if (status === "submitted" || status === "reviewed") return status;
   if (status === "draft") return "draft";
@@ -159,16 +175,18 @@ function normalizeReportStatus(status?: string) {
 
 function toFederationReport(
   report: ApiReport | SubmittedFederationReport,
+  match?: ApiMatch,
 ): FederationReport {
   if ("result" in report) {
+    const teams = resolveReportTeams(report, match);
     return {
       id: report.id,
-      awayTeam: report.awayTeam,
+      awayTeam: teams.awayTeam,
       cautions: report.cautions,
       commissionerNotes: null,
       expulsions: report.expulsions,
       goals: report.goals,
-      homeTeam: report.homeTeam,
+      homeTeam: teams.homeTeam,
       matchId: report.matchId,
       refereeName: report.refereeName,
       refereeNotes: report.refereeNotes,
@@ -179,14 +197,15 @@ function toFederationReport(
   }
   const summary = parseSubmittedReportSummary(report.summary);
   if (summary) {
+    const teams = resolveReportTeams(summary, match);
     return {
       id: report.id,
-      awayTeam: summary.awayTeam,
+      awayTeam: teams.awayTeam,
       cautions: summary.cautions,
       commissionerNotes: null,
       expulsions: summary.expulsions,
       goals: summary.goals,
-      homeTeam: summary.homeTeam,
+      homeTeam: teams.homeTeam,
       matchId: report.matchId,
       refereeName: summary.refereeName,
       refereeNotes: summary.refereeNotes,
@@ -196,20 +215,44 @@ function toFederationReport(
     };
   }
 
+  const fallbackTeams = match
+    ? resolveReportTeams(
+        { homeTeam: match.homeClubId, awayTeam: match.awayClubId },
+        match,
+      )
+    : { homeTeam: report.matchId, awayTeam: report.matchId };
+
   return {
     id: report.id,
     cautions: [],
     commissionerNotes: null,
     expulsions: [],
     goals: [],
-    homeTeam: report.matchId,
-    awayTeam: report.matchId,
+    homeTeam: fallbackTeams.homeTeam,
+    awayTeam: fallbackTeams.awayTeam,
     matchId: report.matchId,
     refereeName: report.refereeId,
     refereeNotes: report.summary ?? "Referto ricevuto.",
     result: { awayGoals: 0, homeGoals: 0 },
     substitutions: [],
     submittedAt: report.submittedAt ?? new Date().toISOString(),
+  };
+}
+
+function resolveReportTeams(
+  report: Pick<SubmittedFederationReport, "homeTeam" | "awayTeam">,
+  match?: ApiMatch,
+): Pick<SubmittedFederationReport, "homeTeam" | "awayTeam"> {
+  if (match) {
+    return {
+      awayTeam: formatClubName(match.awayClubId),
+      homeTeam: formatClubName(match.homeClubId),
+    };
+  }
+
+  return {
+    awayTeam: formatClubName(report.awayTeam),
+    homeTeam: formatClubName(report.homeTeam),
   };
 }
 

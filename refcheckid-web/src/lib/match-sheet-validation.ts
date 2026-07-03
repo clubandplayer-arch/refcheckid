@@ -26,12 +26,14 @@ export interface MatchSheetValidationResult {
   readonly invalidPlayers: number;
   readonly duplicateShirtNumbers: readonly number[];
   readonly goalkeepers: number;
+  readonly startingGoalkeepers: number;
   readonly starters: number;
   readonly captains: number;
   readonly viceCaptains: number;
   readonly captainViceConflicts: number;
   readonly missingShirtNumberPlayers: readonly string[];
   readonly startingLineup: number;
+  readonly benchPlayers: number;
 }
 
 export function validateMatchSheet(
@@ -44,10 +46,15 @@ export function validateMatchSheet(
   const missingNumbers = missingShirtNumberPlayers.length;
   const invalidPlayers = players.filter((player) => player.suspended).length;
   const goalkeepers = players.filter((player) => player.isGoalkeeper).length;
-  const starters = players.filter((player) => player.role === "starter").length;
-  const startingLineup = starters;
+  const starters = players.filter((player) => player.role === "starter");
+  const starterCount = starters.length;
+  const startingGoalkeepers = starters.filter((player) => player.isGoalkeeper).length;
+  const startingLineup = starterCount;
+  const benchPlayers = players.filter((player) => player.role === "reserve").length;
   const captains = players.filter((player) => player.isCaptain).length;
   const viceCaptains = players.filter((player) => player.isViceCaptain).length;
+  const reserveCaptains = players.filter((player) => player.role === "reserve" && player.isCaptain).length;
+  const reserveViceCaptains = players.filter((player) => player.role === "reserve" && player.isViceCaptain).length;
   const captainViceConflicts = players.filter(
     (player) => player.isCaptain && player.isViceCaptain,
   ).length;
@@ -73,28 +80,36 @@ export function validateMatchSheet(
       ? [`Numeri di maglia duplicati: ${duplicateShirtNumbers.join(", ")}.`]
       : []),
     ...(invalidPlayers > 0 ? ["Rimuovi i giocatori non validi dalla distinta."] : []),
-    ...(goalkeepers === 0 ? ["Seleziona almeno un Portiere."] : []),
+    ...(startingGoalkeepers === 0 ? ["Seleziona un Portiere tra gli 11 titolari."] : []),
+    ...(startingGoalkeepers > 1 ? ["Seleziona un solo Portiere tra gli 11 titolari."] : []),
     ...(startingLineup < 11
-      ? ["Seleziona almeno 11 Titolari per lo smoke test."]
+      ? ["Seleziona 11 titolari per completare la distinta."]
       : []),
+    ...(startingLineup > 11 ? ["Seleziona al massimo 11 titolari."] : []),
+    ...(benchPlayers > 20 ? ["Seleziona al massimo 20 giocatori in panchina."] : []),
+    ...(staff.length > 5 ? ["Seleziona al massimo 5 membri dello staff in panchina."] : []),
     ...(captains > 1 ? ["Seleziona al massimo un Capitano."] : []),
+    ...(reserveCaptains > 0 ? ["Il Capitano deve essere scelto tra i titolari."] : []),
     ...(viceCaptains > 1 ? ["Seleziona al massimo un Vice capitano."] : []),
+    ...(reserveViceCaptains > 0 ? ["Il Vice capitano deve essere scelto tra i titolari."] : []),
     ...(captainViceConflicts > 0
       ? ["Capitano e Vice capitano devono essere giocatori diversi."]
       : []),
   ];
 
   return {
+    benchPlayers,
     captainViceConflicts,
     captains,
     duplicateShirtNumbers,
     errors,
     goalkeepers,
+    startingGoalkeepers,
     invalidPlayers,
     isValid: errors.length === 0,
     missingNumbers,
     missingShirtNumberPlayers,
-    starters,
+    starters: starterCount,
     startingLineup,
     viceCaptains,
   };

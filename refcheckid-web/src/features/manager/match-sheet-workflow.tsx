@@ -55,15 +55,15 @@ export function MatchSheetWorkflow() {
   const { notify } = useToast();
   const playersQuery = useQuery({
     queryFn: fetchPlayers,
-    queryKey: queryKeys.players,
+    queryKey: [...queryKeys.players, managerTeam],
   });
   const staffQuery = useQuery({
     queryFn: fetchStaff,
-    queryKey: queryKeys.staff,
+    queryKey: [...queryKeys.staff, managerTeam],
   });
   const sheetsQuery = useQuery({
     queryFn: () => fetchMatchSheets(`?clubId=${encodeURIComponent(managerClubId)}`),
-    queryKey: queryKeys.matchSheets,
+    queryKey: [...queryKeys.matchSheets, managerClubId],
   });
   const [selectedPlayers, setSelectedPlayers] = useState<
     readonly PlayerListItem[]
@@ -75,7 +75,7 @@ export function MatchSheetWorkflow() {
     mutationFn: () => {
       const firstSheet = sheetsQuery.data?.[0];
       if (!firstSheet) throw new Error("Nessuna distinta disponibile.");
-      if (firstSheet.status !== "draft") throw new Error("Distinta già inviata. Usa reset distinta smoke per crearne una nuova.");
+      if (firstSheet.status !== "draft") throw new Error("Distinta già inviata. Usa il ripristino della distinta di prova per crearne una nuova.");
       saveSubmittedMatchSheetSnapshot({
         players: calledPlayers,
         staff: calledStaff,
@@ -101,7 +101,7 @@ export function MatchSheetWorkflow() {
       return resetSmokeMatchSheet(firstSheet.id);
     },
     onSuccess() {
-      notify("Reset distinta smoke completato", "success");
+      notify("Distinta di prova ripristinata", "success");
       void queryClient.invalidateQueries({ queryKey: queryKeys.matchSheets });
     },
     onError(error) {
@@ -131,6 +131,7 @@ export function MatchSheetWorkflow() {
     [players, query],
   );
   const calledPlayers = players.filter((player) => player.selected);
+  const orderedCalledPlayers = players.filter((player) => player.selected);
   const calledStaff = staff.filter((staffMember) => staffMember.selected);
   const matchSheetStatus = sheetsQuery.data?.[0]?.status ?? "draft";
   const isReadOnly = matchSheetStatus !== "draft";
@@ -307,9 +308,9 @@ export function MatchSheetWorkflow() {
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
       <div className="lg:col-span-2 rounded-xl border bg-muted/40 p-4 text-sm">
         <p className="font-semibold">Distinta {managerTeamLabel}</p>
-        <p>Stato: <span className="uppercase">{matchSheetStatus}</span></p>
+        <p>Stato: <span className="font-semibold">{getMatchSheetStatusLabel(matchSheetStatus)}</span></p>
         {isReadOnly ? (
-          <p className="mt-1 text-slate-600">Distinta inviata: le modifiche ordinarie sono bloccate. Usa il reset solo in dev/smoke.</p>
+          <p className="mt-1 text-slate-600">Distinta inviata: non puoi più modificarla. Se serve correggere qualcosa, avvisa l’arbitro o la segreteria.</p>
         ) : null}
         {isSmokeResetAvailable() ? (
           <Button
@@ -318,7 +319,7 @@ export function MatchSheetWorkflow() {
             onClick={() => resetSmokeMutation.mutate()}
             type="button"
           >
-            Reset distinta smoke
+            Ripristina distinta di prova
           </Button>
         ) : null}
       </div>
@@ -354,7 +355,7 @@ export function MatchSheetWorkflow() {
       {step === 1 ? (
         <OrderStep
           onDragEnd={handleDragEnd}
-          players={players}
+          players={orderedCalledPlayers}
           toggleCaptain={toggleCaptain}
           toggleGoalkeeper={toggleGoalkeeper}
           togglePlayer={togglePlayer}
@@ -444,13 +445,13 @@ function PlayersStep({
             {player.photoUrl ? (
               <Image
                 alt={`Foto ${player.lastName} ${player.firstName}`}
-                className="rounded-full bg-muted object-cover"
-                height={40}
+                className="h-16 w-12 rounded-md border bg-white object-cover shadow-sm"
+                height={64}
                 src={player.photoUrl}
-                width={40}
+                width={48}
               />
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs">
+              <div className="flex h-16 w-12 items-center justify-center rounded-md border bg-muted text-[10px]">
                 Foto
               </div>
             )}
@@ -522,21 +523,21 @@ function PhotoCaptureControls({
         />
       </label>
       <p className="text-[11px] text-slate-500">
-        Smartphone consigliato: usa la fotocamera e centra il volto nell’ovale.
+        Smartphone consigliato: usa la fotocamera e inquadra tutto il volto.
         Da desktop puoi caricare un file immagine.
       </p>
       {photoDraft ? (
         <div className="space-y-2 rounded-lg bg-muted p-2">
-          <div className="relative mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-lg bg-white">
+          <div className="relative mx-auto flex aspect-[3/4] h-36 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
             <Image
               alt={`Preview foto ${subjectLabel}`}
               className="h-full w-full object-contain"
-              height={96}
+              height={144}
               src={photoDraft.previewUrl}
               style={{ transform: `translate(${photoDraft.offsetX}px, ${photoDraft.offsetY}px) scale(${photoDraft.zoom})` }}
-              width={96}
+              width={108}
             />
-            <div className="pointer-events-none absolute inset-3 rounded-[50%] border-2 border-white/80 shadow-[0_0_0_999px_rgba(15,23,42,0.20)]" />
+            <div className="pointer-events-none absolute inset-1 rounded-md border-2 border-white/80 shadow-[0_0_0_999px_rgba(15,23,42,0.14)]" />
           </div>
           <label className="block text-[11px] text-slate-600">
             Zoom / riduci foto
@@ -698,10 +699,10 @@ function SortablePlayerRow({
         {player.photoUrl ? (
           <Image
             alt={`Foto ${player.lastName} ${player.firstName}`}
-            className="rounded-full bg-muted object-cover"
-            height={36}
+            className="h-14 w-10 rounded-md border bg-white object-cover shadow-sm"
+            height={56}
             src={player.photoUrl}
-            width={36}
+            width={40}
           />
         ) : null}
         <span className="whitespace-normal break-words font-medium leading-tight">
@@ -817,6 +818,19 @@ function StaffStep({
               onChange={() => toggleStaff(staffMember.id)}
               type="checkbox"
             />
+            {staffMember.photoUrl ? (
+              <Image
+                alt={`Foto ${staffMember.fullName}`}
+                className="h-16 w-12 rounded-md border bg-white object-cover shadow-sm"
+                height={64}
+                src={staffMember.photoUrl}
+                width={48}
+              />
+            ) : (
+              <div className="flex h-16 w-12 items-center justify-center rounded-md border bg-muted text-[10px]">
+                Foto
+              </div>
+            )}
             <span>
               <strong>{staffMember.fullName}</strong> · {staffMember.role}
               {!staffMember.photoUrl ? (
@@ -884,6 +898,8 @@ function SummaryStep({
         <li>Giocatori non validi: {validation.invalidPlayers}</li>
         <li>Portieri: {validation.goalkeepers}</li>
         <li>Titolari: {validation.starters}</li>
+        <li>Giocatori in panchina: {validation.benchPlayers}/20</li>
+        <li>Staff in panchina: {staff.length}/5</li>
         <li>Capitani: {validation.captains}</li>
         <li>Vice capitani: {validation.viceCaptains}</li>
       </ul>
@@ -906,12 +922,20 @@ function SummaryStep({
         onClick={handleSubmit}
         type="button"
       >
-        {isSubmitting ? "Invio..." : "Invia distinta"}
+        {isSubmitting ? "Distinta già inviata" : "Invia distinta"}
       </Button>
     </Card>
   );
 }
 
+
+function getMatchSheetStatusLabel(status: string): string {
+  return {
+    draft: "Bozza — da completare e inviare",
+    locked: "Bloccata dall’arbitro — riconoscimento in corso",
+    submitted: "Inviata — in attesa dell’arbitro",
+  }[status] ?? status;
+}
 
 function isSmokeResetAvailable(): boolean {
   return process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_REFCHECKID_SMOKE_RESET === "true";
@@ -920,24 +944,20 @@ function isSmokeResetAvailable(): boolean {
 async function cropPhotoDraft(photoDraft: { previewUrl: string; zoom: number; offsetX: number; offsetY: number }): Promise<string> {
   const image = await loadImage(photoDraft.previewUrl);
   const canvas = document.createElement("canvas");
-  const size = 256;
-  canvas.width = size;
-  canvas.height = size;
+  const widthSize = 300;
+  const heightSize = 400;
+  canvas.width = widthSize;
+  canvas.height = heightSize;
   const context = canvas.getContext("2d");
   if (!context) return photoDraft.previewUrl;
   context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, size, size);
-  const scale = Math.max(size / image.width, size / image.height) * photoDraft.zoom;
+  context.fillRect(0, 0, widthSize, heightSize);
+  const scale = Math.min(widthSize / image.width, heightSize / image.height) * photoDraft.zoom;
   const width = image.width * scale;
   const height = image.height * scale;
-  const x = (size - width) / 2 + photoDraft.offsetX * (size / 96);
-  const y = (size - height) / 2 + photoDraft.offsetY * (size / 96);
-  context.save();
-  context.beginPath();
-  context.ellipse(size / 2, size / 2, size * 0.34, size * 0.43, 0, 0, Math.PI * 2);
-  context.clip();
+  const x = (widthSize - width) / 2 + photoDraft.offsetX * (widthSize / 96);
+  const y = (heightSize - height) / 2 + photoDraft.offsetY * (heightSize / 96);
   context.drawImage(image, x, y, width, height);
-  context.restore();
   return canvas.toDataURL("image/jpeg", 0.9);
 }
 

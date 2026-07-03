@@ -32,13 +32,14 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("Sposta foto orizzontale");
     expect(source).toContain("Sposta foto verticale");
     expect(source).toContain("cropPhotoDraft");
-    expect(source).toContain("context.ellipse");
+    expect(source).toContain("context.drawImage");
+    expect(source).not.toContain("context.ellipse");
   });
 
   it("exposes a smoke-only reset for submitted sheets", () => {
-    expect(source).toContain("Reset distinta smoke");
+    expect(source).toContain("Ripristina distinta di prova");
     expect(source).toContain("isSmokeResetAvailable");
     expect(source).toContain("resetSmokeMatchSheet");
-    expect(source).toContain("Distinta inviata: le modifiche ordinarie sono bloccate");
+    expect(source).toContain("Distinta inviata: non puoi più modificarla");
   });
 });

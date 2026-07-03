@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ import type {
   MatchReportDraft,
   MatchReportEvent,
   RecognitionDecision,
+  RecognitionSubject,
   TeamSheetVerification,
 } from "@/lib/referee-types";
 import { useSession } from "@/lib/session";
@@ -48,8 +50,9 @@ const reportSteps = [
 
 export function RefereeMatchWorkflow() {
   const [step, setStep] = useState(0);
-  const [recognitionLocked, setRecognitionLocked] = useState(false);
+  const [recognitionClosed, setRecognitionClosed] = useState(false);
   const [fullRecognitionComplete, setFullRecognitionComplete] = useState(false);
+  const [initialRecognitionTeamName, setInitialRecognitionTeamName] = useState<string | null>(null);
   const { session } = useSession();
   const dashboardQuery = useQuery({
     enabled: Boolean(session),
@@ -73,7 +76,7 @@ export function RefereeMatchWorkflow() {
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
       <aside className="space-y-2">
         {steps.map((label, index) => {
-          const isRecognitionStepDisabled = recognitionLocked && index === 1;
+          const isRecognitionStepDisabled = recognitionClosed && index < 2;
           return (
             <button
               className={`w-full rounded-lg px-3 py-2 text-left text-sm ${
@@ -92,16 +95,22 @@ export function RefereeMatchWorkflow() {
         })}
       </aside>
       {step === 0 ? (
-        <SheetVerificationStep matchId={matchId} onStart={() => setStep(1)} />
+        <SheetVerificationStep
+          matchId={matchId}
+          onStart={(teamName) => {
+            setInitialRecognitionTeamName(teamName);
+            setStep(1);
+          }}
+        />
       ) : null}
       {step === 1 ? (
         <RecognitionStep
-          isLocked={recognitionLocked}
+          isLocked={false}
+          initialTeamName={initialRecognitionTeamName}
           matchId={matchId}
           onComplete={() => {
-            setRecognitionLocked(true);
             setFullRecognitionComplete(true);
-            setStep(2);
+            setRecognitionClosed(true);
           }}
         />
       ) : null}
@@ -118,15 +127,22 @@ export function RefereeMatchWorkflow() {
 function SheetVerificationStep({
   matchId,
   onStart,
-}: Readonly<{ matchId: string; onStart: () => void }>) {
+}: Readonly<{ matchId: string; onStart: (teamName: string | null) => void }>) {
   const query = useQuery({
     queryFn: () => fetchRefereeMatchSheets(matchId),
     queryKey: [...queryKeys.matchSheets, matchId],
   });
+  const [selectedStartTeam, setSelectedStartTeam] = useState<string | null>(null);
   const mutation = useMutation({
     mutationFn: () => lockSubmittedSheetsAndStartRecognition(matchId),
-    onSuccess: onStart,
   });
+  const sheets = query.data ?? [];
+  const homeSheet = sheets.find((sheet) => sheet.team === "home");
+  const defaultStartTeam = homeSheet?.clubName.split(" · ")[0] ?? null;
+  const effectiveStartTeam = selectedStartTeam ?? defaultStartTeam;
+  useEffect(() => {
+    if (!selectedStartTeam && defaultStartTeam) setSelectedStartTeam(defaultStartTeam);
+  }, [defaultStartTeam, selectedStartTeam]);
   if (query.isLoading) return <SkeletonBlock />;
   if (query.isError)
     return (
@@ -135,7 +151,6 @@ function SheetVerificationStep({
         onRetry={() => void query.refetch()}
       />
     );
-  const sheets = query.data ?? [];
   const missingAwaySheet = sheets.some(
     (sheet) => sheet.team === "away" && sheet.status === "missing",
   );
@@ -153,9 +168,17 @@ function SheetVerificationStep({
         <EmptyState message="Nessuna distinta disponibile." />
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {sheets.map((sheet) => (
-            <TeamSheetCard key={sheet.id} sheet={sheet} />
-          ))}
+          {sheets.map((sheet) => {
+            const teamName = sheet.clubName.split(" · ")[0] ?? sheet.clubName;
+            return (
+              <TeamSheetCard
+                isSelected={effectiveStartTeam === teamName}
+                key={sheet.id}
+                onSelect={() => setSelectedStartTeam(teamName)}
+                sheet={sheet}
+              />
+            );
+          })}
         </div>
       )}
       {missingAwaySheet ? (
@@ -163,22 +186,36 @@ function SheetVerificationStep({
           Distinta ospite mancante
         </p>
       ) : null}
+      <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+        Il riconoscimento deve iniziare dalla squadra di casa. Se l’arbitro deve partire da un’altra distinta, può selezionare la squadra prima di avviare.
+      </p>
       <Button
-        disabled={!canStart || mutation.isPending}
-        onClick={() => mutation.mutate()}
+        disabled={!canStart}
+        onClick={() => {
+          onStart(effectiveStartTeam);
+          mutation.mutate();
+        }}
         type="button"
       >
-        Inizia riconoscimento
+        Inizia riconoscimento {effectiveStartTeam ? `con ${effectiveStartTeam}` : ""}
       </Button>
     </Card>
   );
 }
 
-function TeamSheetCard({ sheet }: Readonly<{ sheet: TeamSheetVerification }>) {
+function TeamSheetCard({
+  isSelected,
+  onSelect,
+  sheet,
+}: Readonly<{
+  isSelected: boolean;
+  onSelect: () => void;
+  sheet: TeamSheetVerification;
+}>) {
   const statusLabel = {
-    locked: "LOCKED · pronta per riconoscimento",
-    missing: "MISSING · distinta non disponibile",
-    submitted: "SUBMITTED · in attesa di lock",
+    locked: "Pronta per il riconoscimento",
+    missing: "Distinta non disponibile",
+    submitted: "Inviata — da prendere in carico",
   }[sheet.status];
   const statusClass = {
     locked: "bg-green-100 text-green-800",
@@ -188,7 +225,11 @@ function TeamSheetCard({ sheet }: Readonly<{ sheet: TeamSheetVerification }>) {
   const sideLabel = sheet.team === "home" ? "Squadra casa" : "Squadra ospite";
 
   return (
-    <div className="rounded-xl border border-slate-200 p-4 shadow-sm">
+    <button
+      className={`rounded-xl border p-4 text-left shadow-sm transition ${isSelected ? "border-primary ring-2 ring-primary/20" : "border-slate-200 hover:border-primary/50"}`}
+      onClick={onSelect}
+      type="button"
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase text-primary">
@@ -196,11 +237,18 @@ function TeamSheetCard({ sheet }: Readonly<{ sheet: TeamSheetVerification }>) {
           </p>
           <h3 className="mt-1 text-lg font-bold">{sheet.clubName}</h3>
         </div>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass}`}
-        >
-          {statusLabel}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          {isSelected ? (
+            <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-white">
+              Selezionata
+            </span>
+          ) : null}
+          <span
+            className={`max-w-[116px] rounded-xl px-3 py-2 text-center text-xs font-bold leading-tight ${statusClass}`}
+          >
+            {statusLabel}
+          </span>
+        </div>
       </div>
       <dl className="mt-3 grid gap-2 text-sm">
         <div className="flex justify-between">
@@ -220,24 +268,29 @@ function TeamSheetCard({ sheet }: Readonly<{ sheet: TeamSheetVerification }>) {
           <dd>{sheet.submittedAt ? "Ricevuta" : "Non ricevuta"}</dd>
         </div>
       </dl>
-    </div>
+    </button>
   );
 }
 
 function RecognitionStep({
+  initialTeamName,
   isLocked,
   matchId,
   onComplete,
 }: Readonly<{
+  initialTeamName: string | null;
   isLocked: boolean;
   matchId: string;
   onComplete: () => void;
 }>) {
   const [index, setIndex] = useState(0);
+  const [selectedTeamName, setSelectedTeamName] = useState<string | null>(initialTeamName);
   const [showDocument, setShowDocument] = useState(false);
   const [decisions, setDecisions] = useState<
     Record<string, RecognitionDecision>
   >({});
+  const [decisionOrder, setDecisionOrder] = useState<readonly string[]>([]);
+  const [isRecognitionClosed, setIsRecognitionClosed] = useState(false);
   const query = useQuery({
     queryFn: fetchRecognitionSubjects,
     queryKey: [...queryKeys.recognitions, matchId],
@@ -246,6 +299,45 @@ function RecognitionStep({
     mutationFn: () => completeRecognition(matchId),
     onMutate: onComplete,
   });
+  const allSubjects = useMemo(() => query.data ?? [], [query.data]);
+  const teamNames = useMemo(
+    () => Array.from(new Set(allSubjects.map((subject) => subject.teamName))),
+    [allSubjects],
+  );
+  const activeTeamName = selectedTeamName ?? teamNames[0] ?? null;
+  const subjects = useMemo(() => {
+    const teamSubjects = activeTeamName
+      ? allSubjects.filter((subject) => subject.teamName === activeTeamName)
+      : allSubjects;
+    return teamSubjects.filter((subject) => !decisions[subject.id]);
+  }, [activeTeamName, allSubjects, decisions]);
+  const selectedTeamSubjects = activeTeamName
+    ? allSubjects.filter((subject) => subject.teamName === activeTeamName)
+    : allSubjects;
+  const selectedTeamCompletedCount = selectedTeamSubjects.filter(
+    (subject) => decisions[subject.id],
+  ).length;
+  const selectedTeamTotal = selectedTeamSubjects.length;
+  const currentTeamDecisionOrder = decisionOrder.filter((subjectId) => {
+    const subject = allSubjects.find((item) => item.id === subjectId);
+    return subject?.teamName === activeTeamName;
+  });
+  const teamRecognitionSummaries = teamNames.map((teamName) => {
+    const teamSubjects = allSubjects.filter((subject) => subject.teamName === teamName);
+    const completed = teamSubjects.filter((subject) => decisions[subject.id]).length;
+    return {
+      completed,
+      isComplete: teamSubjects.length > 0 && completed === teamSubjects.length,
+      teamName,
+      total: teamSubjects.length,
+    };
+  });
+  useEffect(() => {
+    if (!selectedTeamName && activeTeamName) {
+      setSelectedTeamName(activeTeamName);
+      setIndex(0);
+    }
+  }, [activeTeamName, selectedTeamName]);
   if (isLocked) {
     return (
       <Card className="space-y-4 text-center">
@@ -267,43 +359,93 @@ function RecognitionStep({
         onRetry={() => void query.refetch()}
       />
     );
-  const subjects = query.data ?? [];
   const currentSubject = subjects[index] ?? null;
-  const completedCount = Object.keys(decisions).length;
-  const recognizedSubjects = subjects.filter((subject) => decisions[subject.id]);
+  const completedCount = decisionOrder.length;
+  const recognizedSubjects = allSubjects.filter((subject) => decisions[subject.id]);
   const recognizedTeams = new Set(recognizedSubjects.map((subject) => subject.teamName));
-  const hasHomeRecognition = recognizedTeams.has("Casa");
-  const hasAwayRecognition = recognizedTeams.has("Ospite");
+  const hasHomeRecognition = teamNames[0] ? recognizedTeams.has(teamNames[0]) : false;
+  const hasAwayRecognition = teamNames[1] ? recognizedTeams.has(teamNames[1]) : false;
   const fullRecognitionComplete =
-    completedCount === subjects.length && hasHomeRecognition && hasAwayRecognition;
+    completedCount === allSubjects.length && hasHomeRecognition && hasAwayRecognition;
   function decide(decision: Exclude<RecognitionDecision, "pending">) {
     if (!currentSubject) return;
     setDecisions((current) => ({ ...current, [currentSubject.id]: decision }));
+    setDecisionOrder((current) => [...current.filter((subjectId) => subjectId !== currentSubject.id), currentSubject.id]);
     setShowDocument(false);
-    setIndex((current) => Math.min(current + 1, subjects.length));
+    setIndex(0);
   }
-  if (subjects.length === 0)
-    return <EmptyState message="Nessun atleta da riconoscere." />;
-  if (!currentSubject || completedCount === subjects.length)
+  function goBackToPreviousSubject() {
+    const previousSubjectId = currentTeamDecisionOrder.at(-1);
+    if (!previousSubjectId) return;
+    const previousSubject = allSubjects.find((subject) => subject.id === previousSubjectId);
+    setDecisions((current) => {
+      const next = { ...current };
+      delete next[previousSubjectId];
+      return next;
+    });
+    setDecisionOrder((current) => current.slice(0, -1));
+    if (previousSubject) setSelectedTeamName(previousSubject.teamName);
+    setShowDocument(false);
+    setIndex(0);
+  }
+  if (allSubjects.length === 0)
+    return <EmptyState message="Nessun tesserato da riconoscere." />;
+  if (!currentSubject || completedCount === allSubjects.length)
     return (
       <Card className="space-y-4 text-center">
-        <h2 className="text-2xl font-bold">Riconoscimento completato</h2>
+        <h2 className="text-2xl font-bold">
+          {fullRecognitionComplete ? "Riconoscimento completato" : "Seleziona la prossima squadra"}
+        </h2>
         <p className="text-sm text-slate-500">
-          {completedCount} tesserati verificati. Puoi procedere al referto solo
-          dopo il riconoscimento di Casa e Ospite.
+          {completedCount} tesserati verificati. Ogni squadra va chiusa separatamente.
         </p>
-        {!fullRecognitionComplete ? (
-          <p className="rounded-lg bg-red-100 p-3 text-sm font-semibold text-red-900">
-            Riconoscimento non completato per entrambe le squadre
+        <div className="grid gap-3 md:grid-cols-2">
+          {teamRecognitionSummaries.map((summary) => (
+            <div
+              className={`rounded-xl border p-4 text-left ${
+                summary.isComplete
+                  ? "border-green-300 bg-green-50 text-green-900"
+                  : "border-orange-300 bg-orange-50 text-orange-900"
+              }`}
+              key={summary.teamName}
+            >
+              <p className="font-bold">{summary.teamName}</p>
+              <p className="text-sm">
+                {summary.completed}/{summary.total} tesserati
+              </p>
+              {summary.isComplete ? (
+                <p className="mt-2 rounded-lg bg-green-600 px-3 py-2 text-center text-sm font-semibold text-white">
+                  Riconoscimento concluso
+                </p>
+              ) : (
+                <Button
+                  className="mt-2 bg-orange-500 hover:bg-orange-600"
+                  onClick={() => { setSelectedTeamName(summary.teamName); setIndex(0); }}
+                  type="button"
+                >
+                  Apri {summary.teamName}
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+        {fullRecognitionComplete ? (
+          <Button
+            className={isRecognitionClosed ? "bg-green-600 hover:bg-green-700" : undefined}
+            disabled={mutation.isPending || isRecognitionClosed}
+            onClick={() => {
+              setIsRecognitionClosed(true);
+              mutation.mutate();
+            }}
+            type="button"
+          >
+            {isRecognitionClosed ? "Riconoscimento chiuso" : "Conferma chiusura riconoscimento"}
+          </Button>
+        ) : (
+          <p className="rounded-lg bg-orange-100 p-3 text-sm font-semibold text-orange-900">
+            Completa le squadre evidenziate in arancione prima di chiudere il riconoscimento.
           </p>
-        ) : null}
-        <Button
-          disabled={!fullRecognitionComplete || mutation.isPending}
-          onClick={() => mutation.mutate()}
-          type="button"
-        >
-          Chiudi riconoscimento e vai al referto
-        </Button>
+        )}
       </Card>
     );
   return (
@@ -312,17 +454,27 @@ function RecognitionStep({
         <div>
           <h2 className="text-xl font-bold">Riconoscimento</h2>
           <p className="text-sm text-slate-500">
-            Swipe destra per confermare, sinistra per segnalare, indietro per
-            rivedere.
+            Controlla foto, dati e documento. Conferma il tesserato o torna indietro per rivedere.
           </p>
         </div>
         <span className="rounded-full bg-muted px-3 py-2 text-sm">
-          {completedCount}/{subjects.length}
+          {selectedTeamCompletedCount}/{selectedTeamTotal}
         </span>
       </div>
+
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-        <div className="flex aspect-[3/4] items-center justify-center rounded-2xl bg-muted text-center text-lg font-semibold">
-          {currentSubject.photoUrl ? "Foto tesserato" : "Placeholder · foto mancante"}
+        <div className="relative mx-auto flex aspect-[3/4] w-full max-w-[260px] items-center justify-center overflow-hidden rounded-xl border-4 border-white bg-white text-center text-base font-semibold shadow-lg ring-1 ring-slate-200">
+          {currentSubject.photoUrl ? (
+            <Image
+              alt={`Foto ${currentSubject.firstName} ${currentSubject.lastName}`}
+              className="h-full w-full object-cover"
+              height={360}
+              src={currentSubject.photoUrl}
+              width={260}
+            />
+          ) : (
+            "Foto non disponibile"
+          )}
         </div>
         <div className="space-y-4">
           <div>
@@ -365,8 +517,8 @@ function RecognitionStep({
           <div className="grid gap-2 sm:grid-cols-2">
             <Button
               className="bg-slate-700"
-              disabled={index === 0}
-              onClick={() => setIndex((current) => Math.max(current - 1, 0))}
+              disabled={currentTeamDecisionOrder.length === 0}
+              onClick={goBackToPreviousSubject}
               type="button"
             >
               Indietro
@@ -376,7 +528,7 @@ function RecognitionStep({
               onClick={() => decide("approved")}
               type="button"
             >
-              Swipe (destra→sinistra)
+              Conferma riconoscimento
             </Button>
           </div>
         </div>
@@ -395,11 +547,17 @@ function MatchReportStep({
     queryFn: () => fetchRefereeReport(matchId),
     queryKey: [...queryKeys.matchReports, matchId],
   });
+  const recognitionSubjectsQuery = useQuery({
+    queryFn: fetchRecognitionSubjects,
+    queryKey: [...queryKeys.recognitions, matchId, "report-options"],
+  });
   const [step, setStep] = useState(0);
   const [report, setReport] = useState<MatchReportDraft | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const currentReport = report ?? query.data;
-  const reportErrors = currentReport ? validateReportDraft(currentReport) : [];
+  const reportErrors = currentReport
+    ? validateReportDraft(currentReport, recognitionSubjectsQuery.data ?? [])
+    : [];
   const recognitionErrors = fullRecognitionComplete
     ? []
     : ["Riconoscimento non completato per entrambe le squadre"];
@@ -459,6 +617,7 @@ function MatchReportStep({
         <EventsPanel
           eventKey="goals"
           readOnly={isReadOnly}
+          recognitionSubjects={recognitionSubjectsQuery.data ?? []}
           report={currentReport}
           setReport={setReport}
           title="Gol"
@@ -468,6 +627,7 @@ function MatchReportStep({
         <EventsPanel
           eventKey="cautions"
           readOnly={isReadOnly}
+          recognitionSubjects={recognitionSubjectsQuery.data ?? []}
           report={currentReport}
           setReport={setReport}
           title="Ammonizioni"
@@ -477,6 +637,7 @@ function MatchReportStep({
         <EventsPanel
           eventKey="expulsions"
           readOnly={isReadOnly}
+          recognitionSubjects={recognitionSubjectsQuery.data ?? []}
           report={currentReport}
           setReport={setReport}
           title="Espulsioni"
@@ -486,6 +647,7 @@ function MatchReportStep({
         <EventsPanel
           eventKey="substitutions"
           readOnly={isReadOnly}
+          recognitionSubjects={recognitionSubjectsQuery.data ?? []}
           report={currentReport}
           setReport={setReport}
           title="Sostituzioni"
@@ -563,12 +725,14 @@ type MatchReportEventKey =
 function EventsPanel({
   eventKey,
   readOnly,
+  recognitionSubjects,
   report,
   setReport,
   title,
 }: Readonly<{
   eventKey: MatchReportEventKey;
   readOnly: boolean;
+  recognitionSubjects: readonly RecognitionSubject[];
   report: MatchReportDraft;
   setReport: (report: MatchReportDraft) => void;
   title: string;
@@ -614,19 +778,19 @@ function EventsPanel({
       events.map((event) => {
         if (event.id !== eventId) return event;
         const nextEvent = { ...event, ...patch };
-        if ("teamName" in patch || "shirtNumber" in patch) {
+        if (("teamName" in patch || "shirtNumber" in patch) && !("playerName" in patch)) {
           nextEvent.playerName = resolveReportPlayerName(
             nextEvent.teamName,
             nextEvent.shirtNumber,
           );
         }
-        if ("teamName" in patch || "outgoingShirtNumber" in patch) {
+        if (("teamName" in patch || "outgoingShirtNumber" in patch) && !("outgoingPlayerName" in patch)) {
           nextEvent.outgoingPlayerName = resolveReportPlayerName(
             nextEvent.teamName,
             nextEvent.outgoingShirtNumber,
           );
         }
-        if ("teamName" in patch || "incomingShirtNumber" in patch) {
+        if (("teamName" in patch || "incomingShirtNumber" in patch) && !("incomingPlayerName" in patch)) {
           nextEvent.incomingPlayerName = resolveReportPlayerName(
             nextEvent.teamName,
             nextEvent.incomingShirtNumber,
@@ -671,7 +835,7 @@ function EventsPanel({
         <div className="space-y-3">
           {events.map((event, index) => (
             <div className="rounded-xl border p-3" key={event.id}>
-              <div className="grid gap-2 md:grid-cols-5">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
                 <MinuteField
                   event={event}
                   index={index}
@@ -681,7 +845,20 @@ function EventsPanel({
                 />
                 <TeamField
                   event={event}
-                  onChange={(teamName) => updateEvent(event.id, { teamName })}
+                  onChange={(teamName) =>
+                    updateEvent(
+                      event.id,
+                      eventKey === "substitutions"
+                        ? {
+                            incomingPlayerName: "",
+                            incomingShirtNumber: null,
+                            outgoingPlayerName: "",
+                            outgoingShirtNumber: null,
+                            teamName,
+                          }
+                        : { playerName: "", shirtNumber: null, teamName },
+                    )
+                  }
                   readOnly={readOnly}
                 />
                 {eventKey === "substitutions" ? (
@@ -689,6 +866,9 @@ function EventsPanel({
                     event={event}
                     onChange={(patch) => updateEvent(event.id, patch)}
                     readOnly={readOnly}
+                    expulsions={report.expulsions}
+                    recognitionSubjects={recognitionSubjects}
+                    substitutions={events}
                   />
                 ) : (
                   <PlayerAndReasonFields
@@ -696,6 +876,7 @@ function EventsPanel({
                     eventKey={eventKey}
                     onChange={(patch) => updateEvent(event.id, patch)}
                     readOnly={readOnly}
+                    recognitionSubjects={recognitionSubjects}
                   />
                 )}
                 <Button
@@ -791,11 +972,13 @@ function PlayerAndReasonFields({
   eventKey,
   onChange,
   readOnly,
+  recognitionSubjects,
 }: Readonly<{
   event: MatchReportEvent;
   eventKey: Exclude<MatchReportEventKey, "substitutions">;
   onChange: (patch: Partial<MatchReportEvent>) => void;
   readOnly: boolean;
+  recognitionSubjects: readonly RecognitionSubject[];
 }>) {
   const reasonOptions =
     eventKey === "goals"
@@ -804,24 +987,42 @@ function PlayerAndReasonFields({
         ? cautionReasons
         : expulsionReasons;
   const detailLabel = eventKey === "goals" ? "Tipo gol" : "Motivo";
+  const teamNames = Array.from(new Set(recognitionSubjects.map((subject) => subject.teamName)));
+  const selectedTeamIndex = event.teamName === "Casa" ? 0 : 1;
+  const selectedTeamName = teamNames[selectedTeamIndex] ?? teamNames[0] ?? "";
+  const playerOptions = recognitionSubjects.filter(
+    (subject) => subject.subjectKind === "player" && subject.teamName === selectedTeamName,
+  );
+  function optionLabel(subject: RecognitionSubject): string {
+    return `#${subject.shirtNumber ?? "?"} ${subject.lastName} ${subject.firstName}`;
+  }
   return (
     <>
-      <label className="space-y-1 text-sm font-medium">
-        Numero maglia
-        <Input
+      <label className="space-y-1 text-sm font-medium sm:col-span-2 xl:col-span-2">
+        Tesserato
+        <select
+          className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
           disabled={readOnly}
-          max={99}
-          min={1}
-          onChange={(change) =>
-            onChange({ shirtNumber: change.target.valueAsNumber || null })
-          }
-          type="number"
-          value={event.shirtNumber ?? ""}
-        />
+          onChange={(change) => {
+            const subject = playerOptions.find((player) => player.id === change.target.value);
+            onChange({
+              playerName: subject ? `${subject.lastName} ${subject.firstName}` : "",
+              shirtNumber: subject?.shirtNumber ?? null,
+            });
+          }}
+          value={playerOptions.find((player) => player.shirtNumber === event.shirtNumber)?.id ?? ""}
+        >
+          <option value="">Seleziona tesserato</option>
+          {playerOptions.map((subject) => (
+            <option key={subject.id} value={subject.id}>
+              {optionLabel(subject)}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="space-y-1 text-sm font-medium">
-        Tesserato
-        <Input disabled readOnly value={event.playerName} />
+        Numero maglia
+        <Input disabled readOnly value={event.shirtNumber ?? ""} />
       </label>
       <label className="space-y-1 text-sm font-medium">
         {detailLabel}
@@ -844,52 +1045,112 @@ function PlayerAndReasonFields({
 
 function SubstitutionFields({
   event,
+  expulsions,
   onChange,
   readOnly,
+  recognitionSubjects,
+  substitutions,
 }: Readonly<{
   event: MatchReportEvent;
+  expulsions: readonly MatchReportEvent[];
   onChange: (patch: Partial<MatchReportEvent>) => void;
   readOnly: boolean;
+  recognitionSubjects: readonly RecognitionSubject[];
+  substitutions: readonly MatchReportEvent[];
 }>) {
+  const teamNames = Array.from(new Set(recognitionSubjects.map((subject) => subject.teamName)));
+  const selectedTeamIndex = event.teamName === "Casa" ? 0 : 1;
+  const selectedTeamName = teamNames[selectedTeamIndex] ?? teamNames[0] ?? "";
+  const teamPlayers = recognitionSubjects.filter(
+    (subject) => subject.subjectKind === "player" && subject.teamName === selectedTeamName,
+  );
+  const starters = teamPlayers.filter((subject) => subject.roleLabel.startsWith("Titolare"));
+  const reserves = teamPlayers.filter((subject) => subject.roleLabel.startsWith("Riserva"));
+  const usedSubstitutionNumbers = new Set(
+    substitutions
+      .filter((substitution) => substitution.id !== event.id && substitution.teamName === event.teamName)
+      .flatMap((substitution) => [
+        substitution.outgoingShirtNumber,
+        substitution.incomingShirtNumber,
+      ])
+      .filter((shirtNumber): shirtNumber is number => typeof shirtNumber === "number"),
+  );
+  const expelledBeforeThisSubstitution = new Set(
+    expulsions
+      .filter((expulsion) => expulsion.teamName === event.teamName && expulsion.minute < event.minute)
+      .map((expulsion) => expulsion.shirtNumber)
+      .filter((shirtNumber): shirtNumber is number => typeof shirtNumber === "number"),
+  );
+  function optionLabel(subject: RecognitionSubject): string {
+    return `#${subject.shirtNumber ?? "?"} ${subject.lastName} ${subject.firstName}`;
+  }
   return (
     <>
-      <label className="space-y-1 text-sm font-medium">
-        Numero uscente
-        <Input
+      <label className="space-y-1 text-sm font-medium sm:col-span-2 xl:col-span-2">
+        Tesserato uscente
+        <select
+          className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
           disabled={readOnly}
-          max={99}
-          min={1}
-          onChange={(change) =>
+          onChange={(change) => {
+            const subject = starters.find((player) => player.id === change.target.value);
             onChange({
-              outgoingShirtNumber: change.target.valueAsNumber || null,
-            })
-          }
-          type="number"
-          value={event.outgoingShirtNumber ?? ""}
-        />
+              outgoingPlayerName: subject ? `${subject.lastName} ${subject.firstName}` : "",
+              outgoingShirtNumber: subject?.shirtNumber ?? null,
+            });
+          }}
+          value={starters.find((player) => player.shirtNumber === event.outgoingShirtNumber)?.id ?? ""}
+        >
+          <option value="">Seleziona titolare</option>
+          {starters.map((subject) => (
+            <option
+              disabled={
+                subject.shirtNumber !== null &&
+                (usedSubstitutionNumbers.has(subject.shirtNumber) ||
+                  expelledBeforeThisSubstitution.has(subject.shirtNumber))
+              }
+              key={subject.id}
+              value={subject.id}
+            >
+              {optionLabel(subject)}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="space-y-1 text-sm font-medium">
-        Tesserato uscente
-        <Input disabled readOnly value={event.outgoingPlayerName ?? ""} />
+        Numero uscente
+        <Input disabled readOnly value={event.outgoingShirtNumber ?? ""} />
+      </label>
+      <label className="space-y-1 text-sm font-medium sm:col-span-2 xl:col-span-2">
+        Tesserato entrante
+        <select
+          className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          disabled={readOnly}
+          onChange={(change) => {
+            const subject = reserves.find((player) => player.id === change.target.value);
+            onChange({
+              incomingPlayerName: subject ? `${subject.lastName} ${subject.firstName}` : "",
+              incomingShirtNumber: subject?.shirtNumber ?? null,
+            });
+          }}
+          value={reserves.find((player) => player.shirtNumber === event.incomingShirtNumber)?.id ?? ""}
+        >
+          <option value="">Seleziona riserva</option>
+          {reserves.map((subject) => (
+            <option
+              disabled={
+                subject.shirtNumber !== null && usedSubstitutionNumbers.has(subject.shirtNumber)
+              }
+              key={subject.id}
+              value={subject.id}
+            >
+              {optionLabel(subject)}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="space-y-1 text-sm font-medium">
         Numero entrante
-        <Input
-          disabled={readOnly}
-          max={99}
-          min={1}
-          onChange={(change) =>
-            onChange({
-              incomingShirtNumber: change.target.valueAsNumber || null,
-            })
-          }
-          type="number"
-          value={event.incomingShirtNumber ?? ""}
-        />
-      </label>
-      <label className="space-y-1 text-sm font-medium">
-        Tesserato entrante
-        <Input disabled readOnly value={event.incomingPlayerName ?? ""} />
+        <Input disabled readOnly value={event.incomingShirtNumber ?? ""} />
       </label>
     </>
   );

@@ -74,8 +74,8 @@ export default function RefereeDashboardPage() {
         </Card>
         <Card>
           <h2 className="font-semibold">Stato gara</h2>
-          <p className="mt-3 rounded-full bg-muted px-3 py-2 text-sm uppercase">
-            {nextMatch?.status ?? "empty"}
+          <p className="mt-3 rounded-full bg-muted px-3 py-2 text-sm font-semibold">
+            {formatMatchStatus(nextMatch?.status)}
           </p>
         </Card>
         <Card>
@@ -94,4 +94,13 @@ export default function RefereeDashboardPage() {
       </main>
     </AuthGate>
   );
+}
+
+function formatMatchStatus(status: string | undefined): string {
+  return {
+    completed: "Completata",
+    empty: "Nessuna gara",
+    recognition: "Riconoscimento in corso",
+    scheduled: "Programmata",
+  }[status ?? "empty"] ?? status ?? "Nessuna gara";
 }

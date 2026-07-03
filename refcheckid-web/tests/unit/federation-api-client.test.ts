@@ -101,6 +101,54 @@ describe("regression: federation report reception", () => {
     });
   });
 
+  it("maps known club identifiers to team names in the federation calendar", async () => {
+    vi.mocked(fetchMatches).mockResolvedValue([
+      {
+        ...match,
+        awayClubId: "70000000-0000-4000-8000-000000000004",
+        homeClubId: "70000000-0000-4000-8000-000000000003",
+      },
+    ]);
+
+    const matches = await fetchFederationMatches();
+
+    expect(matches[0]).toMatchObject({
+      awayTeam: "Sporting Litorale",
+      homeTeam: "Atletico Aurora",
+    });
+  });
+
+  it("maps known club identifiers to team names in reports and history", async () => {
+    vi.mocked(fetchMatches).mockResolvedValue([
+      {
+        ...match,
+        awayClubId: "70000000-0000-4000-8000-000000000004",
+        homeClubId: "70000000-0000-4000-8000-000000000003",
+      },
+    ]);
+    vi.mocked(readSubmittedFederationReports).mockReturnValue([
+      {
+        ...submittedReport,
+        awayTeam: "Ospite",
+        homeTeam: "Casa",
+      },
+    ]);
+
+    const [reports, history] = await Promise.all([
+      fetchFederationReports(),
+      fetchFederationHistory(),
+    ]);
+
+    expect(reports[0]).toMatchObject({
+      awayTeam: "Sporting Litorale",
+      homeTeam: "Atletico Aurora",
+    });
+    expect(history[0]).toMatchObject({
+      clubNames: ["Atletico Aurora", "Sporting Litorale"],
+      matchLabel: "Atletico Aurora - Sporting Litorale",
+    });
+  });
+
   it("shows the submitted report in dashboard, reports and history", async () => {
     const [dashboard, reports, history] = await Promise.all([
       fetchFederationDashboard(),
@@ -146,5 +194,4 @@ describe("regression: federation report reception", () => {
       result: { homeGoals: 1, awayGoals: 0 },
     });
   });
-
 });

@@ -72,8 +72,8 @@ export default function ManagerDashboardPage() {
         </Card>
         <Card>
           <h2 className="font-semibold">Stato distinta</h2>
-          <p className="mt-3 rounded-full bg-muted px-3 py-2 text-sm uppercase">
-            {dashboard.matchSheetStatus}
+          <p className="mt-3 rounded-full bg-muted px-3 py-2 text-sm font-semibold">
+            {formatMatchSheetStatus(dashboard.matchSheetStatus)}
           </p>
         </Card>
         <Card>
@@ -91,4 +91,12 @@ export default function ManagerDashboardPage() {
     </main>
     </AuthGate>
   );
+}
+
+function formatMatchSheetStatus(status: string): string {
+  return {
+    draft: "Bozza — da completare e inviare",
+    locked: "Presa in carico dall’arbitro",
+    submitted: "Inviata — in attesa dell’arbitro",
+  }[status] ?? status;
 }
