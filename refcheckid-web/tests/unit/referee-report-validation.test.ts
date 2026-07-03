@@ -194,6 +194,38 @@ describe("regression: referee report validation", () => {
 
 
 
+
+  it("blocks a reserve scoring before being substituted in", () => {
+    const errors = validateReportDraft(
+      report({
+        awayGoals: 1,
+        goals: [
+          {
+            detail: goalTypes[0],
+            id: "goal-1",
+            minute: 31,
+            playerName: "Piras Giulio",
+            shirtNumber: 15,
+            teamName: "Ospite",
+          },
+        ],
+      }),
+      [
+        subject(),
+        subject({
+          firstName: "Giulio",
+          id: "subject-2",
+          lastName: "Piras",
+          roleLabel: "Riserva",
+          shirtNumber: 15,
+          teamName: "Sporting Litorale",
+        }),
+      ],
+    );
+
+    expect(errors).toContain("Gol: riserva non entrata in campo al minuto 31.");
+  });
+
   it("blocks substitutions and expulsions before a player's prior events", () => {
     const errors = validateReportDraft(
       report({

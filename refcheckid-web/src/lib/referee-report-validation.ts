@@ -55,7 +55,7 @@ export function validateReportDraft(
     ...validateEventList("Espulsioni", report.expulsions, true, recognitionSubjects),
     ...validateEventList("Sostituzioni", report.substitutions, false, recognitionSubjects),
     ...validateSubstitutions(report.substitutions),
-    ...validatePlayerChronology(report),
+    ...validatePlayerChronology(report, recognitionSubjects),
   ];
 }
 
@@ -136,23 +136,38 @@ function resolveValidatedReportPlayerName(
   if (recognitionSubjects.length === 0) {
     return resolveReportPlayerName(teamName, shirtNumber);
   }
+  const subject = findRecognitionSubject(teamName, shirtNumber, recognitionSubjects);
+  return subject ? `${subject.lastName} ${subject.firstName}` : null;
+}
+
+function findRecognitionSubject(
+  teamName: string,
+  shirtNumber: number,
+  recognitionSubjects: readonly RecognitionSubject[],
+): RecognitionSubject | null {
   const teamNames = Array.from(new Set(recognitionSubjects.map((subject) => subject.teamName)));
   const selectedTeamIndex = teamName === "Casa" ? 0 : 1;
   const selectedTeamName = teamNames[selectedTeamIndex] ?? teamNames[0] ?? "";
-  const subject = recognitionSubjects.find(
+  return recognitionSubjects.find(
     (item) =>
       item.subjectKind === "player" &&
       item.teamName === selectedTeamName &&
       item.shirtNumber === shirtNumber,
-  );
-  return subject ? `${subject.lastName} ${subject.firstName}` : null;
+  ) ?? null;
 }
 
-function validatePlayerChronology(report: MatchReportDraft): readonly string[] {
+function validatePlayerChronology(
+  report: MatchReportDraft,
+  recognitionSubjects: readonly RecognitionSubject[],
+): readonly string[] {
   const errors: string[] = [];
   const activityEvents = [
     ...report.goals.map((event) => ({ ...event, label: "Gol" })),
     ...report.cautions.map((event) => ({ ...event, label: "Ammonizioni" })),
+  ];
+  const participationEvents = [
+    ...activityEvents,
+    ...report.expulsions.map((event) => ({ ...event, label: "Espulsioni" })),
   ];
   const exitEvents = [
     ...report.expulsions.map((event) => ({ ...event, label: "Espulsioni", shirtNumber: event.shirtNumber })),
@@ -204,13 +219,23 @@ function validatePlayerChronology(report: MatchReportDraft): readonly string[] {
     }
   }
 
-  for (const event of activityEvents) {
-    const key = playerKey(event.teamName, event.shirtNumber);
-    if (!key) continue;
+  for (const event of participationEvents) {
+    const shirtNumber = event.shirtNumber;
+    const key = playerKey(event.teamName, shirtNumber);
+    if (!key || shirtNumber === null || shirtNumber === undefined) continue;
+    const subject = findRecognitionSubject(event.teamName, shirtNumber, recognitionSubjects);
     const entryMinute = entryMinuteByPlayer.get(key);
+    if (subject?.roleLabel.startsWith("Riserva") && entryMinute === undefined) {
+      errors.push(`${event.label}: riserva non entrata in campo al minuto ${event.minute}.`);
+    }
     if (entryMinute !== undefined && event.minute < entryMinute) {
       errors.push(`${event.label}: tesserato non ancora entrato al minuto ${event.minute}.`);
     }
+  }
+
+  for (const event of activityEvents) {
+    const key = playerKey(event.teamName, event.shirtNumber);
+    if (!key) continue;
     const exitMinute = exitMinuteByPlayer.get(key);
     if (exitMinute !== undefined && event.minute >= exitMinute) {
       errors.push(`${event.label}: tesserato già uscito o espulso al minuto ${event.minute}.`);
