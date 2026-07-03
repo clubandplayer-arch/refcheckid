@@ -456,8 +456,8 @@ function PlayersStep({
         {players.map((player) => {
           const statusTone = getPlayerStatusTone(player);
           return (
-          <label
-            className={`flex items-center gap-3 p-3 ${
+          <div
+            className={`grid gap-3 p-4 md:grid-cols-[64px_minmax(0,1fr)_minmax(240px,340px)_32px] md:items-start ${
               statusTone === "warning"
                 ? "bg-yellow-50"
                 : statusTone === "suspended"
@@ -466,24 +466,26 @@ function PlayersStep({
             }`}
             key={player.id}
           >
-            {player.photoUrl ? (
-              <Image
-                alt={`Foto ${player.lastName} ${player.firstName}`}
-                className="h-16 w-12 rounded-md border bg-white object-cover shadow-sm"
-                height={64}
-                src={player.photoUrl}
-                width={48}
-              />
-            ) : (
-              <div className="flex h-16 w-12 items-center justify-center rounded-md border bg-muted text-[10px]">
-                Foto
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">
+            <div className="flex items-start gap-3 md:block">
+              {player.photoUrl ? (
+                <Image
+                  alt={`Foto ${player.lastName} ${player.firstName}`}
+                  className="h-16 w-12 shrink-0 rounded-md border bg-white object-cover shadow-sm"
+                  height={64}
+                  src={player.photoUrl}
+                  width={48}
+                />
+              ) : (
+                <div className="flex h-16 w-12 shrink-0 items-center justify-center rounded-md border bg-muted text-[10px]">
+                  Foto
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 space-y-1">
+              <p className="break-words text-base font-semibold leading-tight text-slate-900">
                 {player.lastName} {player.firstName}
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs leading-relaxed text-slate-500">
                 {player.warning ? "Diffida" : "Nessuna diffida"} ·{" "}
                 {player.suspended ? "Squalificato" : "Disponibile"}
                 {!player.photoUrl ? " · Foto mancante" : ""}
@@ -498,14 +500,17 @@ function PlayersStep({
               photoError={photoError}
               subjectLabel={`${player.lastName} ${player.firstName}`}
             />
-            <input
-              aria-label={`Convoca ${player.lastName} ${player.firstName}`}
-              checked={player.selected}
-              disabled={player.suspended}
-              onChange={() => togglePlayer(player.id)}
-              type="checkbox"
-            />
-          </label>
+            <label className="flex items-center gap-2 text-sm md:justify-end">
+              <span className="md:sr-only">Convoca</span>
+              <input
+                aria-label={`Convoca ${player.lastName} ${player.firstName}`}
+                checked={player.selected}
+                disabled={player.suspended}
+                onChange={() => togglePlayer(player.id)}
+                type="checkbox"
+              />
+            </label>
+          </div>
           );
         })}
       </div>
@@ -531,11 +536,11 @@ function PhotoCaptureControls({
   subjectLabel: string;
 }>) {
   return (
-    <div className="min-w-[180px] space-y-2 text-xs">
+    <div className="w-full space-y-2 text-xs md:max-w-[340px]">
       <p className="font-semibold text-slate-600">
         {currentPhotoUrl ? "Modifica foto" : "Aggiungi foto"}
       </p>
-      <label className="block rounded-lg border border-dashed p-2 text-center">
+      <label className="block rounded-lg border border-dashed bg-white p-2 text-center transition hover:border-primary">
         <span>Scatta/carica foto</span>
         <input
           accept="image/*"
@@ -546,9 +551,9 @@ function PhotoCaptureControls({
           type="file"
         />
       </label>
-      <p className="text-[11px] text-slate-500">
-        Smartphone consigliato: usa la fotocamera e inquadra tutto il volto.
-        Da desktop puoi caricare un file immagine.
+      <p className="text-[11px] leading-relaxed text-slate-500">
+        Smartphone consigliato: inquadra tutto il volto. Da desktop puoi
+        caricare un file immagine.
       </p>
       {currentPhotoUrl ? (
         <p className="rounded-md bg-amber-50 p-2 text-[11px] text-amber-700">
@@ -841,37 +846,39 @@ function StaffStep({
       ) : null}
       {staff.map((staffMember) => (
         <div
-          className="flex items-center justify-between gap-3 rounded-xl border p-3"
+          className="grid gap-3 rounded-xl border p-4 md:grid-cols-[32px_64px_minmax(0,1fr)_minmax(240px,340px)] md:items-start"
           key={staffMember.id}
         >
-          <label className="flex flex-1 items-center gap-3">
+          <label className="flex items-center gap-2 text-sm md:justify-start">
             <input
               checked={staffMember.selected}
               onChange={() => toggleStaff(staffMember.id)}
               type="checkbox"
             />
-            {staffMember.photoUrl ? (
-              <Image
-                alt={`Foto ${staffMember.fullName}`}
-                className="h-16 w-12 rounded-md border bg-white object-cover shadow-sm"
-                height={64}
-                src={staffMember.photoUrl}
-                width={48}
-              />
-            ) : (
-              <div className="flex h-16 w-12 items-center justify-center rounded-md border bg-muted text-[10px]">
-                Foto
-              </div>
-            )}
-            <span>
-              <strong>{staffMember.fullName}</strong> · {staffMember.role}
-              {!staffMember.photoUrl ? (
-                <span className="block text-xs font-semibold text-red-600">
-                  Foto mancante
-                </span>
-              ) : null}
-            </span>
+            <span className="md:sr-only">Seleziona</span>
           </label>
+          {staffMember.photoUrl ? (
+            <Image
+              alt={`Foto ${staffMember.fullName}`}
+              className="h-16 w-12 shrink-0 rounded-md border bg-white object-cover shadow-sm"
+              height={64}
+              src={staffMember.photoUrl}
+              width={48}
+            />
+          ) : (
+            <div className="flex h-16 w-12 shrink-0 items-center justify-center rounded-md border bg-muted text-[10px]">
+              Foto
+            </div>
+          )}
+          <div className="min-w-0 space-y-1">
+            <p className="break-words text-base font-semibold leading-tight text-slate-900">
+              {staffMember.fullName}
+            </p>
+            <p className="text-xs leading-relaxed text-slate-500">{staffMember.role}</p>
+            {!staffMember.photoUrl ? (
+              <p className="text-xs font-semibold text-red-600">Foto mancante</p>
+            ) : null}
+          </div>
           <PhotoCaptureControls
             currentPhotoUrl={staffMember.photoUrl}
             onConfirm={() => onConfirmPhoto(staffMember.id)}
