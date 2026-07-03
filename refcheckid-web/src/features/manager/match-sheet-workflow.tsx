@@ -149,20 +149,44 @@ export function MatchSheetWorkflow() {
     setSelectedStaff(updater(staff));
   }
   function updatePlayerPhoto(playerId: string, photoUrl: string) {
-    saveManagerSubjectPhoto(managerTeam, playerId, photoUrl);
-    setPlayerList((current) =>
-      current.map((player) =>
-        player.id === playerId ? { ...player, photoUrl } : player,
-      ),
+    const player = players.find((item) => item.id === playerId);
+    const status = saveManagerSubjectPhoto(
+      managerTeam,
+      playerId,
+      photoUrl,
+      player?.photoUrl ?? null,
+      player ? `${player.lastName} ${player.firstName}` : playerId,
     );
+    if (status === "approved") {
+      setPlayerList((current) =>
+        current.map((item) =>
+          item.id === playerId ? { ...item, photoUrl } : item,
+        ),
+      );
+      notify("Foto tesserato aggiornata", "success");
+      return;
+    }
+    notify("Nuova foto inviata alla Federazione per approvazione", "success");
   }
   function updateStaffPhoto(staffId: string, photoUrl: string) {
-    saveManagerSubjectPhoto(managerTeam, staffId, photoUrl);
-    setStaffList((current) =>
-      current.map((staffMember) =>
-        staffMember.id === staffId ? { ...staffMember, photoUrl } : staffMember,
-      ),
+    const staffMember = staff.find((item) => item.id === staffId);
+    const status = saveManagerSubjectPhoto(
+      managerTeam,
+      staffId,
+      photoUrl,
+      staffMember?.photoUrl ?? null,
+      staffMember?.fullName ?? staffId,
     );
+    if (status === "approved") {
+      setStaffList((current) =>
+        current.map((item) =>
+          item.id === staffId ? { ...item, photoUrl } : item,
+        ),
+      );
+      notify("Foto tesserato aggiornata", "success");
+      return;
+    }
+    notify("Nuova foto inviata alla Federazione per approvazione", "success");
   }
   function handlePhotoSelected(subjectId: string, file: File | null) {
     if (isReadOnly) return;
