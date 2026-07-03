@@ -112,9 +112,14 @@ function validateEventList(
         event.shirtNumber,
         recognitionSubjects,
       );
+      const legacyName = resolveReportPlayerName(event.teamName, event.shirtNumber);
       if (expectedName === null) {
         errors.push(`${label}: tesserato non presente nella distinta della squadra.`);
-      } else if (expectedName.length > 0 && event.playerName !== expectedName) {
+      } else if (
+        expectedName.length > 0 &&
+        event.playerName !== expectedName &&
+        event.playerName !== legacyName
+      ) {
         errors.push(`${label}: tesserato non coerente con squadra e maglia.`);
       }
     }
@@ -146,7 +151,16 @@ function validateSubstitutions(
   substitutions: readonly MatchReportEvent[],
 ): readonly string[] {
   const errors: string[] = [];
-  substitutions.forEach((event) => {
+  const usedPlayers = new Set<string>();
+  substitutions.forEach((event, index) => {
+    for (const shirtNumber of [event.outgoingShirtNumber, event.incomingShirtNumber]) {
+      if (shirtNumber === null || shirtNumber === undefined) continue;
+      const playerKey = `${event.teamName}:${shirtNumber}`;
+      if (usedPlayers.has(playerKey)) {
+        errors.push(`Sostituzioni: tesserato già usato alla riga ${index + 1}.`);
+      }
+      usedPlayers.add(playerKey);
+    }
     if (
       event.outgoingShirtNumber !== null &&
       event.outgoingShirtNumber !== undefined &&

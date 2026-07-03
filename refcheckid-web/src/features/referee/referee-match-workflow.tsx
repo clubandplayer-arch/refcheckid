@@ -845,7 +845,20 @@ function EventsPanel({
                 />
                 <TeamField
                   event={event}
-                  onChange={(teamName) => updateEvent(event.id, { teamName })}
+                  onChange={(teamName) =>
+                    updateEvent(
+                      event.id,
+                      eventKey === "substitutions"
+                        ? {
+                            incomingPlayerName: "",
+                            incomingShirtNumber: null,
+                            outgoingPlayerName: "",
+                            outgoingShirtNumber: null,
+                            teamName,
+                          }
+                        : { playerName: "", shirtNumber: null, teamName },
+                    )
+                  }
                   readOnly={readOnly}
                 />
                 {eventKey === "substitutions" ? (
@@ -854,6 +867,7 @@ function EventsPanel({
                     onChange={(patch) => updateEvent(event.id, patch)}
                     readOnly={readOnly}
                     recognitionSubjects={recognitionSubjects}
+                    substitutions={events}
                   />
                 ) : (
                   <PlayerAndReasonFields
@@ -1033,11 +1047,13 @@ function SubstitutionFields({
   onChange,
   readOnly,
   recognitionSubjects,
+  substitutions,
 }: Readonly<{
   event: MatchReportEvent;
   onChange: (patch: Partial<MatchReportEvent>) => void;
   readOnly: boolean;
   recognitionSubjects: readonly RecognitionSubject[];
+  substitutions: readonly MatchReportEvent[];
 }>) {
   const teamNames = Array.from(new Set(recognitionSubjects.map((subject) => subject.teamName)));
   const selectedTeamIndex = event.teamName === "Casa" ? 0 : 1;
@@ -1047,6 +1063,15 @@ function SubstitutionFields({
   );
   const starters = teamPlayers.filter((subject) => subject.roleLabel.startsWith("Titolare"));
   const reserves = teamPlayers.filter((subject) => subject.roleLabel.startsWith("Riserva"));
+  const usedSubstitutionNumbers = new Set(
+    substitutions
+      .filter((substitution) => substitution.id !== event.id && substitution.teamName === event.teamName)
+      .flatMap((substitution) => [
+        substitution.outgoingShirtNumber,
+        substitution.incomingShirtNumber,
+      ])
+      .filter((shirtNumber): shirtNumber is number => typeof shirtNumber === "number"),
+  );
   function optionLabel(subject: RecognitionSubject): string {
     return `#${subject.shirtNumber ?? "?"} ${subject.lastName} ${subject.firstName}`;
   }
@@ -1068,7 +1093,13 @@ function SubstitutionFields({
         >
           <option value="">Seleziona titolare</option>
           {starters.map((subject) => (
-            <option key={subject.id} value={subject.id}>
+            <option
+              disabled={
+                subject.shirtNumber !== null && usedSubstitutionNumbers.has(subject.shirtNumber)
+              }
+              key={subject.id}
+              value={subject.id}
+            >
               {optionLabel(subject)}
             </option>
           ))}
@@ -1094,7 +1125,13 @@ function SubstitutionFields({
         >
           <option value="">Seleziona riserva</option>
           {reserves.map((subject) => (
-            <option key={subject.id} value={subject.id}>
+            <option
+              disabled={
+                subject.shirtNumber !== null && usedSubstitutionNumbers.has(subject.shirtNumber)
+              }
+              key={subject.id}
+              value={subject.id}
+            >
               {optionLabel(subject)}
             </option>
           ))}

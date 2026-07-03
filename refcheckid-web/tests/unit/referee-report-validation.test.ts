@@ -192,6 +192,40 @@ describe("regression: referee report validation", () => {
     expect(resolveReportPlayerName("Ospite", 8)).toBe("Ospite #8");
   });
 
+
+  it("blocks duplicate substitution players across rows", () => {
+    const errors = validateReportDraft(
+      report({
+        substitutions: [
+          {
+            detail: "",
+            id: "substitution-1",
+            incomingPlayerName: "Riva Leonardo",
+            incomingShirtNumber: 15,
+            minute: 49,
+            outgoingPlayerName: "Marini Gabriele",
+            outgoingShirtNumber: 10,
+            playerName: "",
+            teamName: "Casa",
+          },
+          {
+            detail: "",
+            id: "substitution-2",
+            incomingPlayerName: "Riva Leonardo",
+            incomingShirtNumber: 15,
+            minute: 61,
+            outgoingPlayerName: "Marini Gabriele",
+            outgoingShirtNumber: 10,
+            playerName: "",
+            teamName: "Casa",
+          },
+        ],
+      }),
+    );
+
+    expect(errors).toContain("Sostituzioni: tesserato già usato alla riga 2.");
+  });
+
   it("blocks invalid minutes and substitution with same player", () => {
     const errors = validateReportDraft(
       report({
