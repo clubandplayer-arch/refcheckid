@@ -445,13 +445,13 @@ function PlayersStep({
             {player.photoUrl ? (
               <Image
                 alt={`Foto ${player.lastName} ${player.firstName}`}
-                className="rounded-full bg-muted object-cover"
-                height={40}
+                className="h-16 w-12 rounded-md border bg-white object-cover shadow-sm"
+                height={64}
                 src={player.photoUrl}
-                width={40}
+                width={48}
               />
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs">
+              <div className="flex h-16 w-12 items-center justify-center rounded-md border bg-muted text-[10px]">
                 Foto
               </div>
             )}
@@ -528,14 +528,14 @@ function PhotoCaptureControls({
       </p>
       {photoDraft ? (
         <div className="space-y-2 rounded-lg bg-muted p-2">
-          <div className="relative mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-lg bg-white">
+          <div className="relative mx-auto flex aspect-[3/4] h-36 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
             <Image
               alt={`Preview foto ${subjectLabel}`}
               className="h-full w-full object-contain"
-              height={96}
+              height={144}
               src={photoDraft.previewUrl}
               style={{ transform: `translate(${photoDraft.offsetX}px, ${photoDraft.offsetY}px) scale(${photoDraft.zoom})` }}
-              width={96}
+              width={108}
             />
             <div className="pointer-events-none absolute inset-1 rounded-md border-2 border-white/80 shadow-[0_0_0_999px_rgba(15,23,42,0.14)]" />
           </div>
@@ -699,10 +699,10 @@ function SortablePlayerRow({
         {player.photoUrl ? (
           <Image
             alt={`Foto ${player.lastName} ${player.firstName}`}
-            className="rounded-full bg-muted object-cover"
-            height={36}
+            className="h-14 w-10 rounded-md border bg-white object-cover shadow-sm"
+            height={56}
             src={player.photoUrl}
-            width={36}
+            width={40}
           />
         ) : null}
         <span className="whitespace-normal break-words font-medium leading-tight">
@@ -929,18 +929,19 @@ function isSmokeResetAvailable(): boolean {
 async function cropPhotoDraft(photoDraft: { previewUrl: string; zoom: number; offsetX: number; offsetY: number }): Promise<string> {
   const image = await loadImage(photoDraft.previewUrl);
   const canvas = document.createElement("canvas");
-  const size = 256;
-  canvas.width = size;
-  canvas.height = size;
+  const widthSize = 300;
+  const heightSize = 400;
+  canvas.width = widthSize;
+  canvas.height = heightSize;
   const context = canvas.getContext("2d");
   if (!context) return photoDraft.previewUrl;
   context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, size, size);
-  const scale = Math.max(size / image.width, size / image.height) * photoDraft.zoom;
+  context.fillRect(0, 0, widthSize, heightSize);
+  const scale = Math.min(widthSize / image.width, heightSize / image.height) * photoDraft.zoom;
   const width = image.width * scale;
   const height = image.height * scale;
-  const x = (size - width) / 2 + photoDraft.offsetX * (size / 96);
-  const y = (size - height) / 2 + photoDraft.offsetY * (size / 96);
+  const x = (widthSize - width) / 2 + photoDraft.offsetX * (widthSize / 96);
+  const y = (heightSize - height) / 2 + photoDraft.offsetY * (heightSize / 96);
   context.drawImage(image, x, y, width, height);
   return canvas.toDataURL("image/jpeg", 0.9);
 }
