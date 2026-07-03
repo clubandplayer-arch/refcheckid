@@ -5,6 +5,7 @@ import {
   request,
 } from "./api-client";
 import type { ApiMatch, ApiPhoto, ApiReport } from "./api-client";
+import { managerTeamConfig } from "./manager-team";
 import { readSubmittedFederationReports } from "./submitted-report";
 import type { SubmittedFederationReport } from "./submitted-report";
 import type {
@@ -136,8 +137,8 @@ function toFederationMatch(
   const normalizedReportStatus = normalizeReportStatus(reportStatus);
   return {
     id: match.id,
-    awayTeam: match.awayClubId,
-    homeTeam: match.homeClubId,
+    awayTeam: formatClubName(match.awayClubId),
+    homeTeam: formatClubName(match.homeClubId),
     matchStatus:
       match.status === "completed"
         ? "completed"
@@ -149,6 +150,11 @@ function toFederationMatch(
     reportStatus: normalizedReportStatus,
     scheduledAt: match.scheduledAt,
   };
+}
+
+function formatClubName(clubIdOrName: string): string {
+  const club = Object.values(managerTeamConfig).find((team) => team.clubId === clubIdOrName);
+  return club?.label ?? clubIdOrName;
 }
 
 function normalizeReportStatus(status?: string) {

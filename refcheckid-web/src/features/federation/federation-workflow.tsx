@@ -26,7 +26,7 @@ import type {
 } from "@/lib/federation-types";
 
 const sections = [
-  "Dashboard",
+  "Cruscotto",
   "Calendario",
   "Referti",
   "Foto",
@@ -190,7 +190,7 @@ function MatchCalendarPanel() {
           >
             {reportStatuses.map((reportStatus) => (
               <option key={reportStatus} value={reportStatus}>
-                {reportStatus}
+                {formatStatusLabel(reportStatus)}
               </option>
             ))}
           </select>
@@ -224,8 +224,8 @@ function MatchList({
             {match.homeTeam} - {match.awayTeam}
           </span>
           <span>{match.refereeName}</span>
-          <StatusBadge label={match.matchStatus} />
-          <StatusBadge label={match.reportStatus} />
+          <StatusBadge status={match.matchStatus} />
+          <StatusBadge status={match.reportStatus} />
         </div>
       ))}
     </div>
@@ -321,14 +321,12 @@ function ReportDetail({ report }: Readonly<{ report: FederationReport }>) {
             Arbitro: {report.refereeName}
           </p>
         </div>
-        <StatusBadge
-          label={`${report.result.homeGoals}-${report.result.awayGoals}`}
-        />
+        <StatusBadge label={`${report.result.homeGoals}-${report.result.awayGoals}`} />
       </div>
-      <ReportEvents title="Gol" events={report.goals} />
-      <ReportEvents title="Ammonizioni" events={report.cautions} />
-      <ReportEvents title="Espulsioni" events={report.expulsions} />
-      <ReportEvents title="Sostituzioni" events={report.substitutions} />
+      <ReportEvents homeTeam={report.homeTeam} title="Gol" awayTeam={report.awayTeam} events={report.goals} />
+      <ReportEvents homeTeam={report.homeTeam} title="Ammonizioni" awayTeam={report.awayTeam} events={report.cautions} />
+      <ReportEvents homeTeam={report.homeTeam} title="Espulsioni" awayTeam={report.awayTeam} events={report.expulsions} />
+      <ReportEvents homeTeam={report.homeTeam} title="Sostituzioni" awayTeam={report.awayTeam} events={report.substitutions} />
       <ReadOnlyNotes title="Note arbitro" value={report.refereeNotes} />
       {report.commissionerNotes ? (
         <ReadOnlyNotes
@@ -341,9 +339,16 @@ function ReportDetail({ report }: Readonly<{ report: FederationReport }>) {
 }
 
 function ReportEvents({
+  awayTeam,
   title,
   events,
-}: Readonly<{ title: string; events: readonly FederationReportEvent[] }>) {
+  homeTeam,
+}: Readonly<{
+  awayTeam: string;
+  title: string;
+  events: readonly FederationReportEvent[];
+  homeTeam: string;
+}>) {
   return (
     <section className="space-y-2">
       <h3 className="font-semibold">{title}</h3>
@@ -356,7 +361,7 @@ function ReportEvents({
           key={event.id}
         >
           <span>{event.minute}&apos;</span>
-          <span>{event.teamName}</span>
+          <span>{formatReportTeamName(event.teamName, homeTeam, awayTeam)}</span>
           <span>
             {event.playerName} · {event.detail}
           </span>
@@ -649,10 +654,47 @@ function formatSubmittedAt(value: string) {
   return value ? new Date(value).toLocaleString("it-IT") : "Invio registrato";
 }
 
-function StatusBadge({ label }: Readonly<{ label: string }>) {
+function formatReportTeamName(teamName: string, homeTeam: string, awayTeam: string): string {
+  if (teamName === "Casa") return homeTeam;
+  if (teamName === "Ospite") return awayTeam;
+  return teamName;
+}
+
+function formatStatusLabel(status: string): string {
+  return {
+    all: "Tutti",
+    archived: "Archiviata",
+    approved: "Approvata",
+    completed: "Completata",
+    draft: "Bozza",
+    failed: "Errore",
+    in_progress: "In corso",
+    missing: "Mancante",
+    pending: "In attesa",
+    rejected: "Rifiutata",
+    reviewed: "Revisionato",
+    scheduled: "Programmata",
+    submitted: "Inviato",
+    warning: "Attenzione",
+  }[status] ?? status;
+}
+
+function statusBadgeClass(status: string): string {
+  if (["submitted", "reviewed", "completed", "approved", "ok"].includes(status)) {
+    return "bg-green-100 text-green-800";
+  }
+  if (["scheduled", "pending", "missing", "draft", "in_progress", "warning"].includes(status)) {
+    return "bg-amber-100 text-amber-900";
+  }
+  if (["failed", "rejected"].includes(status)) return "bg-red-100 text-red-800";
+  return "bg-muted text-slate-700";
+}
+
+function StatusBadge({ label, status }: Readonly<{ label?: string; status?: string }>) {
+  const displayValue = label ?? formatStatusLabel(status ?? "");
   return (
-    <span className="inline-flex w-fit rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase">
-      {label}
+    <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClass(status ?? "")}`}>
+      {displayValue}
     </span>
   );
 }

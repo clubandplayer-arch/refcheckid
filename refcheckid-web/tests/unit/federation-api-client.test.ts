@@ -101,6 +101,24 @@ describe("regression: federation report reception", () => {
     });
   });
 
+
+  it("maps known club identifiers to team names in the federation calendar", async () => {
+    vi.mocked(fetchMatches).mockResolvedValue([
+      {
+        ...match,
+        awayClubId: "70000000-0000-4000-8000-000000000004",
+        homeClubId: "70000000-0000-4000-8000-000000000003",
+      },
+    ]);
+
+    const matches = await fetchFederationMatches();
+
+    expect(matches[0]).toMatchObject({
+      awayTeam: "Sporting Litorale",
+      homeTeam: "Atletico Aurora",
+    });
+  });
+
   it("shows the submitted report in dashboard, reports and history", async () => {
     const [dashboard, reports, history] = await Promise.all([
       fetchFederationDashboard(),

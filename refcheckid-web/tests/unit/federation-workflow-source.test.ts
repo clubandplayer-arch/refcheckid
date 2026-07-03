@@ -25,4 +25,13 @@ describe("regression: federation history actions", () => {
     expect(source).toContain("Timestamp:");
     expect(source).toContain("Attore evento:");
   });
+
+  it("localizes federation navigation, statuses and team sides", () => {
+    expect(source).toContain('"Cruscotto"');
+    expect(source).toContain('scheduled: "Programmata"');
+    expect(source).toContain('submitted: "Inviato"');
+    expect(source).toContain('formatReportTeamName(event.teamName, homeTeam, awayTeam)');
+    expect(source).toContain('statusBadgeClass');
+  });
+
 });
