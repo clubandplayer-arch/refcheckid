@@ -536,8 +536,16 @@ function PhotoBox({
   return (
     <div className="space-y-2">
       <p className="text-sm font-semibold">{label}</p>
-      <div className="flex aspect-square items-center justify-center rounded-xl bg-muted text-sm text-slate-500">
-        {photoUrl ? "Foto" : "Nessuna immagine"}
+      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-muted text-sm text-slate-500">
+        {photoUrl ? (
+          <img
+            alt={label}
+            className="h-full w-full object-cover"
+            src={photoUrl}
+          />
+        ) : (
+          "Nessuna immagine"
+        )}
       </div>
     </div>
   );

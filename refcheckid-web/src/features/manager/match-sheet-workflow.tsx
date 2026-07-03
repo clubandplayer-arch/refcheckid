@@ -166,7 +166,7 @@ export function MatchSheetWorkflow() {
       notify("Foto tesserato aggiornata", "success");
       return;
     }
-    notify("Nuova foto inviata alla Federazione per approvazione", "success");
+    notify("Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto attuale a tuo rischio durante il riconoscimento", "success");
   }
   function updateStaffPhoto(staffId: string, photoUrl: string) {
     const staffMember = staff.find((item) => item.id === staffId);
@@ -186,7 +186,7 @@ export function MatchSheetWorkflow() {
       notify("Foto tesserato aggiornata", "success");
       return;
     }
-    notify("Nuova foto inviata alla Federazione per approvazione", "success");
+    notify("Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto attuale a tuo rischio durante il riconoscimento", "success");
   }
   function handlePhotoSelected(subjectId: string, file: File | null) {
     if (isReadOnly) return;
@@ -550,6 +550,14 @@ function PhotoCaptureControls({
         Smartphone consigliato: usa la fotocamera e inquadra tutto il volto.
         Da desktop puoi caricare un file immagine.
       </p>
+      {currentPhotoUrl ? (
+        <p className="rounded-md bg-amber-50 p-2 text-[11px] text-amber-700">
+          La nuova foto sostituirà quella attuale solo dopo approvazione della
+          Federazione. Fino all&apos;approvazione il Club continua a usare la foto
+          attuale, a proprio rischio in caso di incongruenza visiva durante il
+          riconoscimento.
+        </p>
+      ) : null}
       {photoDraft ? (
         <div className="space-y-2 rounded-lg bg-muted p-2">
           <div className="relative mx-auto flex aspect-[3/4] h-36 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">

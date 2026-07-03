@@ -38,6 +38,8 @@ describe("regression: federation history actions", () => {
     expect(source).toContain("statusBadgeClass");
     expect(source).toContain("min-h-10 min-w-[112px]");
     expect(source).toContain("ScoreBadge");
+    expect(source).toContain("object-cover");
+    expect(source).toContain("src={photoUrl}");
     expect(source).toContain("min-h-12 min-w-[88px]");
     expect(source).toContain("min-w-[120px] rounded-md");
     expect(source).toContain("min-w-[130px] rounded-md bg-slate-700");
