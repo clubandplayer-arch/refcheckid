@@ -818,6 +818,19 @@ function StaffStep({
               onChange={() => toggleStaff(staffMember.id)}
               type="checkbox"
             />
+            {staffMember.photoUrl ? (
+              <Image
+                alt={`Foto ${staffMember.fullName}`}
+                className="h-16 w-12 rounded-md border bg-white object-cover shadow-sm"
+                height={64}
+                src={staffMember.photoUrl}
+                width={48}
+              />
+            ) : (
+              <div className="flex h-16 w-12 items-center justify-center rounded-md border bg-muted text-[10px]">
+                Foto
+              </div>
+            )}
             <span>
               <strong>{staffMember.fullName}</strong> · {staffMember.role}
               {!staffMember.photoUrl ? (
