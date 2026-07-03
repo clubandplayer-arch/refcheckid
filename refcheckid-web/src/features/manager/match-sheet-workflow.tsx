@@ -521,16 +521,48 @@ function PlayersStep({
 
 function PhotoApprovalNotice() {
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-800">
-      <p className="font-semibold">Nota foto tesserati</p>
-      <p>
-        Smartphone consigliato: inquadra tutto il volto. Da desktop puoi
-        caricare un file immagine. Se modifichi una foto già presente, la nuova
-        immagine sostituirà quella attuale solo dopo approvazione della
-        Federazione; fino ad allora il Club continua a usare la foto attuale, a
-        proprio rischio in caso di incongruenza visiva durante il riconoscimento.
-      </p>
+    <div className="grid gap-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-800 md:grid-cols-[minmax(0,1fr)_180px] md:items-center">
+      <div>
+        <p className="font-semibold">Nota foto tesserati</p>
+        <p>
+          Smartphone consigliato: inquadra tutto il volto. Da desktop puoi
+          caricare un file immagine. Se modifichi una foto già presente, la nuova
+          immagine sostituirà quella attuale solo dopo approvazione della
+          Federazione; fino ad allora il Club continua a usare la foto attuale, a
+          proprio rischio in caso di incongruenza visiva durante il riconoscimento.
+        </p>
+      </div>
+      <PhotoExampleIllustration />
     </div>
+  );
+}
+
+function PhotoExampleIllustration() {
+  return (
+    <figure className="rounded-lg border border-amber-300 bg-white/80 p-2 text-center text-[11px] font-semibold text-amber-900 shadow-sm">
+      <svg
+        aria-label="Esempio foto tesserato corretta"
+        className="mx-auto h-32 w-24"
+        role="img"
+        viewBox="0 0 120 160"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <rect fill="#f8fafc" height="158" rx="10" stroke="#cbd5e1" strokeWidth="2" width="118" x="1" y="1" />
+        <path d="M30 142c4-27 56-27 60 0" fill="#2563eb" />
+        <path d="M40 142c2-18 38-18 40 0" fill="#1e40af" opacity="0.6" />
+        <circle cx="60" cy="62" fill="#f2c7a5" r="29" />
+        <path d="M34 55c4-25 47-33 58-6-12-8-31-9-53 0z" fill="#7c2d12" />
+        <circle cx="49" cy="64" fill="#0f172a" r="2.4" />
+        <circle cx="71" cy="64" fill="#0f172a" r="2.4" />
+        <path d="M54 78c4 3 8 3 12 0" fill="none" stroke="#9a3412" strokeLinecap="round" strokeWidth="2" />
+        <path d="M26 26h18M26 26v18M94 26H76M94 26v18M26 118v-18M26 118h18M94 118h-18M94 118v-18" fill="none" stroke="#16a34a" strokeLinecap="round" strokeWidth="4" />
+        <circle cx="92" cy="134" fill="#16a34a" r="12" />
+        <path d="m86 134 4 4 8-9" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+      </svg>
+      <figcaption>
+        Esempio: volto centrato, frontale e ben visibile
+      </figcaption>
+    </figure>
   );
 }
 

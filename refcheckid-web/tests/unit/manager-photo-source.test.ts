@@ -14,6 +14,8 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("Scatta/carica foto");
     expect(source).toContain("Smartphone consigliato");
     expect(source).toContain("Nota foto tesserati");
+    expect(source).toContain("PhotoExampleIllustration");
+    expect(source).toContain("Esempio foto tesserato corretta");
     expect(source).toContain("md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px]");
     expect(source).toContain("md:grid-cols-[32px_96px_minmax(0,1fr)_minmax(220px,340px)]");
     expect(source).toContain(`capture="environment"`);
@@ -34,6 +36,7 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("max={3}");
     expect(source).toContain("object-contain");
     expect(source).toContain("h-24 w-20");
+    expect(source).toContain("volto centrato, frontale e ben visibile");
     expect(source).toContain("Sposta foto orizzontale");
     expect(source).toContain("Sposta foto verticale");
     expect(source).toContain("cropPhotoDraft");
