@@ -82,8 +82,16 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboard> {
         }
       : null,
     matchSheetStatus: firstSheet?.status ?? "draft",
-    notifications: firstSheet ? [`Distinta ${firstSheet.status}`] : [],
+    notifications: firstSheet ? [toManagerStatusNotification(firstSheet.status)] : [],
   };
+}
+
+function toManagerStatusNotification(status: ApiMatchSheet["status"]): string {
+  return {
+    draft: "Distinta in bozza: completa i convocati e inviala",
+    locked: "Distinta presa in carico dall’arbitro",
+    submitted: "Distinta inviata: attendi l’arbitro",
+  }[status];
 }
 
 export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {

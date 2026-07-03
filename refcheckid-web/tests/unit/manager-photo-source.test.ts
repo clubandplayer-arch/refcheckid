@@ -39,6 +39,6 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("Reset distinta smoke");
     expect(source).toContain("isSmokeResetAvailable");
     expect(source).toContain("resetSmokeMatchSheet");
-    expect(source).toContain("Distinta inviata: le modifiche ordinarie sono bloccate");
+    expect(source).toContain("Distinta inviata: non puoi più modificarla");
   });
 });

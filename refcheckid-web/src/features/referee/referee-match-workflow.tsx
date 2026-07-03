@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import Image from "next/image";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -163,12 +164,15 @@ function SheetVerificationStep({
           Distinta ospite mancante
         </p>
       ) : null}
+      <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+        Il riconoscimento deve iniziare dalla squadra di casa. Se devi verificare prima una squadra specifica, tocca la sua scheda.
+      </p>
       <Button
         disabled={!canStart || mutation.isPending}
         onClick={() => mutation.mutate()}
         type="button"
       >
-        Inizia riconoscimento
+        Inizia riconoscimento dalla squadra di casa
       </Button>
     </Card>
   );
@@ -176,9 +180,9 @@ function SheetVerificationStep({
 
 function TeamSheetCard({ sheet }: Readonly<{ sheet: TeamSheetVerification }>) {
   const statusLabel = {
-    locked: "LOCKED · pronta per riconoscimento",
-    missing: "MISSING · distinta non disponibile",
-    submitted: "SUBMITTED · in attesa di lock",
+    locked: "Pronta per il riconoscimento",
+    missing: "Distinta non disponibile",
+    submitted: "Inviata — da prendere in carico",
   }[sheet.status];
   const statusClass = {
     locked: "bg-green-100 text-green-800",
@@ -234,6 +238,7 @@ function RecognitionStep({
   onComplete: () => void;
 }>) {
   const [index, setIndex] = useState(0);
+  const [selectedTeamName, setSelectedTeamName] = useState<string | null>(null);
   const [showDocument, setShowDocument] = useState(false);
   const [decisions, setDecisions] = useState<
     Record<string, RecognitionDecision>
@@ -246,6 +251,17 @@ function RecognitionStep({
     mutationFn: () => completeRecognition(matchId),
     onMutate: onComplete,
   });
+  const allSubjects = useMemo(() => query.data ?? [], [query.data]);
+  const subjects = useMemo(() => {
+    const teamSubjects = selectedTeamName
+      ? allSubjects.filter((subject) => subject.teamName === selectedTeamName)
+      : allSubjects;
+    return teamSubjects.filter((subject) => !decisions[subject.id]);
+  }, [allSubjects, decisions, selectedTeamName]);
+  const teamNames = useMemo(
+    () => Array.from(new Set(allSubjects.map((subject) => subject.teamName))),
+    [allSubjects],
+  );
   if (isLocked) {
     return (
       <Card className="space-y-4 text-center">
@@ -267,35 +283,43 @@ function RecognitionStep({
         onRetry={() => void query.refetch()}
       />
     );
-  const subjects = query.data ?? [];
   const currentSubject = subjects[index] ?? null;
   const completedCount = Object.keys(decisions).length;
-  const recognizedSubjects = subjects.filter((subject) => decisions[subject.id]);
+  const recognizedSubjects = allSubjects.filter((subject) => decisions[subject.id]);
   const recognizedTeams = new Set(recognizedSubjects.map((subject) => subject.teamName));
   const hasHomeRecognition = recognizedTeams.has("Casa");
   const hasAwayRecognition = recognizedTeams.has("Ospite");
   const fullRecognitionComplete =
-    completedCount === subjects.length && hasHomeRecognition && hasAwayRecognition;
+    completedCount === allSubjects.length && hasHomeRecognition && hasAwayRecognition;
   function decide(decision: Exclude<RecognitionDecision, "pending">) {
     if (!currentSubject) return;
     setDecisions((current) => ({ ...current, [currentSubject.id]: decision }));
     setShowDocument(false);
-    setIndex((current) => Math.min(current + 1, subjects.length));
+    setIndex(0);
   }
-  if (subjects.length === 0)
-    return <EmptyState message="Nessun atleta da riconoscere." />;
-  if (!currentSubject || completedCount === subjects.length)
+  if (allSubjects.length === 0)
+    return <EmptyState message="Nessun tesserato da riconoscere." />;
+  if (!currentSubject || completedCount === allSubjects.length)
     return (
       <Card className="space-y-4 text-center">
-        <h2 className="text-2xl font-bold">Riconoscimento completato</h2>
+        <h2 className="text-2xl font-bold">{fullRecognitionComplete ? "Riconoscimento completato" : "Seleziona la prossima squadra"}</h2>
         <p className="text-sm text-slate-500">
           {completedCount} tesserati verificati. Puoi procedere al referto solo
           dopo il riconoscimento di Casa e Ospite.
         </p>
         {!fullRecognitionComplete ? (
-          <p className="rounded-lg bg-red-100 p-3 text-sm font-semibold text-red-900">
-            Riconoscimento non completato per entrambe le squadre
-          </p>
+          <>
+            <p className="rounded-lg bg-red-100 p-3 text-sm font-semibold text-red-900">
+              Riconoscimento non completato per entrambe le squadre. Tocca Casa o Ospite per continuare.
+            </p>
+            <div className="flex justify-center gap-2">
+              {teamNames.map((teamName) => (
+                <Button key={teamName} onClick={() => { setSelectedTeamName(teamName); setIndex(0); }} type="button">
+                  Apri {teamName}
+                </Button>
+              ))}
+            </div>
+          </>
         ) : null}
         <Button
           disabled={!fullRecognitionComplete || mutation.isPending}
@@ -317,12 +341,44 @@ function RecognitionStep({
           </p>
         </div>
         <span className="rounded-full bg-muted px-3 py-2 text-sm">
-          {completedCount}/{subjects.length}
+          {completedCount}/{allSubjects.length}
         </span>
       </div>
+      <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+        Parti dalla squadra di casa. Puoi cambiare distinta toccando la squadra qui sotto.
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${!selectedTeamName ? "bg-primary text-white" : "bg-white"}`}
+            onClick={() => { setSelectedTeamName(null); setIndex(0); }}
+            type="button"
+          >
+            Tutte
+          </button>
+          {teamNames.map((teamName) => (
+            <button
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${selectedTeamName === teamName ? "bg-primary text-white" : "bg-white"}`}
+              key={teamName}
+              onClick={() => { setSelectedTeamName(teamName); setIndex(0); }}
+              type="button"
+            >
+              {teamName}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-        <div className="flex aspect-[3/4] items-center justify-center rounded-2xl bg-muted text-center text-lg font-semibold">
-          {currentSubject.photoUrl ? "Foto tesserato" : "Placeholder · foto mancante"}
+        <div className="relative flex aspect-[3/4] items-center justify-center overflow-hidden rounded-2xl bg-muted text-center text-lg font-semibold">
+          {currentSubject.photoUrl ? (
+            <Image
+              alt={`Foto ${currentSubject.firstName} ${currentSubject.lastName}`}
+              className="h-full w-full object-cover"
+              height={360}
+              src={currentSubject.photoUrl}
+              width={280}
+            />
+          ) : (
+            "Foto mancante: chiedi alla società di caricarla"
+          )}
         </div>
         <div className="space-y-4">
           <div>

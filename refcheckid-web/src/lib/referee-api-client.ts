@@ -9,6 +9,7 @@ import {
   updateMatchReport,
 } from "./api-client";
 import { managerTeamConfig } from "./manager-team";
+import { applyManagerPhotoOverrides } from "./manager-photo-store";
 import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
 import {
   buildPilotAwaySubmittedMatchSheetSnapshot,
@@ -57,15 +58,15 @@ export async function fetchRecognitionSubjects(): Promise<
   const homeSnapshot = homeSubmitted
     ? readSubmittedMatchSheetSnapshot("home") ??
       buildPilotSubmittedMatchSheetSnapshot({
-        players: pilotPlayers,
-        staff: pilotStaff,
+        players: applyManagerPhotoOverrides("home", pilotPlayers),
+        staff: applyManagerPhotoOverrides("home", pilotStaff),
       })
     : null;
   const awaySnapshot = awaySubmitted
     ? readSubmittedMatchSheetSnapshot("away") ??
       buildPilotAwaySubmittedMatchSheetSnapshot({
-        players: pilotAwayPlayers,
-        staff: pilotAwayStaff,
+        players: applyManagerPhotoOverrides("away", pilotAwayPlayers),
+        staff: applyManagerPhotoOverrides("away", pilotAwayStaff),
       })
     : null;
   return [
@@ -171,14 +172,25 @@ function toTeamSheetVerification(
   _index: number,
 ): TeamSheetVerification {
   const team = sheet.clubId === managerTeamConfig.away.clubId ? "away" : "home";
+  const snapshot = readSubmittedMatchSheetSnapshot(team);
+  const fallbackSnapshot = team === "home"
+    ? buildPilotSubmittedMatchSheetSnapshot({
+        players: applyManagerPhotoOverrides("home", pilotPlayers),
+        staff: applyManagerPhotoOverrides("home", pilotStaff),
+      })
+    : buildPilotAwaySubmittedMatchSheetSnapshot({
+        players: applyManagerPhotoOverrides("away", pilotAwayPlayers),
+        staff: applyManagerPhotoOverrides("away", pilotAwayStaff),
+      });
+  const submittedSnapshot = sheet.status === "draft" ? null : snapshot ?? fallbackSnapshot;
   return {
     id: sheet.id,
     clubName:
       team === "home"
         ? `${managerTeamConfig.home.label} · ${sheet.clubId}`
         : `${managerTeamConfig.away.label} · ${sheet.clubId}`,
-    playerCount: 0,
-    staffCount: 0,
+    playerCount: submittedSnapshot?.players.length ?? 0,
+    staffCount: submittedSnapshot?.staff.length ?? 0,
     status:
       sheet.status === "locked"
         ? "locked"

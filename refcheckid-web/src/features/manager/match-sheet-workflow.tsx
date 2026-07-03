@@ -131,6 +131,7 @@ export function MatchSheetWorkflow() {
     [players, query],
   );
   const calledPlayers = players.filter((player) => player.selected);
+  const orderedCalledPlayers = players.filter((player) => player.selected);
   const calledStaff = staff.filter((staffMember) => staffMember.selected);
   const matchSheetStatus = sheetsQuery.data?.[0]?.status ?? "draft";
   const isReadOnly = matchSheetStatus !== "draft";
@@ -307,9 +308,9 @@ export function MatchSheetWorkflow() {
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
       <div className="lg:col-span-2 rounded-xl border bg-muted/40 p-4 text-sm">
         <p className="font-semibold">Distinta {managerTeamLabel}</p>
-        <p>Stato: <span className="uppercase">{matchSheetStatus}</span></p>
+        <p>Stato: <span className="font-semibold">{getMatchSheetStatusLabel(matchSheetStatus)}</span></p>
         {isReadOnly ? (
-          <p className="mt-1 text-slate-600">Distinta inviata: le modifiche ordinarie sono bloccate. Usa il reset solo in dev/smoke.</p>
+          <p className="mt-1 text-slate-600">Distinta inviata: non puoi più modificarla. Se serve correggere qualcosa, avvisa l’arbitro o la segreteria.</p>
         ) : null}
         {isSmokeResetAvailable() ? (
           <Button
@@ -354,7 +355,7 @@ export function MatchSheetWorkflow() {
       {step === 1 ? (
         <OrderStep
           onDragEnd={handleDragEnd}
-          players={players}
+          players={orderedCalledPlayers}
           toggleCaptain={toggleCaptain}
           toggleGoalkeeper={toggleGoalkeeper}
           togglePlayer={togglePlayer}
@@ -906,12 +907,20 @@ function SummaryStep({
         onClick={handleSubmit}
         type="button"
       >
-        {isSubmitting ? "Invio..." : "Invia distinta"}
+        {isSubmitting ? "Distinta già inviata" : "Invia distinta"}
       </Button>
     </Card>
   );
 }
 
+
+function getMatchSheetStatusLabel(status: string): string {
+  return {
+    draft: "Bozza — da completare e inviare",
+    locked: "Bloccata dall’arbitro — riconoscimento in corso",
+    submitted: "Inviata — in attesa dell’arbitro",
+  }[status] ?? status;
+}
 
 function isSmokeResetAvailable(): boolean {
   return process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_REFCHECKID_SMOKE_RESET === "true";
