@@ -120,6 +120,30 @@ describe("unit: manager match sheet validation", () => {
   });
 
 
+
+  it("blocks more than eleven starters", () => {
+    const selectedPlayers = pilotPlayers
+      .filter((player) => !player.suspended)
+      .slice(0, 15)
+      .map((player, index) => ({
+        ...player,
+        isCaptain: index === 0,
+        isGoalkeeper: index === 0,
+        isViceCaptain: index === 1,
+        role: index < 14 ? "starter" as const : "reserve" as const,
+        selected: true,
+        shirtNumber: index + 1,
+      }));
+
+    const validation = validateMatchSheet(selectedPlayers, [pilotStaff[0]!]);
+
+    expect(validation).toMatchObject({
+      isValid: false,
+      starters: 14,
+    });
+    expect(validation.errors).toContain("Seleziona al massimo 11 titolari.");
+  });
+
   it("allows many registered players but limits bench players and staff", () => {
     const selectedPlayers = Array.from({ length: 32 }, (_, index) => ({
       ...pilotPlayers[index % pilotPlayers.length]!,

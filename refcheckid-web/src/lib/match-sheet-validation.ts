@@ -77,8 +77,9 @@ export function validateMatchSheet(
     ...(invalidPlayers > 0 ? ["Rimuovi i giocatori non validi dalla distinta."] : []),
     ...(goalkeepers === 0 ? ["Seleziona almeno un Portiere."] : []),
     ...(startingLineup < 11
-      ? ["Seleziona almeno 11 titolari per completare la distinta."]
+      ? ["Seleziona 11 titolari per completare la distinta."]
       : []),
+    ...(startingLineup > 11 ? ["Seleziona al massimo 11 titolari."] : []),
     ...(benchPlayers > 20 ? ["Seleziona al massimo 20 giocatori in panchina."] : []),
     ...(staff.length > 5 ? ["Seleziona al massimo 5 membri dello staff in panchina."] : []),
     ...(captains > 1 ? ["Seleziona al massimo un Capitano."] : []),
