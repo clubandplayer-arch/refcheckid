@@ -1,4 +1,4 @@
-import type { MatchReportDraft, MatchReportEvent } from "./referee-types";
+import type { MatchReportDraft, MatchReportEvent, RecognitionSubject } from "./referee-types";
 
 export const reportTeams = ["Casa", "Ospite"] as const;
 export const goalTypes = [
@@ -44,17 +44,16 @@ export function resolveReportPlayerName(
   return `${teamName} #${shirtNumber}`;
 }
 
-export function isSuspendedReportPlayer(shirtNumber: number | null | undefined) {
-  return shirtNumber === 13;
-}
-
-export function validateReportDraft(report: MatchReportDraft): readonly string[] {
+export function validateReportDraft(
+  report: MatchReportDraft,
+  recognitionSubjects: readonly RecognitionSubject[] = [],
+): readonly string[] {
   return [
     ...validateGoalTotals(report),
-    ...validateEventList("Gol", report.goals, true),
-    ...validateEventList("Ammonizioni", report.cautions, true),
-    ...validateEventList("Espulsioni", report.expulsions, true),
-    ...validateEventList("Sostituzioni", report.substitutions, false),
+    ...validateEventList("Gol", report.goals, true, recognitionSubjects),
+    ...validateEventList("Ammonizioni", report.cautions, true, recognitionSubjects),
+    ...validateEventList("Espulsioni", report.expulsions, true, recognitionSubjects),
+    ...validateEventList("Sostituzioni", report.substitutions, false, recognitionSubjects),
     ...validateSubstitutions(report.substitutions),
   ];
 }
@@ -89,6 +88,7 @@ function validateEventList(
   label: string,
   events: readonly MatchReportEvent[],
   requiresPrimaryPlayer: boolean,
+  recognitionSubjects: readonly RecognitionSubject[],
 ): readonly string[] {
   const errors: string[] = [];
   let previousMinute = 0;
@@ -106,12 +106,15 @@ function validateEventList(
     if (requiresPrimaryPlayer && (event.shirtNumber === null || event.shirtNumber === undefined || event.shirtNumber < 1)) {
       errors.push(`${label}: numero maglia mancante alla riga ${index + 1}.`);
     }
-    if (isSuspendedReportPlayer(event.shirtNumber)) {
-      errors.push(`${label}: tesserato squalificato non selezionabile.`);
-    }
     if (event.shirtNumber !== undefined && event.shirtNumber !== null) {
-      const expectedName = resolveReportPlayerName(event.teamName, event.shirtNumber);
-      if (expectedName.length > 0 && event.playerName !== expectedName) {
+      const expectedName = resolveValidatedReportPlayerName(
+        event.teamName,
+        event.shirtNumber,
+        recognitionSubjects,
+      );
+      if (expectedName === null) {
+        errors.push(`${label}: tesserato non presente nella distinta della squadra.`);
+      } else if (expectedName.length > 0 && event.playerName !== expectedName) {
         errors.push(`${label}: tesserato non coerente con squadra e maglia.`);
       }
     }
@@ -119,17 +122,31 @@ function validateEventList(
   return errors;
 }
 
+function resolveValidatedReportPlayerName(
+  teamName: string,
+  shirtNumber: number,
+  recognitionSubjects: readonly RecognitionSubject[],
+): string | null {
+  if (recognitionSubjects.length === 0) {
+    return resolveReportPlayerName(teamName, shirtNumber);
+  }
+  const teamNames = Array.from(new Set(recognitionSubjects.map((subject) => subject.teamName)));
+  const selectedTeamIndex = teamName === "Casa" ? 0 : 1;
+  const selectedTeamName = teamNames[selectedTeamIndex] ?? teamNames[0] ?? "";
+  const subject = recognitionSubjects.find(
+    (item) =>
+      item.subjectKind === "player" &&
+      item.teamName === selectedTeamName &&
+      item.shirtNumber === shirtNumber,
+  );
+  return subject ? `${subject.lastName} ${subject.firstName}` : null;
+}
+
 function validateSubstitutions(
   substitutions: readonly MatchReportEvent[],
 ): readonly string[] {
   const errors: string[] = [];
-  substitutions.forEach((event, index) => {
-    if (isSuspendedReportPlayer(event.outgoingShirtNumber)) {
-      errors.push(`Sostituzioni: uscente squalificato alla riga ${index + 1}.`);
-    }
-    if (isSuspendedReportPlayer(event.incomingShirtNumber)) {
-      errors.push(`Sostituzioni: entrante squalificato alla riga ${index + 1}.`);
-    }
+  substitutions.forEach((event) => {
     if (
       event.outgoingShirtNumber !== null &&
       event.outgoingShirtNumber !== undefined &&

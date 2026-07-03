@@ -4,7 +4,7 @@ import {
   resolveReportPlayerName,
   validateReportDraft,
 } from "../../src/lib/referee-report-validation";
-import type { MatchReportDraft } from "../../src/lib/referee-types";
+import type { MatchReportDraft, RecognitionSubject } from "../../src/lib/referee-types";
 
 function report(overrides: Partial<MatchReportDraft> = {}): MatchReportDraft {
   return {
@@ -17,6 +17,22 @@ function report(overrides: Partial<MatchReportDraft> = {}): MatchReportDraft {
     refereeNotes: "",
     status: "draft",
     substitutions: [],
+    ...overrides,
+  };
+}
+
+function subject(overrides: Partial<RecognitionSubject> = {}): RecognitionSubject {
+  return {
+    decision: "approved",
+    document: { expiresAt: "2027-06-30", number: "DOC-1", type: "CI" },
+    firstName: "Davide",
+    id: "subject-1",
+    lastName: "Moretti",
+    photoUrl: null,
+    roleLabel: "Titolare",
+    shirtNumber: 5,
+    subjectKind: "player",
+    teamName: "Atletico Aurora",
     ...overrides,
   };
 }
@@ -109,11 +125,74 @@ describe("regression: referee report validation", () => {
     expect(errors).toContain("Gol: gol Ospite inseriti 0/1.");
   });
 
+
+  it("accepts roster-backed player names and shirt numbers", () => {
+    const errors = validateReportDraft(
+      report({
+        awayGoals: 1,
+        goals: [
+          {
+            detail: goalTypes[0],
+            id: "goal-1",
+            minute: 10,
+            playerName: "Piras Giulio",
+            shirtNumber: 13,
+            teamName: "Ospite",
+          },
+        ],
+      }),
+      [
+        subject(),
+        subject({
+          firstName: "Giulio",
+          id: "subject-2",
+          lastName: "Piras",
+          shirtNumber: 13,
+          teamName: "Sporting Litorale",
+        }),
+      ],
+    );
+
+    expect(errors).not.toContain("Gol: tesserato non coerente con squadra e maglia.");
+    expect(errors).not.toContain("Gol: tesserato squalificato non selezionabile.");
+  });
+
+
+  it("blocks shirt numbers that are not in the selected team sheet", () => {
+    const errors = validateReportDraft(
+      report({
+        awayGoals: 1,
+        goals: [
+          {
+            detail: goalTypes[0],
+            id: "goal-1",
+            minute: 10,
+            playerName: "Ospite #34",
+            shirtNumber: 34,
+            teamName: "Ospite",
+          },
+        ],
+      }),
+      [
+        subject(),
+        subject({
+          firstName: "Giulio",
+          id: "subject-2",
+          lastName: "Piras",
+          shirtNumber: 13,
+          teamName: "Sporting Litorale",
+        }),
+      ],
+    );
+
+    expect(errors).toContain("Gol: tesserato non presente nella distinta della squadra.");
+  });
+
   it("resolves player name from team and shirt number", () => {
     expect(resolveReportPlayerName("Ospite", 8)).toBe("Ospite #8");
   });
 
-  it("blocks invalid minutes, suspended players and substitution with same player", () => {
+  it("blocks invalid minutes and substitution with same player", () => {
     const errors = validateReportDraft(
       report({
         cautions: [
@@ -153,7 +232,6 @@ describe("regression: referee report validation", () => {
     );
 
     expect(errors).toContain("Ammonizioni: minuto non valido alla riga 1.");
-    expect(errors).toContain("Espulsioni: tesserato squalificato non selezionabile.");
     expect(errors).toContain("Sostituzioni: entrante e uscente devono essere diversi.");
   });
 });

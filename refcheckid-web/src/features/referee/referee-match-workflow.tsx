@@ -50,7 +50,7 @@ const reportSteps = [
 
 export function RefereeMatchWorkflow() {
   const [step, setStep] = useState(0);
-  const [recognitionLocked, setRecognitionLocked] = useState(false);
+  const [recognitionClosed, setRecognitionClosed] = useState(false);
   const [fullRecognitionComplete, setFullRecognitionComplete] = useState(false);
   const [initialRecognitionTeamName, setInitialRecognitionTeamName] = useState<string | null>(null);
   const { session } = useSession();
@@ -76,7 +76,7 @@ export function RefereeMatchWorkflow() {
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
       <aside className="space-y-2">
         {steps.map((label, index) => {
-          const isRecognitionStepDisabled = recognitionLocked && index === 1;
+          const isRecognitionStepDisabled = recognitionClosed && index < 2;
           return (
             <button
               className={`w-full rounded-lg px-3 py-2 text-left text-sm ${
@@ -105,11 +105,12 @@ export function RefereeMatchWorkflow() {
       ) : null}
       {step === 1 ? (
         <RecognitionStep
-          isLocked={recognitionLocked}
+          isLocked={false}
           initialTeamName={initialRecognitionTeamName}
           matchId={matchId}
           onComplete={() => {
             setFullRecognitionComplete(true);
+            setRecognitionClosed(true);
           }}
         />
       ) : null}
@@ -554,7 +555,9 @@ function MatchReportStep({
   const [report, setReport] = useState<MatchReportDraft | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const currentReport = report ?? query.data;
-  const reportErrors = currentReport ? validateReportDraft(currentReport) : [];
+  const reportErrors = currentReport
+    ? validateReportDraft(currentReport, recognitionSubjectsQuery.data ?? [])
+    : [];
   const recognitionErrors = fullRecognitionComplete
     ? []
     : ["Riconoscimento non completato per entrambe le squadre"];
