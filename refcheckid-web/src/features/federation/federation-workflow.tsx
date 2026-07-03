@@ -15,6 +15,7 @@ import {
   fetchFederationReports,
   fetchPhotoRequests,
 } from "@/lib/federation-api-client";
+import { decideManagerPhotoApprovalRequest } from "@/lib/manager-photo-store";
 import type {
   FederationHistoryItem,
   FederationMatchListItem,
@@ -422,9 +423,17 @@ function PhotoRequestsPanel() {
     requestId: string,
     status: Exclude<PhotoRequestStatus, "pending">,
   ) {
+    decideManagerPhotoApprovalRequest(requestId, status);
     setLocalStatuses((current) => ({ ...current, [requestId]: status }));
-    notify(`Richiesta foto ${status}`, "success");
+    notify(
+      status === "approved"
+        ? "Nuova foto approvata e resa disponibile al Club"
+        : "Nuova foto rifiutata: il Club mantiene la foto attuale",
+      "success",
+    );
     void queryClient.invalidateQueries({ queryKey: queryKeys.photos });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.players });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.staff });
   }
 
   if (query.isLoading) return <SkeletonBlock />;
@@ -478,14 +487,27 @@ function PhotoRequestCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-bold">{request.playerName}</h3>
+          <p className="text-xs uppercase tracking-wide text-slate-400">Tesserato</p>
           <p className="text-sm text-slate-500">{request.clubName}</p>
         </div>
         <StatusBadge label={request.status} />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <PhotoBox label="Foto attuale" photoUrl={request.currentPhotoUrl} />
-        <PhotoBox label="Nuova proposta" photoUrl={request.proposedPhotoUrl} />
+        <PhotoBox label="Nuova foto da approvare" photoUrl={request.proposedPhotoUrl} />
       </div>
+      {request.status === "rejected" ? (
+        <p className="rounded-lg bg-red-50 p-2 text-xs text-red-700">
+          Rifiuto comunicato al Club: resta valida la foto attuale e la
+          Federazione può richiedere motivazione dell&apos;upload e documenti
+          afferenti l&apos;identità del tesserato.
+        </p>
+      ) : null}
+      {request.status === "approved" ? (
+        <p className="rounded-lg bg-emerald-50 p-2 text-xs text-emerald-700">
+          Foto approvata: la nuova immagine è subito disponibile al Club.
+        </p>
+      ) : null}
       <div className="grid gap-2 sm:grid-cols-2">
         <Button
           disabled={request.status !== "pending"}
@@ -514,8 +536,16 @@ function PhotoBox({
   return (
     <div className="space-y-2">
       <p className="text-sm font-semibold">{label}</p>
-      <div className="flex aspect-square items-center justify-center rounded-xl bg-muted text-sm text-slate-500">
-        {photoUrl ? "Foto" : "Nessuna immagine"}
+      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-muted text-sm text-slate-500">
+        {photoUrl ? (
+          <img
+            alt={label}
+            className="h-full w-full object-cover"
+            src={photoUrl}
+          />
+        ) : (
+          "Nessuna immagine"
+        )}
       </div>
     </div>
   );

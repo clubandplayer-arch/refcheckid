@@ -6,6 +6,7 @@ import {
 } from "./api-client";
 import type { ApiMatch, ApiPhoto, ApiReport } from "./api-client";
 import { managerTeamConfig } from "./manager-team";
+import { readManagerPhotoApprovalRequests } from "./manager-photo-store";
 import { readSubmittedFederationReports } from "./submitted-report";
 import type { SubmittedFederationReport } from "./submitted-report";
 import type {
@@ -82,8 +83,11 @@ export async function fetchFederationReports(): Promise<
 }
 
 export async function fetchPhotoRequests(): Promise<readonly PhotoRequest[]> {
-  const photos = await fetchPhotos();
-  return photos.map(toPhotoRequest);
+  const [photos, localRequests] = await Promise.all([
+    fetchPhotos(),
+    Promise.resolve(readManagerPhotoApprovalRequests()),
+  ]);
+  return [...localRequests, ...photos.map(toPhotoRequest)];
 }
 
 export async function fetchFederationHistory(): Promise<

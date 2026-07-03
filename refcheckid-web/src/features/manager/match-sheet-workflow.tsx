@@ -149,20 +149,44 @@ export function MatchSheetWorkflow() {
     setSelectedStaff(updater(staff));
   }
   function updatePlayerPhoto(playerId: string, photoUrl: string) {
-    saveManagerSubjectPhoto(managerTeam, playerId, photoUrl);
-    setPlayerList((current) =>
-      current.map((player) =>
-        player.id === playerId ? { ...player, photoUrl } : player,
-      ),
+    const player = players.find((item) => item.id === playerId);
+    const status = saveManagerSubjectPhoto(
+      managerTeam,
+      playerId,
+      photoUrl,
+      player?.photoUrl ?? null,
+      player ? `${player.lastName} ${player.firstName}` : playerId,
     );
+    if (status === "approved") {
+      setPlayerList((current) =>
+        current.map((item) =>
+          item.id === playerId ? { ...item, photoUrl } : item,
+        ),
+      );
+      notify("Foto tesserato aggiornata", "success");
+      return;
+    }
+    notify("Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto attuale a tuo rischio durante il riconoscimento", "success");
   }
   function updateStaffPhoto(staffId: string, photoUrl: string) {
-    saveManagerSubjectPhoto(managerTeam, staffId, photoUrl);
-    setStaffList((current) =>
-      current.map((staffMember) =>
-        staffMember.id === staffId ? { ...staffMember, photoUrl } : staffMember,
-      ),
+    const staffMember = staff.find((item) => item.id === staffId);
+    const status = saveManagerSubjectPhoto(
+      managerTeam,
+      staffId,
+      photoUrl,
+      staffMember?.photoUrl ?? null,
+      staffMember?.fullName ?? staffId,
     );
+    if (status === "approved") {
+      setStaffList((current) =>
+        current.map((item) =>
+          item.id === staffId ? { ...item, photoUrl } : item,
+        ),
+      );
+      notify("Foto tesserato aggiornata", "success");
+      return;
+    }
+    notify("Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto attuale a tuo rischio durante il riconoscimento", "success");
   }
   function handlePhotoSelected(subjectId: string, file: File | null) {
     if (isReadOnly) return;
@@ -420,6 +444,7 @@ function PlayersStep({
           convocazione.
         </p>
       </div>
+      <PhotoApprovalNotice />
       <Input
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Cerca giocatore"
@@ -432,8 +457,8 @@ function PlayersStep({
         {players.map((player) => {
           const statusTone = getPlayerStatusTone(player);
           return (
-          <label
-            className={`flex items-center gap-3 p-3 ${
+          <div
+            className={`grid gap-3 p-4 md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px] md:items-start ${
               statusTone === "warning"
                 ? "bg-yellow-50"
                 : statusTone === "suspended"
@@ -442,24 +467,26 @@ function PlayersStep({
             }`}
             key={player.id}
           >
-            {player.photoUrl ? (
-              <Image
-                alt={`Foto ${player.lastName} ${player.firstName}`}
-                className="h-16 w-12 rounded-md border bg-white object-cover shadow-sm"
-                height={64}
-                src={player.photoUrl}
-                width={48}
-              />
-            ) : (
-              <div className="flex h-16 w-12 items-center justify-center rounded-md border bg-muted text-[10px]">
-                Foto
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">
+            <div className="flex items-start gap-3 md:block">
+              {player.photoUrl ? (
+                <Image
+                  alt={`Foto ${player.lastName} ${player.firstName}`}
+                  className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
+                  height={96}
+                  src={player.photoUrl}
+                  width={80}
+                />
+              ) : (
+                <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
+                  Foto
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 space-y-1">
+              <p className="break-words text-base font-semibold leading-tight text-slate-900">
                 {player.lastName} {player.firstName}
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs leading-relaxed text-slate-500">
                 {player.warning ? "Diffida" : "Nessuna diffida"} ·{" "}
                 {player.suspended ? "Squalificato" : "Disponibile"}
                 {!player.photoUrl ? " · Foto mancante" : ""}
@@ -474,18 +501,68 @@ function PlayersStep({
               photoError={photoError}
               subjectLabel={`${player.lastName} ${player.firstName}`}
             />
-            <input
-              aria-label={`Convoca ${player.lastName} ${player.firstName}`}
-              checked={player.selected}
-              disabled={player.suspended}
-              onChange={() => togglePlayer(player.id)}
-              type="checkbox"
-            />
-          </label>
+            <label className="flex items-center gap-2 text-sm md:justify-end">
+              <span className="md:sr-only">Convoca</span>
+              <input
+                aria-label={`Convoca ${player.lastName} ${player.firstName}`}
+                checked={player.selected}
+                disabled={player.suspended}
+                onChange={() => togglePlayer(player.id)}
+                type="checkbox"
+              />
+            </label>
+          </div>
           );
         })}
       </div>
     </Card>
+  );
+}
+
+function PhotoApprovalNotice() {
+  return (
+    <div className="grid gap-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-800 md:grid-cols-[minmax(0,1fr)_180px] md:items-center">
+      <div>
+        <p className="font-semibold">Nota foto tesserati</p>
+        <p>
+          Smartphone consigliato: inquadra tutto il volto. Da desktop puoi
+          caricare un file immagine. Se modifichi una foto già presente, la nuova
+          immagine sostituirà quella attuale solo dopo approvazione della
+          Federazione; fino ad allora il Club continua a usare la foto attuale, a
+          proprio rischio in caso di incongruenza visiva durante il riconoscimento.
+        </p>
+      </div>
+      <PhotoExampleIllustration />
+    </div>
+  );
+}
+
+function PhotoExampleIllustration() {
+  return (
+    <figure className="rounded-lg border border-amber-300 bg-white/80 p-2 text-center text-[11px] font-semibold text-amber-900 shadow-sm">
+      <svg
+        aria-label="Esempio foto tesserato corretta"
+        className="mx-auto h-32 w-24"
+        role="img"
+        viewBox="0 0 120 160"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <rect fill="#f8fafc" height="158" rx="10" stroke="#cbd5e1" strokeWidth="2" width="118" x="1" y="1" />
+        <path d="M30 142c4-27 56-27 60 0" fill="#2563eb" />
+        <path d="M40 142c2-18 38-18 40 0" fill="#1e40af" opacity="0.6" />
+        <circle cx="60" cy="62" fill="#f2c7a5" r="29" />
+        <path d="M34 55c4-25 47-33 58-6-12-8-31-9-53 0z" fill="#7c2d12" />
+        <circle cx="49" cy="64" fill="#0f172a" r="2.4" />
+        <circle cx="71" cy="64" fill="#0f172a" r="2.4" />
+        <path d="M54 78c4 3 8 3 12 0" fill="none" stroke="#9a3412" strokeLinecap="round" strokeWidth="2" />
+        <path d="M26 26h18M26 26v18M94 26H76M94 26v18M26 118v-18M26 118h18M94 118h-18M94 118v-18" fill="none" stroke="#16a34a" strokeLinecap="round" strokeWidth="4" />
+        <circle cx="92" cy="134" fill="#16a34a" r="12" />
+        <path d="m86 134 4 4 8-9" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+      </svg>
+      <figcaption>
+        Esempio: volto centrato, frontale e ben visibile
+      </figcaption>
+    </figure>
   );
 }
 
@@ -507,11 +584,11 @@ function PhotoCaptureControls({
   subjectLabel: string;
 }>) {
   return (
-    <div className="min-w-[180px] space-y-2 text-xs">
+    <div className="w-full space-y-2 text-xs md:max-w-[340px]">
       <p className="font-semibold text-slate-600">
         {currentPhotoUrl ? "Modifica foto" : "Aggiungi foto"}
       </p>
-      <label className="block rounded-lg border border-dashed p-2 text-center">
+      <label className="block rounded-lg border border-dashed bg-white p-2 text-center transition hover:border-primary">
         <span>Scatta/carica foto</span>
         <input
           accept="image/*"
@@ -522,10 +599,6 @@ function PhotoCaptureControls({
           type="file"
         />
       </label>
-      <p className="text-[11px] text-slate-500">
-        Smartphone consigliato: usa la fotocamera e inquadra tutto il volto.
-        Da desktop puoi caricare un file immagine.
-      </p>
       {photoDraft ? (
         <div className="space-y-2 rounded-lg bg-muted p-2">
           <div className="relative mx-auto flex aspect-[3/4] h-36 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
@@ -804,42 +877,45 @@ function StaffStep({
   return (
     <Card className="space-y-4">
       <h2 className="text-xl font-bold">Staff</h2>
+      <PhotoApprovalNotice />
       {staff.length === 0 ? (
         <EmptyState message="Nessuno staff disponibile." />
       ) : null}
       {staff.map((staffMember) => (
         <div
-          className="flex items-center justify-between gap-3 rounded-xl border p-3"
+          className="grid gap-3 rounded-xl border p-4 md:grid-cols-[32px_96px_minmax(0,1fr)_minmax(220px,340px)] md:items-start"
           key={staffMember.id}
         >
-          <label className="flex flex-1 items-center gap-3">
+          <label className="flex items-center gap-2 text-sm md:justify-start">
             <input
               checked={staffMember.selected}
               onChange={() => toggleStaff(staffMember.id)}
               type="checkbox"
             />
-            {staffMember.photoUrl ? (
-              <Image
-                alt={`Foto ${staffMember.fullName}`}
-                className="h-16 w-12 rounded-md border bg-white object-cover shadow-sm"
-                height={64}
-                src={staffMember.photoUrl}
-                width={48}
-              />
-            ) : (
-              <div className="flex h-16 w-12 items-center justify-center rounded-md border bg-muted text-[10px]">
-                Foto
-              </div>
-            )}
-            <span>
-              <strong>{staffMember.fullName}</strong> · {staffMember.role}
-              {!staffMember.photoUrl ? (
-                <span className="block text-xs font-semibold text-red-600">
-                  Foto mancante
-                </span>
-              ) : null}
-            </span>
+            <span className="md:sr-only">Seleziona</span>
           </label>
+          {staffMember.photoUrl ? (
+            <Image
+              alt={`Foto ${staffMember.fullName}`}
+              className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
+              height={96}
+              src={staffMember.photoUrl}
+              width={80}
+            />
+          ) : (
+            <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
+              Foto
+            </div>
+          )}
+          <div className="min-w-0 space-y-1">
+            <p className="break-words text-base font-semibold leading-tight text-slate-900">
+              {staffMember.fullName}
+            </p>
+            <p className="text-xs leading-relaxed text-slate-500">{staffMember.role}</p>
+            {!staffMember.photoUrl ? (
+              <p className="text-xs font-semibold text-red-600">Foto mancante</p>
+            ) : null}
+          </div>
           <PhotoCaptureControls
             currentPhotoUrl={staffMember.photoUrl}
             onConfirm={() => onConfirmPhoto(staffMember.id)}
