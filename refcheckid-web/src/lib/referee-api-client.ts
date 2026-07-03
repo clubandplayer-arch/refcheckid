@@ -32,8 +32,16 @@ export async function fetchRefereeDashboard(): Promise<RefereeDashboard> {
     )[0] ?? null;
   return {
     nextMatch: nextMatch ? toRefereeMatch(nextMatch) : null,
-    notifications: nextMatch ? [`Gara ${nextMatch.status}`] : [],
+    notifications: nextMatch ? [toRefereeMatchNotification(nextMatch.status)] : [],
   };
+}
+
+function toRefereeMatchNotification(status: string): string {
+  return {
+    completed: "Gara completata",
+    in_progress: "Gara in corso",
+    scheduled: "Gara programmata",
+  }[status] ?? `Gara ${status}`;
 }
 
 export async function fetchRefereeMatchSheets(

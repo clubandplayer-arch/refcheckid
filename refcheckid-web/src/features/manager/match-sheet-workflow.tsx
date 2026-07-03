@@ -55,15 +55,15 @@ export function MatchSheetWorkflow() {
   const { notify } = useToast();
   const playersQuery = useQuery({
     queryFn: fetchPlayers,
-    queryKey: queryKeys.players,
+    queryKey: [...queryKeys.players, managerTeam],
   });
   const staffQuery = useQuery({
     queryFn: fetchStaff,
-    queryKey: queryKeys.staff,
+    queryKey: [...queryKeys.staff, managerTeam],
   });
   const sheetsQuery = useQuery({
     queryFn: () => fetchMatchSheets(`?clubId=${encodeURIComponent(managerClubId)}`),
-    queryKey: queryKeys.matchSheets,
+    queryKey: [...queryKeys.matchSheets, managerClubId],
   });
   const [selectedPlayers, setSelectedPlayers] = useState<
     readonly PlayerListItem[]
@@ -75,7 +75,7 @@ export function MatchSheetWorkflow() {
     mutationFn: () => {
       const firstSheet = sheetsQuery.data?.[0];
       if (!firstSheet) throw new Error("Nessuna distinta disponibile.");
-      if (firstSheet.status !== "draft") throw new Error("Distinta già inviata. Usa reset distinta smoke per crearne una nuova.");
+      if (firstSheet.status !== "draft") throw new Error("Distinta già inviata. Usa il ripristino della distinta di prova per crearne una nuova.");
       saveSubmittedMatchSheetSnapshot({
         players: calledPlayers,
         staff: calledStaff,
@@ -101,7 +101,7 @@ export function MatchSheetWorkflow() {
       return resetSmokeMatchSheet(firstSheet.id);
     },
     onSuccess() {
-      notify("Reset distinta smoke completato", "success");
+      notify("Distinta di prova ripristinata", "success");
       void queryClient.invalidateQueries({ queryKey: queryKeys.matchSheets });
     },
     onError(error) {
@@ -319,7 +319,7 @@ export function MatchSheetWorkflow() {
             onClick={() => resetSmokeMutation.mutate()}
             type="button"
           >
-            Reset distinta smoke
+            Ripristina distinta di prova
           </Button>
         ) : null}
       </div>

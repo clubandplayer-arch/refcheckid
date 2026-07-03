@@ -75,7 +75,7 @@ export function validateMatchSheet(
     ...(invalidPlayers > 0 ? ["Rimuovi i giocatori non validi dalla distinta."] : []),
     ...(goalkeepers === 0 ? ["Seleziona almeno un Portiere."] : []),
     ...(startingLineup < 11
-      ? ["Seleziona almeno 11 Titolari per lo smoke test."]
+      ? ["Seleziona almeno 11 titolari per completare la distinta."]
       : []),
     ...(captains > 1 ? ["Seleziona al massimo un Capitano."] : []),
     ...(viceCaptains > 1 ? ["Seleziona al massimo un Vice capitano."] : []),

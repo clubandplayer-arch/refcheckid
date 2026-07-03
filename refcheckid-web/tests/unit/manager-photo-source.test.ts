@@ -36,7 +36,7 @@ describe("regression: manager photo capture flow", () => {
   });
 
   it("exposes a smoke-only reset for submitted sheets", () => {
-    expect(source).toContain("Reset distinta smoke");
+    expect(source).toContain("Ripristina distinta di prova");
     expect(source).toContain("isSmokeResetAvailable");
     expect(source).toContain("resetSmokeMatchSheet");
     expect(source).toContain("Distinta inviata: non puoi più modificarla");

@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -51,6 +51,7 @@ export function RefereeMatchWorkflow() {
   const [step, setStep] = useState(0);
   const [recognitionLocked, setRecognitionLocked] = useState(false);
   const [fullRecognitionComplete, setFullRecognitionComplete] = useState(false);
+  const [initialRecognitionTeamName, setInitialRecognitionTeamName] = useState<string | null>(null);
   const { session } = useSession();
   const dashboardQuery = useQuery({
     enabled: Boolean(session),
@@ -93,11 +94,18 @@ export function RefereeMatchWorkflow() {
         })}
       </aside>
       {step === 0 ? (
-        <SheetVerificationStep matchId={matchId} onStart={() => setStep(1)} />
+        <SheetVerificationStep
+          matchId={matchId}
+          onStart={(teamName) => {
+            setInitialRecognitionTeamName(teamName);
+            setStep(1);
+          }}
+        />
       ) : null}
       {step === 1 ? (
         <RecognitionStep
           isLocked={recognitionLocked}
+          initialTeamName={initialRecognitionTeamName}
           matchId={matchId}
           onComplete={() => {
             setRecognitionLocked(true);
@@ -119,15 +127,22 @@ export function RefereeMatchWorkflow() {
 function SheetVerificationStep({
   matchId,
   onStart,
-}: Readonly<{ matchId: string; onStart: () => void }>) {
+}: Readonly<{ matchId: string; onStart: (teamName: string | null) => void }>) {
   const query = useQuery({
     queryFn: () => fetchRefereeMatchSheets(matchId),
     queryKey: [...queryKeys.matchSheets, matchId],
   });
+  const [selectedStartTeam, setSelectedStartTeam] = useState<string | null>(null);
   const mutation = useMutation({
     mutationFn: () => lockSubmittedSheetsAndStartRecognition(matchId),
-    onSuccess: onStart,
+    onSuccess: () => onStart(selectedStartTeam),
   });
+  const sheets = query.data ?? [];
+  const homeSheet = sheets.find((sheet) => sheet.team === "home");
+  const defaultStartTeam = homeSheet?.clubName.split(" · ")[0] ?? null;
+  useEffect(() => {
+    if (!selectedStartTeam && defaultStartTeam) setSelectedStartTeam(defaultStartTeam);
+  }, [defaultStartTeam, selectedStartTeam]);
   if (query.isLoading) return <SkeletonBlock />;
   if (query.isError)
     return (
@@ -136,7 +151,6 @@ function SheetVerificationStep({
         onRetry={() => void query.refetch()}
       />
     );
-  const sheets = query.data ?? [];
   const missingAwaySheet = sheets.some(
     (sheet) => sheet.team === "away" && sheet.status === "missing",
   );
@@ -154,9 +168,17 @@ function SheetVerificationStep({
         <EmptyState message="Nessuna distinta disponibile." />
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {sheets.map((sheet) => (
-            <TeamSheetCard key={sheet.id} sheet={sheet} />
-          ))}
+          {sheets.map((sheet) => {
+            const teamName = sheet.clubName.split(" · ")[0] ?? sheet.clubName;
+            return (
+              <TeamSheetCard
+                isSelected={selectedStartTeam === teamName}
+                key={sheet.id}
+                onSelect={() => setSelectedStartTeam(teamName)}
+                sheet={sheet}
+              />
+            );
+          })}
         </div>
       )}
       {missingAwaySheet ? (
@@ -165,20 +187,28 @@ function SheetVerificationStep({
         </p>
       ) : null}
       <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
-        Il riconoscimento deve iniziare dalla squadra di casa. Se devi verificare prima una squadra specifica, tocca la sua scheda.
+        Il riconoscimento deve iniziare dalla squadra di casa. Se l’arbitro deve partire da un’altra distinta, può selezionare la squadra prima di avviare.
       </p>
       <Button
         disabled={!canStart || mutation.isPending}
         onClick={() => mutation.mutate()}
         type="button"
       >
-        Inizia riconoscimento dalla squadra di casa
+        Inizia riconoscimento
       </Button>
     </Card>
   );
 }
 
-function TeamSheetCard({ sheet }: Readonly<{ sheet: TeamSheetVerification }>) {
+function TeamSheetCard({
+  isSelected,
+  onSelect,
+  sheet,
+}: Readonly<{
+  isSelected: boolean;
+  onSelect: () => void;
+  sheet: TeamSheetVerification;
+}>) {
   const statusLabel = {
     locked: "Pronta per il riconoscimento",
     missing: "Distinta non disponibile",
@@ -192,7 +222,11 @@ function TeamSheetCard({ sheet }: Readonly<{ sheet: TeamSheetVerification }>) {
   const sideLabel = sheet.team === "home" ? "Squadra casa" : "Squadra ospite";
 
   return (
-    <div className="rounded-xl border border-slate-200 p-4 shadow-sm">
+    <button
+      className={`rounded-xl border p-4 text-left shadow-sm transition ${isSelected ? "border-primary ring-2 ring-primary/20" : "border-slate-200 hover:border-primary/50"}`}
+      onClick={onSelect}
+      type="button"
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase text-primary">
@@ -201,7 +235,7 @@ function TeamSheetCard({ sheet }: Readonly<{ sheet: TeamSheetVerification }>) {
           <h3 className="mt-1 text-lg font-bold">{sheet.clubName}</h3>
         </div>
         <span
-          className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass}`}
+          className={`max-w-[116px] rounded-xl px-3 py-2 text-center text-xs font-bold leading-tight ${statusClass}`}
         >
           {statusLabel}
         </span>
@@ -224,21 +258,23 @@ function TeamSheetCard({ sheet }: Readonly<{ sheet: TeamSheetVerification }>) {
           <dd>{sheet.submittedAt ? "Ricevuta" : "Non ricevuta"}</dd>
         </div>
       </dl>
-    </div>
+    </button>
   );
 }
 
 function RecognitionStep({
+  initialTeamName,
   isLocked,
   matchId,
   onComplete,
 }: Readonly<{
+  initialTeamName: string | null;
   isLocked: boolean;
   matchId: string;
   onComplete: () => void;
 }>) {
   const [index, setIndex] = useState(0);
-  const [selectedTeamName, setSelectedTeamName] = useState<string | null>(null);
+  const [selectedTeamName, setSelectedTeamName] = useState<string | null>(initialTeamName);
   const [showDocument, setShowDocument] = useState(false);
   const [decisions, setDecisions] = useState<
     Record<string, RecognitionDecision>
@@ -287,8 +323,8 @@ function RecognitionStep({
   const completedCount = Object.keys(decisions).length;
   const recognizedSubjects = allSubjects.filter((subject) => decisions[subject.id]);
   const recognizedTeams = new Set(recognizedSubjects.map((subject) => subject.teamName));
-  const hasHomeRecognition = recognizedTeams.has("Casa");
-  const hasAwayRecognition = recognizedTeams.has("Ospite");
+  const hasHomeRecognition = teamNames[0] ? recognizedTeams.has(teamNames[0]) : false;
+  const hasAwayRecognition = teamNames[1] ? recognizedTeams.has(teamNames[1]) : false;
   const fullRecognitionComplete =
     completedCount === allSubjects.length && hasHomeRecognition && hasAwayRecognition;
   function decide(decision: Exclude<RecognitionDecision, "pending">) {
@@ -336,8 +372,7 @@ function RecognitionStep({
         <div>
           <h2 className="text-xl font-bold">Riconoscimento</h2>
           <p className="text-sm text-slate-500">
-            Swipe destra per confermare, sinistra per segnalare, indietro per
-            rivedere.
+            Controlla foto, dati e documento. Conferma il tesserato o torna indietro per rivedere.
           </p>
         </div>
         <span className="rounded-full bg-muted px-3 py-2 text-sm">
@@ -345,7 +380,7 @@ function RecognitionStep({
         </span>
       </div>
       <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
-        Parti dalla squadra di casa. Puoi cambiare distinta toccando la squadra qui sotto.
+        Parti dalla squadra di casa. Puoi cambiare distinta selezionando la squadra qui sotto.
         <div className="mt-2 flex flex-wrap gap-2">
           <button
             className={`rounded-full px-3 py-1 text-xs font-semibold ${!selectedTeamName ? "bg-primary text-white" : "bg-white"}`}
@@ -367,17 +402,17 @@ function RecognitionStep({
         </div>
       </div>
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-        <div className="relative flex aspect-[3/4] items-center justify-center overflow-hidden rounded-2xl bg-muted text-center text-lg font-semibold">
+        <div className="relative mx-auto flex aspect-[3/4] w-full max-w-[260px] items-center justify-center overflow-hidden rounded-xl border-4 border-white bg-white text-center text-base font-semibold shadow-lg ring-1 ring-slate-200">
           {currentSubject.photoUrl ? (
             <Image
               alt={`Foto ${currentSubject.firstName} ${currentSubject.lastName}`}
               className="h-full w-full object-cover"
               height={360}
               src={currentSubject.photoUrl}
-              width={280}
+              width={260}
             />
           ) : (
-            "Foto mancante: chiedi alla società di caricarla"
+            "Foto non disponibile"
           )}
         </div>
         <div className="space-y-4">
@@ -432,7 +467,7 @@ function RecognitionStep({
               onClick={() => decide("approved")}
               type="button"
             >
-              Swipe (destra→sinistra)
+              Conferma riconoscimento
             </Button>
           </div>
         </div>
