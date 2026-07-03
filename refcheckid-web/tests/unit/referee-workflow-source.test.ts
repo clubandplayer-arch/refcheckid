@@ -19,7 +19,7 @@ describe("regression: referee smoke workflow", () => {
   it("shows locked recognition as terminal and routes to the report", () => {
     expect(source).toContain("Riconoscimento LOCKED");
     expect(source).toContain("Puoi proseguire solo con il referto");
-    expect(source).toContain("Chiudi riconoscimento e vai al referto");
+    expect(source).toContain("Conferma chiusura riconoscimento");
     expect(source).toContain("onMutate: onComplete");
   });
 

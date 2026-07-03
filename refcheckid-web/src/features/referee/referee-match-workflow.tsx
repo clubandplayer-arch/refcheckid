@@ -31,6 +31,7 @@ import type {
   MatchReportDraft,
   MatchReportEvent,
   RecognitionDecision,
+  RecognitionSubject,
   TeamSheetVerification,
 } from "@/lib/referee-types";
 import { useSession } from "@/lib/session";
@@ -108,9 +109,7 @@ export function RefereeMatchWorkflow() {
           initialTeamName={initialRecognitionTeamName}
           matchId={matchId}
           onComplete={() => {
-            setRecognitionLocked(true);
             setFullRecognitionComplete(true);
-            setStep(2);
           }}
         />
       ) : null}
@@ -299,6 +298,23 @@ function RecognitionStep({
     () => Array.from(new Set(allSubjects.map((subject) => subject.teamName))),
     [allSubjects],
   );
+  const selectedTeamSubjects = selectedTeamName
+    ? allSubjects.filter((subject) => subject.teamName === selectedTeamName)
+    : allSubjects;
+  const selectedTeamCompletedCount = selectedTeamSubjects.filter(
+    (subject) => decisions[subject.id],
+  ).length;
+  const selectedTeamTotal = selectedTeamSubjects.length;
+  const teamRecognitionSummaries = teamNames.map((teamName) => {
+    const teamSubjects = allSubjects.filter((subject) => subject.teamName === teamName);
+    const completed = teamSubjects.filter((subject) => decisions[subject.id]).length;
+    return {
+      completed,
+      isComplete: teamSubjects.length > 0 && completed === teamSubjects.length,
+      teamName,
+      total: teamSubjects.length,
+    };
+  });
   if (isLocked) {
     return (
       <Card className="space-y-4 text-center">
@@ -354,32 +370,55 @@ function RecognitionStep({
   if (!currentSubject || completedCount === allSubjects.length)
     return (
       <Card className="space-y-4 text-center">
-        <h2 className="text-2xl font-bold">{fullRecognitionComplete ? "Riconoscimento completato" : "Seleziona la prossima squadra"}</h2>
+        <h2 className="text-2xl font-bold">
+          {fullRecognitionComplete ? "Riconoscimento completato" : "Seleziona la prossima squadra"}
+        </h2>
         <p className="text-sm text-slate-500">
-          {completedCount} tesserati verificati. Puoi procedere al referto solo
-          dopo il riconoscimento di Casa e Ospite.
+          {completedCount} tesserati verificati. Ogni squadra va chiusa separatamente.
         </p>
-        {!fullRecognitionComplete ? (
-          <>
-            <p className="rounded-lg bg-red-100 p-3 text-sm font-semibold text-red-900">
-              Riconoscimento non completato per entrambe le squadre. Tocca Casa o Ospite per continuare.
-            </p>
-            <div className="flex justify-center gap-2">
-              {teamNames.map((teamName) => (
-                <Button key={teamName} onClick={() => { setSelectedTeamName(teamName); setIndex(0); }} type="button">
-                  Apri {teamName}
+        <div className="grid gap-3 md:grid-cols-2">
+          {teamRecognitionSummaries.map((summary) => (
+            <div
+              className={`rounded-xl border p-4 text-left ${
+                summary.isComplete
+                  ? "border-green-300 bg-green-50 text-green-900"
+                  : "border-orange-300 bg-orange-50 text-orange-900"
+              }`}
+              key={summary.teamName}
+            >
+              <p className="font-bold">{summary.teamName}</p>
+              <p className="text-sm">
+                {summary.completed}/{summary.total} tesserati
+              </p>
+              {summary.isComplete ? (
+                <p className="mt-2 rounded-lg bg-green-600 px-3 py-2 text-center text-sm font-semibold text-white">
+                  Riconoscimento concluso
+                </p>
+              ) : (
+                <Button
+                  className="mt-2 bg-orange-500 hover:bg-orange-600"
+                  onClick={() => { setSelectedTeamName(summary.teamName); setIndex(0); }}
+                  type="button"
+                >
+                  Apri {summary.teamName}
                 </Button>
-              ))}
+              )}
             </div>
-          </>
-        ) : null}
-        <Button
-          disabled={!fullRecognitionComplete || mutation.isPending}
-          onClick={() => mutation.mutate()}
-          type="button"
-        >
-          Chiudi riconoscimento e vai al referto
-        </Button>
+          ))}
+        </div>
+        {fullRecognitionComplete ? (
+          <Button
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate()}
+            type="button"
+          >
+            Conferma chiusura riconoscimento
+          </Button>
+        ) : (
+          <p className="rounded-lg bg-orange-100 p-3 text-sm font-semibold text-orange-900">
+            Completa le squadre evidenziate in arancione prima di chiudere il riconoscimento.
+          </p>
+        )}
       </Card>
     );
   return (
@@ -392,7 +431,7 @@ function RecognitionStep({
           </p>
         </div>
         <span className="rounded-full bg-muted px-3 py-2 text-sm">
-          {completedCount}/{allSubjects.length}
+          {selectedTeamCompletedCount}/{selectedTeamTotal}
         </span>
       </div>
       <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
@@ -502,6 +541,10 @@ function MatchReportStep({
     queryFn: () => fetchRefereeReport(matchId),
     queryKey: [...queryKeys.matchReports, matchId],
   });
+  const recognitionSubjectsQuery = useQuery({
+    queryFn: fetchRecognitionSubjects,
+    queryKey: [...queryKeys.recognitions, matchId, "report-options"],
+  });
   const [step, setStep] = useState(0);
   const [report, setReport] = useState<MatchReportDraft | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -566,6 +609,7 @@ function MatchReportStep({
         <EventsPanel
           eventKey="goals"
           readOnly={isReadOnly}
+          recognitionSubjects={recognitionSubjectsQuery.data ?? []}
           report={currentReport}
           setReport={setReport}
           title="Gol"
@@ -575,6 +619,7 @@ function MatchReportStep({
         <EventsPanel
           eventKey="cautions"
           readOnly={isReadOnly}
+          recognitionSubjects={recognitionSubjectsQuery.data ?? []}
           report={currentReport}
           setReport={setReport}
           title="Ammonizioni"
@@ -584,6 +629,7 @@ function MatchReportStep({
         <EventsPanel
           eventKey="expulsions"
           readOnly={isReadOnly}
+          recognitionSubjects={recognitionSubjectsQuery.data ?? []}
           report={currentReport}
           setReport={setReport}
           title="Espulsioni"
@@ -593,6 +639,7 @@ function MatchReportStep({
         <EventsPanel
           eventKey="substitutions"
           readOnly={isReadOnly}
+          recognitionSubjects={recognitionSubjectsQuery.data ?? []}
           report={currentReport}
           setReport={setReport}
           title="Sostituzioni"
@@ -670,12 +717,14 @@ type MatchReportEventKey =
 function EventsPanel({
   eventKey,
   readOnly,
+  recognitionSubjects,
   report,
   setReport,
   title,
 }: Readonly<{
   eventKey: MatchReportEventKey;
   readOnly: boolean;
+  recognitionSubjects: readonly RecognitionSubject[];
   report: MatchReportDraft;
   setReport: (report: MatchReportDraft) => void;
   title: string;
@@ -727,13 +776,13 @@ function EventsPanel({
             nextEvent.shirtNumber,
           );
         }
-        if ("teamName" in patch || "outgoingShirtNumber" in patch) {
+        if (("teamName" in patch || "outgoingShirtNumber" in patch) && !("outgoingPlayerName" in patch)) {
           nextEvent.outgoingPlayerName = resolveReportPlayerName(
             nextEvent.teamName,
             nextEvent.outgoingShirtNumber,
           );
         }
-        if ("teamName" in patch || "incomingShirtNumber" in patch) {
+        if (("teamName" in patch || "incomingShirtNumber" in patch) && !("incomingPlayerName" in patch)) {
           nextEvent.incomingPlayerName = resolveReportPlayerName(
             nextEvent.teamName,
             nextEvent.incomingShirtNumber,
@@ -796,6 +845,7 @@ function EventsPanel({
                     event={event}
                     onChange={(patch) => updateEvent(event.id, patch)}
                     readOnly={readOnly}
+                    recognitionSubjects={recognitionSubjects}
                   />
                 ) : (
                   <PlayerAndReasonFields
@@ -953,50 +1003,77 @@ function SubstitutionFields({
   event,
   onChange,
   readOnly,
+  recognitionSubjects,
 }: Readonly<{
   event: MatchReportEvent;
   onChange: (patch: Partial<MatchReportEvent>) => void;
   readOnly: boolean;
+  recognitionSubjects: readonly RecognitionSubject[];
 }>) {
+  const teamNames = Array.from(new Set(recognitionSubjects.map((subject) => subject.teamName)));
+  const selectedTeamIndex = event.teamName === "Casa" ? 0 : 1;
+  const selectedTeamName = teamNames[selectedTeamIndex] ?? teamNames[0] ?? "";
+  const teamPlayers = recognitionSubjects.filter(
+    (subject) => subject.subjectKind === "player" && subject.teamName === selectedTeamName,
+  );
+  const starters = teamPlayers.filter((subject) => subject.roleLabel.startsWith("Titolare"));
+  const reserves = teamPlayers.filter((subject) => subject.roleLabel.startsWith("Riserva"));
+  function optionLabel(subject: RecognitionSubject): string {
+    return `#${subject.shirtNumber ?? "?"} ${subject.lastName} ${subject.firstName}`;
+  }
   return (
     <>
       <label className="space-y-1 text-sm font-medium">
-        Numero uscente
-        <Input
-          disabled={readOnly}
-          max={99}
-          min={1}
-          onChange={(change) =>
-            onChange({
-              outgoingShirtNumber: change.target.valueAsNumber || null,
-            })
-          }
-          type="number"
-          value={event.outgoingShirtNumber ?? ""}
-        />
-      </label>
-      <label className="space-y-1 text-sm font-medium">
         Tesserato uscente
-        <Input disabled readOnly value={event.outgoingPlayerName ?? ""} />
+        <select
+          className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          disabled={readOnly}
+          onChange={(change) => {
+            const subject = starters.find((player) => player.id === change.target.value);
+            onChange({
+              outgoingPlayerName: subject ? `${subject.lastName} ${subject.firstName}` : "",
+              outgoingShirtNumber: subject?.shirtNumber ?? null,
+            });
+          }}
+          value={starters.find((player) => player.shirtNumber === event.outgoingShirtNumber)?.id ?? ""}
+        >
+          <option value="">Seleziona titolare</option>
+          {starters.map((subject) => (
+            <option key={subject.id} value={subject.id}>
+              {optionLabel(subject)}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="space-y-1 text-sm font-medium">
-        Numero entrante
-        <Input
-          disabled={readOnly}
-          max={99}
-          min={1}
-          onChange={(change) =>
-            onChange({
-              incomingShirtNumber: change.target.valueAsNumber || null,
-            })
-          }
-          type="number"
-          value={event.incomingShirtNumber ?? ""}
-        />
+        Numero uscente
+        <Input disabled readOnly value={event.outgoingShirtNumber ?? ""} />
       </label>
       <label className="space-y-1 text-sm font-medium">
         Tesserato entrante
-        <Input disabled readOnly value={event.incomingPlayerName ?? ""} />
+        <select
+          className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          disabled={readOnly}
+          onChange={(change) => {
+            const subject = reserves.find((player) => player.id === change.target.value);
+            onChange({
+              incomingPlayerName: subject ? `${subject.lastName} ${subject.firstName}` : "",
+              incomingShirtNumber: subject?.shirtNumber ?? null,
+            });
+          }}
+          value={reserves.find((player) => player.shirtNumber === event.incomingShirtNumber)?.id ?? ""}
+        >
+          <option value="">Seleziona riserva</option>
+          {reserves.map((subject) => (
+            <option key={subject.id} value={subject.id}>
+              {optionLabel(subject)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="space-y-1 text-sm font-medium">
+        Numero entrante
+        <Input disabled readOnly value={event.incomingShirtNumber ?? ""} />
       </label>
     </>
   );
