@@ -121,6 +121,56 @@ describe("unit: manager match sheet validation", () => {
 
 
 
+
+  it("allows reserve goalkeepers but only one starting goalkeeper", () => {
+    const selectedPlayers = pilotPlayers
+      .filter((player) => !player.suspended)
+      .slice(0, 13)
+      .map((player, index) => ({
+        ...player,
+        isCaptain: index === 1,
+        isGoalkeeper: index === 0 || index === 1 || index === 11 || index === 12,
+        isViceCaptain: index === 2,
+        role: index < 11 ? "starter" as const : "reserve" as const,
+        selected: true,
+        shirtNumber: index + 1,
+      }));
+
+    const validation = validateMatchSheet(selectedPlayers, [pilotStaff[0]!]);
+
+    expect(validation).toMatchObject({
+      goalkeepers: 4,
+      isValid: false,
+      startingGoalkeepers: 2,
+    });
+    expect(validation.errors).toContain("Seleziona un solo Portiere tra gli 11 titolari.");
+  });
+
+  it("blocks captain and vice captain assigned to reserves", () => {
+    const selectedPlayers = pilotPlayers
+      .filter((player) => !player.suspended)
+      .slice(0, 13)
+      .map((player, index) => ({
+        ...player,
+        isCaptain: index === 11,
+        isGoalkeeper: index === 0,
+        isViceCaptain: index === 12,
+        role: index < 11 ? "starter" as const : "reserve" as const,
+        selected: true,
+        shirtNumber: index + 1,
+      }));
+
+    const validation = validateMatchSheet(selectedPlayers, [pilotStaff[0]!]);
+
+    expect(validation).toMatchObject({
+      captains: 1,
+      isValid: false,
+      viceCaptains: 1,
+    });
+    expect(validation.errors).toContain("Il Capitano deve essere scelto tra i titolari.");
+    expect(validation.errors).toContain("Il Vice capitano deve essere scelto tra i titolari.");
+  });
+
   it("blocks more than eleven starters", () => {
     const selectedPlayers = pilotPlayers
       .filter((player) => !player.suspended)
