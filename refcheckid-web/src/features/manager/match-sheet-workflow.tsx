@@ -531,6 +531,12 @@ function PhotoApprovalNotice() {
           Federazione; fino ad allora il Club continua a usare la foto attuale, a
           proprio rischio in caso di incongruenza visiva durante il riconoscimento.
         </p>
+        <p className="mt-2 font-medium">
+          Nota pilota: le foto confermate sono salvate nel localStorage del
+          browser che le carica. Su un altro dispositivo o browser mobile non
+          risultano visibili finché non viene introdotto uno storage remoto
+          condiviso.
+        </p>
       </div>
       <PhotoExampleIllustration />
     </div>
