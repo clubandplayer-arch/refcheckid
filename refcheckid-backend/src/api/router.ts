@@ -78,6 +78,25 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/audit/by-match', controllers.listAuditByMatch);
   router.register('GET', '/api/v1/audit/by-action', controllers.listAuditByAction);
   router.register('GET', '/api/v1/photos', controllers.listPhotos);
+  router.register('GET', '/api/v1/photos/subjects', controllers.listPhotoSubjects);
+  router.register('GET', '/api/v1/players/:id/photo', controllers.getPlayerPhoto);
+  router.register(
+    'GET',
+    '/api/v1/registrations/:id/season-photo',
+    controllers.getRegistrationSeasonPhoto,
+  );
+  router.register('POST', '/api/v1/photos/upload-intent', controllers.createPhotoUploadIntent);
+  router.register('POST', '/api/v1/photos/uploads/:id/complete', controllers.completePhotoUpload);
+  router.register('GET', '/api/v1/photo-approvals', controllers.listPhotoApprovals);
+  router.register('POST', '/api/v1/photo-approvals/:id/approve', controllers.approvePhotoApproval);
+  router.register('POST', '/api/v1/photo-approvals/:id/reject', controllers.rejectPhotoApproval);
+  router.register(
+    'GET',
+    '/api/v1/match-sheets/:id/photo-snapshots',
+    controllers.listMatchSheetPhotoSnapshots,
+  );
+  router.register('GET', '/api/v1/matches/:id/photo-manifest', controllers.getMatchPhotoManifest);
+  router.register('GET', '/api/v1/photos/audit', controllers.listPhotoAuditEvents);
   router.register('GET', '/api/v1/identity-documents', controllers.listIdentityDocuments);
 
   return router;
