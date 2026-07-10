@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  accessSync,
+  constants,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { copyFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -134,13 +143,25 @@ function rollback() {
 }
 
 function findExecutable(name) {
-  const result = spawnSync(process.platform === 'win32' ? 'where' : 'command', ['-v', name], {
-    encoding: 'utf8',
-    shell: true,
-  });
-  if (result.status !== 0) return null;
-  const executable = result.stdout.trim().split('\n')[0];
-  return executable === '' ? null : executable;
+  const pathValue = process.env.PATH ?? '';
+  const pathExt =
+    process.platform === 'win32' ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM') : '';
+  const extensions = process.platform === 'win32' ? pathExt.split(';') : [''];
+
+  for (const directory of pathValue.split(process.platform === 'win32' ? ';' : ':')) {
+    if (directory === '') continue;
+    for (const extension of extensions) {
+      const candidate = join(directory, `${name}${extension.toLowerCase()}`);
+      try {
+        accessSync(candidate, constants.X_OK);
+        return candidate;
+      } catch {
+        // Keep searching PATH.
+      }
+    }
+  }
+
+  return null;
 }
 
 function fail(message) {
