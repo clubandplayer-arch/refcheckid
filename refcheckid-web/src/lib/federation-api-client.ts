@@ -15,6 +15,7 @@ import type {
   FederationMatchListItem,
   FederationReport,
   PhotoRequest,
+  PhotoRequestStatus,
 } from "./federation-types";
 
 export async function fetchFederationDashboard(): Promise<FederationDashboard> {
@@ -82,12 +83,54 @@ export async function fetchFederationReports(): Promise<
   return [...localReports, ...backendSubmittedReports];
 }
 
+export interface ApiPhotoApproval {
+  id: string;
+  photoVersionId: string;
+  federationId: string;
+  seasonId: string;
+  registrationId: string | null;
+  requestedAt: string;
+  status: PhotoRequestStatus;
+  decisionReasonCode: string | null;
+  decisionNotes: string | null;
+}
+
 export async function fetchPhotoRequests(): Promise<readonly PhotoRequest[]> {
-  const [photos, localRequests] = await Promise.all([
-    fetchPhotos(),
+  const [approvals, localRequests] = await Promise.all([
+    request<readonly ApiPhotoApproval[]>("/photo-approvals").catch(async () => {
+      const photos = await fetchPhotos();
+      return photos.map(toLegacyPhotoApproval);
+    }),
     Promise.resolve(readManagerPhotoApprovalRequests()),
   ]);
-  return [...localRequests, ...photos.map(toPhotoRequest)];
+  return [...localRequests, ...approvals.map(toPhotoRequest)];
+}
+
+export function approvePhotoRequest(
+  requestId: string,
+  reasonCode = "identity_verified",
+) {
+  return request<ApiPhotoApproval>(
+    `/photo-approvals/${encodeURIComponent(requestId)}/approve`,
+    {
+      method: "POST",
+      body: JSON.stringify({ actorRole: "federation", reasonCode }),
+    },
+  );
+}
+
+export function rejectPhotoRequest(
+  requestId: string,
+  reasonCode: string,
+  notes: string,
+) {
+  return request<ApiPhotoApproval>(
+    `/photo-approvals/${encodeURIComponent(requestId)}/reject`,
+    {
+      method: "POST",
+      body: JSON.stringify({ actorRole: "federation", reasonCode, notes }),
+    },
+  );
 }
 
 export async function fetchFederationHistory(): Promise<
@@ -274,13 +317,27 @@ function parseSubmittedReportSummary(
   }
 }
 
-function toPhotoRequest(photo: ApiPhoto): PhotoRequest {
+function toPhotoRequest(approval: ApiPhotoApproval): PhotoRequest {
+  return {
+    id: approval.id,
+    clubName: `Federazione ${approval.federationId.slice(0, 8)}`,
+    currentPhotoUrl: null,
+    playerName: approval.registrationId ?? approval.photoVersionId,
+    proposedPhotoUrl: null,
+    requestedAt: approval.requestedAt,
+    status: approval.status,
+    reasonCode: approval.decisionReasonCode,
+    notes: approval.decisionNotes,
+  };
+}
+
+function toLegacyPhotoApproval(photo: ApiPhoto): ApiPhotoApproval {
   return {
     id: photo.id,
-    clubName: "Club",
-    currentPhotoUrl: null,
-    playerName: photo.playerId ?? photo.id,
-    proposedPhotoUrl: photo.storagePath ?? null,
+    photoVersionId: photo.id,
+    federationId: "legacy",
+    seasonId: "",
+    registrationId: photo.playerId ?? photo.id,
     requestedAt: "",
     status:
       photo.status === "approved"
@@ -288,5 +345,7 @@ function toPhotoRequest(photo: ApiPhoto): PhotoRequest {
         : photo.status === "rejected"
           ? "rejected"
           : "pending",
+    decisionReasonCode: null,
+    decisionNotes: null,
   };
 }

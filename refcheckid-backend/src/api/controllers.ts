@@ -119,25 +119,73 @@ export function createControllers(container: ApplicationContainer): Record<strin
         ),
       );
     },
-    listPhotoApprovals: async (request) =>
-      json(
-        200,
+    listPhotoApprovals: async (request) => {
+      const approvals =
         request.query.federationId === undefined
-          ? []
+          ? await container.repositories.photoApprovals.list()
           : await container.services.photos.listApprovalsByFederation(
               requireUuid(request.query.federationId, 'federationId'),
-            ),
-      ),
-    approvePhotoApproval: () =>
-      json(501, {
-        implementationStatus: 'contract_only',
-        message: 'Approval command is defined for Milestone B.',
-      }),
-    rejectPhotoApproval: () =>
-      json(501, {
-        implementationStatus: 'contract_only',
-        message: 'Reject command is defined for Milestone B.',
-      }),
+            );
+      return json(
+        200,
+        approvals
+          .filter((approval) =>
+            request.query.status === undefined ? true : approval.status === request.query.status,
+          )
+          .filter((approval) =>
+            request.query.seasonId === undefined
+              ? true
+              : approval.seasonId === request.query.seasonId,
+          )
+          .filter((approval) =>
+            request.query.registrationId === undefined
+              ? true
+              : approval.registrationId === request.query.registrationId,
+          )
+          .filter((approval) =>
+            request.query.requestedFrom === undefined
+              ? true
+              : approval.requestedAt >= request.query.requestedFrom,
+          )
+          .filter((approval) =>
+            request.query.requestedTo === undefined
+              ? true
+              : approval.requestedAt <= request.query.requestedTo,
+          )
+          .sort((left, right) => left.requestedAt.localeCompare(right.requestedAt)),
+      );
+    },
+    getPhotoApproval: async (request) => {
+      const approval = await container.repositories.photoApprovals.findById(
+        requireUuid(request.params.id, 'id'),
+      );
+      if (approval === null) return json(404, { error: 'PHOTO_APPROVAL_NOT_FOUND' });
+      return json(200, approval);
+    },
+    approvePhotoApproval: async (request) => {
+      const body = request.body === undefined ? {} : requireBodyObject(request.body);
+      return json(
+        200,
+        await container.services.photos.approvePhotoApproval({
+          approvalId: requireUuid(request.params.id, 'id'),
+          context: photoContext(request, body),
+          reasonCode: optionalString(body.reasonCode, 'reasonCode') ?? undefined,
+          notes: optionalString(body.notes, 'notes') ?? undefined,
+        }),
+      );
+    },
+    rejectPhotoApproval: async (request) => {
+      const body = requireBodyObject(request.body);
+      return json(
+        200,
+        await container.services.photos.rejectPhotoApproval({
+          approvalId: requireUuid(request.params.id, 'id'),
+          context: photoContext(request, body),
+          reasonCode: requireString(body.reasonCode, 'reasonCode'),
+          notes: optionalString(body.notes, 'notes') ?? undefined,
+        }),
+      );
+    },
     listMatchSheetPhotoSnapshots: async (request) =>
       json(
         200,

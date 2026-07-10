@@ -42,10 +42,15 @@ export function createOpenApiDocument(): OpenApiDocument {
     '/api/v1/photos/upload-intent': contractPath('createPhotoUploadIntent', 'Photo', 'stub'),
     '/api/v1/photos/uploads/{id}/complete': contractPath('completePhotoUpload', 'Photo', 'defined'),
     '/api/v1/photo-approvals': contractPath('listPhotoApprovals', 'PhotoApproval', 'implemented'),
+    '/api/v1/photo-approvals/{id}': contractPath(
+      'getPhotoApproval',
+      'PhotoApproval',
+      'implemented',
+    ),
     '/api/v1/photo-approvals/{id}/approve': contractPath(
       'approvePhotoApproval',
       'PhotoApproval',
-      'defined',
+      'implemented',
     ),
     '/api/v1/photo-approvals/{id}/reject': contractPath(
       'rejectPhotoApproval',
