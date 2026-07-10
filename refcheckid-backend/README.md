@@ -105,6 +105,8 @@ Useful commands:
 
 See `database/MIGRATIONS.md` for the full workflow.
 
+In GitHub Codespaces, Supabase CLI is installed by the devcontainer `postCreateCommand`; rebuild the container if `supabase --version` is not available in an existing Codespace.
+
 ## Backend application layer
 
 La Milestone 10 introduce lo skeleton iniziale dell'application layer backend:

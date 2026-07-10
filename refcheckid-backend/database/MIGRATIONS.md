@@ -65,3 +65,15 @@ pnpm -C refcheckid-backend test -- tests/migration-runner.test.ts
 ```
 
 The dry run validates migration naming, ordering and duplicate versions without connecting to the database.
+
+## Codespaces
+
+Codespaces installs Supabase CLI during devcontainer creation through `.devcontainer/install-supabase-cli.sh`.
+
+After creating or rebuilding the Codespace, verify:
+
+```bash
+supabase --version
+```
+
+If the command is missing in an already-running Codespace, rebuild the container so `postCreateCommand` runs again.
