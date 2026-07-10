@@ -8,10 +8,10 @@ import {
 import { pilotPlayers, pilotStaff } from "../../src/lib/pilot-data";
 
 describe("unit: manager match sheet validation", () => {
-  it("provides smoke-test pilot data with warnings, suspension, staff and photos", () => {
+  it("provides smoke-test pilot data with warnings, suspension and staff", () => {
     expect(pilotPlayers).toHaveLength(18);
     expect(pilotStaff).toHaveLength(3);
-    expect(pilotPlayers.some((player) => player.photoUrl)).toBe(true);
+    expect(pilotPlayers.every((player) => player.photoUrl === null)).toBe(true);
     expect(pilotPlayers.some((player) => player.warning)).toBe(true);
     expect(pilotPlayers.some((player) => player.suspended)).toBe(true);
   });

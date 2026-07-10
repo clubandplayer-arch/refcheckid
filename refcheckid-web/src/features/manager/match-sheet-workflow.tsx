@@ -154,12 +154,15 @@ export function MatchSheetWorkflow() {
     const player = players.find((item) => item.id === playerId);
     const flags = getPhotoFeatureFlags();
     if (flags.officialBackendUpload) {
+      if (!player?.registrationId || !player.season) {
+        throw new Error("Tesseramento stagionale non disponibile: impossibile caricare la foto ufficiale.");
+      }
       const state = await uploadOfficialPlayerPhoto({
         playerId,
-        registrationId: playerId,
+        registrationId: player.registrationId,
         clubId: managerClubId,
         federationId: managerTeamConfig[managerTeam].federationId,
-        seasonId: "2026",
+        seasonId: player.season,
         dataUrl: photoUrl,
       });
       setPlayerList((current) =>
@@ -234,9 +237,15 @@ export function MatchSheetWorkflow() {
       setPhotoError("Conferma una preview prima del salvataggio.");
       return;
     }
-    await applyPhoto(await cropPhotoDraft(photoDraft));
-    setPhotoDraft(null);
-    setPhotoError(null);
+    try {
+      await applyPhoto(await cropPhotoDraft(photoDraft));
+      setPhotoDraft(null);
+      setPhotoError(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Upload foto non riuscito.";
+      setPhotoError(message);
+      notify(message, "error");
+    }
   }
   function updatePhotoDraftTransform(subjectId: string, transform: Partial<Pick<NonNullable<typeof photoDraft>, "zoom" | "offsetX" | "offsetY">>) {
     setPhotoDraft((current) =>

@@ -19,6 +19,10 @@ describe("ARCH-1 manager web photo migration", () => {
     expect(backendSource).toContain("/photos/upload-intent");
     expect(backendSource).toContain("/photos/uploads/");
     expect(backendSource).toContain("contentBase64");
+    expect(backendSource).toContain("!uploadResponse.ok");
+    expect(backendSource).toContain("registrationId: input.registrationId");
+    expect(workflowSource).toContain("player.registrationId");
+    expect(workflowSource).toContain('notify(message, "error")');
     expect(workflowSource).toContain("uploadOfficialPlayerPhoto");
     expect(workflowSource).toContain("Foto inviata al backend");
   });
@@ -27,6 +31,8 @@ describe("ARCH-1 manager web photo migration", () => {
     expect(backendSource).toContain("/players/");
     expect(backendSource).toContain("/photo-approvals");
     expect(backendSource).toContain("legacyLocalFallback");
+    expect(backendSource).toContain("applyManagerPhotoOverrides(team, players)");
+    expect(backendSource).toContain(".sort((left, right)");
     expect(workflowSource).toContain("Pending Approval");
     expect(workflowSource).toContain("Foto ufficiale corrente");
     expect(workflowSource).toContain("Nuova foto proposta");

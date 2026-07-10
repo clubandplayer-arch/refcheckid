@@ -19,6 +19,8 @@ export interface PlayerListItem {
   firstName: string;
   lastName: string;
   photoUrl: string | null;
+  registrationId: string | null;
+  season: string | null;
   warning: boolean;
   suspended: boolean;
   selected: boolean;
