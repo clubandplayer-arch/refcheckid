@@ -84,7 +84,7 @@ Copertura aggiunta/aggiornata per:
 
 ## Limitazioni
 
-- Il backend ARCH-1 attuale espone upload ufficiale per player; lo staff Manager resta nel percorso di compatibilità esistente finché non esiste una API staff equivalente già approvata.
+- Superata da Milestone F.1: il workflow ufficiale è stato generalizzato a `photo_subject` e include anche Staff Member.
 - Il Manager Web usa gli endpoint esistenti senza introdurre nuove API.
 - Non è stata implementata la Milestone E.
 

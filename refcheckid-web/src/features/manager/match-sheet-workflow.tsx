@@ -25,7 +25,7 @@ import {
 } from "@/lib/match-sheet-validation";
 import { managerTeamConfig, getCurrentManagerTeam } from "@/lib/manager-team";
 import { saveManagerSubjectPhoto } from "@/lib/manager-photo-store";
-import { uploadOfficialPlayerPhoto } from "@/lib/manager-photo-backend";
+import { uploadOfficialSubjectPhoto } from "@/lib/manager-photo-backend";
 import { getPhotoFeatureFlags } from "@/lib/photo-feature-flags";
 import { clearSubmittedMatchSheetSnapshot, saveSubmittedMatchSheetSnapshot } from "@/lib/submitted-match-sheet";
 import {
@@ -157,8 +157,9 @@ export function MatchSheetWorkflow() {
       if (!player?.registrationId || !player.season) {
         throw new Error("Tesseramento stagionale non disponibile: impossibile caricare la foto ufficiale.");
       }
-      const state = await uploadOfficialPlayerPhoto({
-        playerId,
+      const state = await uploadOfficialSubjectPhoto({
+        subjectKind: "athlete",
+        subjectId: playerId,
         registrationId: player.registrationId,
         clubId: managerClubId,
         federationId: managerTeamConfig[managerTeam].federationId,
@@ -192,8 +193,31 @@ export function MatchSheetWorkflow() {
     }
     notify("Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto ufficiale corrente", "success");
   }
-  function updateStaffPhoto(staffId: string, photoUrl: string) {
+  async function updateStaffPhoto(staffId: string, photoUrl: string) {
     const staffMember = staff.find((item) => item.id === staffId);
+    const flags = getPhotoFeatureFlags();
+    if (flags.officialBackendUpload) {
+      if (!staffMember?.registrationId || !staffMember.season) {
+        throw new Error("Tesseramento stagionale staff non disponibile: impossibile caricare la foto ufficiale.");
+      }
+      const state = await uploadOfficialSubjectPhoto({
+        subjectKind: "staff_member",
+        subjectId: staffId,
+        registrationId: staffMember.registrationId,
+        clubId: managerClubId,
+        federationId: managerTeamConfig[managerTeam].federationId,
+        seasonId: staffMember.season,
+        dataUrl: photoUrl,
+      });
+      setStaffList((current) =>
+        current.map((item) =>
+          item.id === staffId ? { ...item, photo: state, photoUrl: state.currentPhotoUrl ?? item.photoUrl } : item,
+        ),
+      );
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.staff, managerTeam] });
+      notify(state.status === "pending" ? "Foto staff inviata al backend: richiesta in attesa di approvazione federale" : "Foto staff aggiornata dal backend", "success");
+      return;
+    }
     const status = saveManagerSubjectPhoto(
       managerTeam,
       staffId,
@@ -946,7 +970,7 @@ function StaffStep({
       ) : null}
       {staff.map((staffMember) => (
         <div
-          className="grid gap-3 rounded-xl border p-4 md:grid-cols-[32px_96px_minmax(0,1fr)_minmax(220px,340px)] md:items-start"
+          className="grid gap-3 rounded-xl border p-4 md:grid-cols-[32px_96px_minmax(0,1fr)_minmax(220px,340px)_minmax(220px,340px)] md:items-start"
           key={staffMember.id}
         >
           <label className="flex items-center gap-2 text-sm md:justify-start">
@@ -977,8 +1001,9 @@ function StaffStep({
             <p className="text-xs leading-relaxed text-slate-500">{staffMember.role}</p>
             <BackendPhotoStatus photo={staffMember.photo} />
           </div>
+          <PhotoComparison currentPhotoUrl={staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl} proposedPhotoUrl={staffMember.photo?.proposedPhotoUrl ?? null} />
           <PhotoCaptureControls
-            currentPhotoUrl={staffMember.photoUrl}
+            currentPhotoUrl={staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl}
             onConfirm={() => onConfirmPhoto(staffMember.id)}
             onPhotoSelected={(file) => onPhotoSelected(staffMember.id, file)}
             onPhotoTransform={(transform) => onPhotoTransform(staffMember.id, transform)}

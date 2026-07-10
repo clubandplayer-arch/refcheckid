@@ -80,6 +80,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/photos', controllers.listPhotos);
   router.register('GET', '/api/v1/photos/subjects', controllers.listPhotoSubjects);
   router.register('GET', '/api/v1/players/:id/photo', controllers.getPlayerPhoto);
+  router.register('GET', '/api/v1/staff-members/:id/photo', controllers.getStaffMemberPhoto);
   router.register(
     'GET',
     '/api/v1/registrations/:id/season-photo',

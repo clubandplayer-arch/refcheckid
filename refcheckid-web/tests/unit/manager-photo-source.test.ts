@@ -17,7 +17,7 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("PhotoExampleIllustration");
     expect(source).toContain("Esempio foto tesserato corretta");
     expect(source).toContain("md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px]");
-    expect(source).toContain("md:grid-cols-[32px_96px_minmax(0,1fr)_minmax(220px,340px)]");
+    expect(source).toContain("md:grid-cols-[32px_96px_minmax(0,1fr)_minmax(220px,340px)_minmax(220px,340px)]");
     expect(source).toContain(`capture="environment"`);
   });
 

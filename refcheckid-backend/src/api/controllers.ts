@@ -53,7 +53,30 @@ export function createControllers(container: ApplicationContainer): Record<strin
     listPhotoSubjects: async () => json(200, await container.services.photos.listPhotoSubjects()),
     getPlayerPhoto: async (request) => {
       const subject = (await container.repositories.photoSubjects.list()).find(
-        (row) => row.canonicalPersonId === requireUuid(request.params.id, 'id'),
+        (row) =>
+          row.subjectKind === 'athlete' &&
+          row.canonicalPersonId === requireUuid(request.params.id, 'id'),
+      );
+      if (!subject) return json(404, { error: 'PHOTO_NOT_FOUND' });
+      const global = await container.repositories.globalOfficialPhotos.findBySubject(subject.id);
+      if (!global?.currentVersionId) return json(404, { error: 'PHOTO_NOT_FOUND' });
+      return json(
+        200,
+        await container.services.photos.createSignedReadUrl(
+          global.currentVersionId,
+          photoContext(request, request.query),
+          {
+            rendition: request.query.rendition as never,
+            ttlSeconds: Number(request.query.ttlSeconds ?? 300),
+          },
+        ),
+      );
+    },
+    getStaffMemberPhoto: async (request) => {
+      const subject = (await container.repositories.photoSubjects.list()).find(
+        (row) =>
+          row.subjectKind === 'staff_member' &&
+          row.canonicalPersonId === requireUuid(request.params.id, 'id'),
       );
       if (!subject) return json(404, { error: 'PHOTO_NOT_FOUND' });
       const global = await container.repositories.globalOfficialPhotos.findBySubject(subject.id);
@@ -92,8 +115,23 @@ export function createControllers(container: ApplicationContainer): Record<strin
     },
     createPhotoUploadIntent: async (request) => {
       const body = requireBodyObject(request.body);
+      const subjectKind = normalizeSubjectKind(body.subjectKind);
+      const legacyPlayerId = optionalString(body.playerId, 'playerId');
+      const legacyStaffMemberId = optionalString(body.staffMemberId, 'staffMemberId');
+      const subjectId =
+        optionalString(body.subjectId, 'subjectId') ??
+        legacyPlayerId ??
+        legacyStaffMemberId;
+      const resolvedSubjectKind =
+        subjectKind ??
+        (legacyStaffMemberId !== null ? 'staff_member' : legacyPlayerId !== null ? 'athlete' : undefined);
       const intent = await container.services.photos.createUploadIntent({
-        playerId: requireUuid(String(body.playerId), 'playerId'),
+        ...(resolvedSubjectKind === undefined ? {} : { subjectKind: resolvedSubjectKind }),
+        ...(subjectId === null ? {} : { subjectId: requireUuid(subjectId, 'subjectId') }),
+        ...(legacyPlayerId === null ? {} : { playerId: requireUuid(legacyPlayerId, 'playerId') }),
+        ...(legacyStaffMemberId === null
+          ? {}
+          : { staffMemberId: requireUuid(legacyStaffMemberId, 'staffMemberId') }),
         registrationId: requireUuid(String(body.registrationId), 'registrationId'),
         federationId: requireUuid(String(body.federationId), 'federationId'),
         seasonId: requireString(body.seasonId, 'seasonId'),
@@ -426,6 +464,14 @@ export function createControllers(container: ApplicationContainer): Record<strin
         ),
       ),
   };
+}
+
+function normalizeSubjectKind(value: unknown): 'athlete' | 'staff_member' | 'referee' | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (value === 'athlete' || value === 'staff_member' || value === 'referee') return value;
+  if (value === 'player') return 'athlete';
+  if (value === 'staff') return 'staff_member';
+  throw new Error(`Invalid subjectKind: ${String(value)}`);
 }
 
 const containerOpenApiPlaceholder = {

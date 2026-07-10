@@ -27,26 +27,35 @@ export async function enrichPlayersWithBackendPhotos(
   const legacyPlayerById = new Map(legacyPlayers.map((player) => [player.id, player]));
   return Promise.all(players.map(async (player) => {
     const legacyPlayer = legacyPlayerById.get(player.id) ?? player;
-    const photo = await readBackendPhotoState(player.id, player.registrationId, legacyPlayer.photoUrl);
+    const photo = await readBackendPhotoState("athlete", player.id, player.registrationId, legacyPlayer.photoUrl);
     return { ...player, photo, photoUrl: photo.currentPhotoUrl };
   }));
 }
 
-export function enrichStaffWithBackendStatus(team: ManagerTeam, staff: readonly StaffListItem[]): readonly StaffListItem[] {
+export async function enrichStaffWithBackendStatus(team: ManagerTeam, staff: readonly StaffListItem[]): Promise<readonly StaffListItem[]> {
   const flags = getPhotoFeatureFlags();
   const legacyStaff = flags.legacyLocalFallback ? applyManagerPhotoOverrides(team, staff) : staff;
-  return legacyStaff.map((member) => ({
-    ...member,
-    photo: { status: member.photoUrl ? "active" : "missing", currentPhotoUrl: member.photoUrl, proposedPhotoUrl: null, approvalId: null },
+  if (!flags.officialBackendRead) {
+    return legacyStaff.map((member) => ({
+      ...member,
+      photo: { status: member.photoUrl ? "active" : "missing", currentPhotoUrl: member.photoUrl, proposedPhotoUrl: null, approvalId: null },
+    }));
+  }
+  const legacyStaffById = new Map(legacyStaff.map((member) => [member.id, member]));
+  return Promise.all(staff.map(async (member) => {
+    const legacyMember = legacyStaffById.get(member.id) ?? member;
+    const photo = await readBackendPhotoState("staff_member", member.id, member.registrationId, legacyMember.photoUrl);
+    return { ...member, photo, photoUrl: photo.currentPhotoUrl };
   }));
 }
 
-export async function readBackendPhotoState(playerId: string, registrationId: string | null, legacyPhotoUrl: string | null): Promise<ManagerPhotoState> {
+export async function readBackendPhotoState(subjectKind: "athlete" | "staff_member", subjectId: string, registrationId: string | null, legacyPhotoUrl: string | null): Promise<ManagerPhotoState> {
   const flags = getPhotoFeatureFlags();
   let currentPhotoUrl: string | null = null;
   let currentStatus: OfficialPhotoStatus = "missing";
   try {
-    const signed = await request<SignedReadResponse>(`/players/${encodeURIComponent(playerId)}/photo?rendition=normalized&ttlSeconds=300`);
+    const endpoint = subjectKind === "staff_member" ? "staff-members" : "players";
+    const signed = await request<SignedReadResponse>(`/${endpoint}/${encodeURIComponent(subjectId)}/photo?rendition=normalized&ttlSeconds=300`);
     currentPhotoUrl = signed.signedUrl?.url ?? null;
     currentStatus = signed.version?.status === "suspended" ? "suspended" : currentPhotoUrl ? "active" : "missing";
   } catch {
@@ -61,7 +70,7 @@ export async function readBackendPhotoState(playerId: string, registrationId: st
   return { approvalId: approval.id, currentPhotoUrl: proposedPhotoUrl ?? currentPhotoUrl, proposedPhotoUrl: null, status: "active" };
 }
 
-export async function uploadOfficialPlayerPhoto(input: { playerId: string; registrationId: string; clubId: string; federationId: string; seasonId: string; dataUrl: string; mimeType?: string }): Promise<ManagerPhotoState> {
+export async function uploadOfficialSubjectPhoto(input: { subjectKind: "athlete" | "staff_member"; subjectId: string; registrationId: string; clubId: string; federationId: string; seasonId: string; dataUrl: string; mimeType?: string }): Promise<ManagerPhotoState> {
   const flags = getPhotoFeatureFlags();
   if (!flags.officialBackendUpload) throw new Error("Upload backend disabilitato dal feature flag photos.officialBackendUpload.");
   const bytes = dataUrlToBytes(input.dataUrl);
@@ -70,7 +79,9 @@ export async function uploadOfficialPlayerPhoto(input: { playerId: string; regis
   const intentResponse = await request<UploadIntentResponse>("/photos/upload-intent", {
     method: "POST",
     body: JSON.stringify({
-      playerId: input.playerId,
+      subjectKind: input.subjectKind,
+      subjectId: input.subjectId,
+      ...(input.subjectKind === "athlete" ? { playerId: input.subjectId } : { staffMemberId: input.subjectId }),
       registrationId: input.registrationId,
       federationId: input.federationId,
       seasonId: input.seasonId,
@@ -99,7 +110,11 @@ export async function uploadOfficialPlayerPhoto(input: { playerId: string; regis
       federationId: input.federationId,
     }),
   });
-  return readBackendPhotoState(input.playerId, input.registrationId, null);
+  return readBackendPhotoState(input.subjectKind, input.subjectId, input.registrationId, null);
+}
+
+export function uploadOfficialPlayerPhoto(input: { playerId: string; registrationId: string; clubId: string; federationId: string; seasonId: string; dataUrl: string; mimeType?: string }): Promise<ManagerPhotoState> {
+  return uploadOfficialSubjectPhoto({ ...input, subjectKind: "athlete", subjectId: input.playerId });
 }
 
 async function readLatestApproval(registrationId: string): Promise<ApprovalResponse | null> {

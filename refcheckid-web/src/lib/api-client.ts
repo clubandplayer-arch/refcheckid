@@ -161,16 +161,24 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
   const staff =
     await request<readonly Record<string, unknown>[]>("/staff-members");
   const managerTeam = getCurrentManagerTeam();
+  const managerClubId = managerTeamConfig[managerTeam].clubId;
+  const registrations = await fetchStaffRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`);
+  const registrationByStaffId = new Map(registrations.map((registration) => [registration.staffMemberId, registration]));
   const pilotRoster = managerTeam === "away" ? pilotAwayStaff : pilotStaff;
-  const mappedStaff: readonly StaffListItem[] = staff.length === 0 ? pilotRoster : staff.map((staffMember) => ({
-    id: String(staffMember.id),
-    fullName: String(
-      staffMember.fullName ?? staffMember.full_name ?? staffMember.id,
-    ),
-    role: String(staffMember.role ?? "staff"),
-    photoUrl: staffMember.photoUrl ? String(staffMember.photoUrl) : null,
-    selected: false,
-  }));
+  const mappedStaff: readonly StaffListItem[] = staff.length === 0 ? pilotRoster : staff.map((staffMember) => {
+    const registration = registrationByStaffId.get(String(staffMember.id));
+    return {
+      id: String(staffMember.id),
+      fullName: String(
+        staffMember.fullName ?? staffMember.full_name ?? staffMember.id,
+      ),
+      role: String(registration?.role ?? staffMember.role ?? "staff"),
+      photoUrl: staffMember.photoUrl ? String(staffMember.photoUrl) : null,
+      registrationId: registration?.id ?? null,
+      season: registration?.season ?? null,
+      selected: false,
+    };
+  });
   return enrichStaffWithBackendStatus(managerTeam, mappedStaff);
 }
 
@@ -184,6 +192,19 @@ export interface ApiPlayerRegistration {
 
 export function fetchPlayerRegistrations(query = ""): Promise<readonly ApiPlayerRegistration[]> {
   return request<readonly ApiPlayerRegistration[]>(`/player-registrations${query}`);
+}
+
+export interface ApiStaffRegistration {
+  id: string;
+  staffMemberId: string;
+  clubId: string;
+  season: string;
+  role: string;
+  status: string;
+}
+
+export function fetchStaffRegistrations(query = ""): Promise<readonly ApiStaffRegistration[]> {
+  return request<readonly ApiStaffRegistration[]>(`/staff-registrations${query}`);
 }
 
 function normalizePhotoUrl(value: unknown): string | null {

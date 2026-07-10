@@ -34,6 +34,7 @@ export function createOpenApiDocument(): OpenApiDocument {
     },
 
     '/api/v1/players/{id}/photo': contractPath('getPlayerOfficialPhoto', 'Photo', 'defined'),
+    '/api/v1/staff-members/{id}/photo': contractPath('getStaffOfficialPhoto', 'Photo', 'defined'),
     '/api/v1/registrations/{id}/season-photo': contractPath(
       'getRegistrationSeasonPhoto',
       'Photo',

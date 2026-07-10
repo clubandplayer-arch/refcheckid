@@ -37,6 +37,8 @@ export interface StaffListItem {
   fullName: string;
   role: string;
   photoUrl: string | null;
+  registrationId: string | null;
+  season: string | null;
   selected: boolean;
   photo?: ManagerPhotoState;
 }

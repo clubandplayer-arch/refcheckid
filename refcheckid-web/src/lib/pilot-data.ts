@@ -73,9 +73,9 @@ export const pilotPlayers: readonly PlayerListItem[] = buildPilotPlayers(
 );
 
 export const pilotStaff: readonly StaffListItem[] = [
-  { id: "pilot-staff-1", fullName: "Mario Rossi", role: "Allenatore", photoUrl: null, selected: false },
-  { id: "pilot-staff-2", fullName: "Lucia Bianchi", role: "Medico", photoUrl: null, selected: false },
-  { id: "pilot-staff-3", fullName: "Paolo Verdi", role: "Dirigente accompagnatore", photoUrl: null, selected: false },
+  { id: "pilot-staff-1", fullName: "Mario Rossi", role: "Allenatore", photoUrl: null, registrationId: null, season: null, selected: false },
+  { id: "pilot-staff-2", fullName: "Lucia Bianchi", role: "Medico", photoUrl: null, registrationId: null, season: null, selected: false },
+  { id: "pilot-staff-3", fullName: "Paolo Verdi", role: "Dirigente accompagnatore", photoUrl: null, registrationId: null, season: null, selected: false },
 ];
 
 

@@ -66,7 +66,10 @@ export interface PhotoAccessContext {
 }
 
 export interface CreateUploadIntentCommand {
-  readonly playerId: UUID;
+  readonly subjectKind?: 'athlete' | 'staff_member' | 'referee';
+  readonly subjectId?: UUID;
+  readonly playerId?: UUID;
+  readonly staffMemberId?: UUID;
   readonly registrationId: UUID;
   readonly federationId: UUID;
   readonly seasonId: string;
@@ -103,15 +106,23 @@ export class PhotoService {
   }
 
   async createUploadIntent(command: CreateUploadIntentCommand) {
-    const player = await this.dependencies.photoSubjects.create({
-      subjectKind: 'athlete',
-      canonicalPersonId: command.playerId,
-      dedupeKeyHash: command.playerId,
-    });
+    const subjectKind = command.subjectKind ?? (command.staffMemberId ? 'staff_member' : 'athlete');
+    const subjectId = command.subjectId ?? command.playerId ?? command.staffMemberId;
+    if (subjectId === undefined) {
+      throw new PhotoInvariantViolationError('Upload intent requires a photo subject id.');
+    }
+    const dedupeKeyHash = `${subjectKind}:${subjectId}`;
+    const subject =
+      (await this.dependencies.photoSubjects.findByDedupeKeyHash(dedupeKeyHash)) ??
+      (await this.dependencies.photoSubjects.create({
+        subjectKind,
+        canonicalPersonId: subjectId,
+        dedupeKeyHash,
+      }));
     const global =
-      (await this.dependencies.globalOfficialPhotos.findBySubject(player.id)) ??
+      (await this.dependencies.globalOfficialPhotos.findBySubject(subject.id)) ??
       (await this.dependencies.globalOfficialPhotos.create({
-        photoSubjectId: player.id,
+        photoSubjectId: subject.id,
         currentVersionId: null,
         status: 'pending_first_approval',
         lastApprovedAt: null,
@@ -123,7 +134,7 @@ export class PhotoService {
         : command.mimeType === 'image/webp'
           ? '.webp'
           : '.jpg';
-    const objectKey = `subjects/${player.id}/uploads/${crypto.randomUUID()}/original${extension}`;
+    const objectKey = `subjects/${subject.id}/uploads/${crypto.randomUUID()}/original${extension}`;
     if (
       !this.policyEngine.canUpload(
         command.context,
@@ -142,7 +153,7 @@ export class PhotoService {
     });
     this.uploadSessions.set(intent.uploadId, {
       ...command,
-      photoSubjectId: player.id,
+      photoSubjectId: subject.id,
       globalOfficialPhotoId: global.id,
     });
     await this.dependencies.photoAuditEvents.create({
@@ -152,14 +163,14 @@ export class PhotoService {
       federationId: command.federationId,
       seasonId: command.seasonId,
       registrationId: command.registrationId,
-      photoSubjectId: player.id,
+      photoSubjectId: subject.id,
       photoVersionId: null,
       eventType: 'photo.upload_intent_created',
-      payload: { objectKey, globalOfficialPhotoId: global.id },
+      payload: { objectKey, globalOfficialPhotoId: global.id, subjectKind },
       ipHash: null,
       userAgentHash: null,
     });
-    return { ...intent, photoSubjectId: player.id, globalOfficialPhotoId: global.id };
+    return { ...intent, photoSubjectId: subject.id, globalOfficialPhotoId: global.id, subjectKind };
   }
 
   async completeUpload(command: CompleteUploadCommand) {
