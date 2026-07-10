@@ -283,3 +283,38 @@ describe("unit: referee manifest client", () => {
     );
   });
 });
+
+describe("unit: referee manifest cache guards", () => {
+  it("does not activate legacy fallback when referee manifest is enabled but unavailable", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        matchId: "match-1",
+        manifestVersion: "live-v1",
+        photoEtag: "etag-empty",
+        generatedAt: "2026-07-10T00:00:00.000Z",
+        expiresAt: null,
+        status: "unavailable",
+        subjects: [],
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: () => JSON.stringify({ players: [{ id: "legacy-player" }], staff: [] }),
+      },
+    });
+
+    await expect(fetchRecognitionSubjects("match-1")).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/matches/match-1/photo-manifest"),
+      expect.anything(),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/match-sheets"),
+      expect.anything(),
+    );
+  });
+});

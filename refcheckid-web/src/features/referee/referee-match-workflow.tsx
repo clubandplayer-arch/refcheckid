@@ -48,6 +48,15 @@ const reportSteps = [
   "Riepilogo",
 ] as const;
 
+const manifestQueryOptions = {
+  refetchInterval: false,
+  refetchOnMount: false,
+  refetchOnReconnect: false,
+  refetchOnWindowFocus: false,
+  retry: false,
+  staleTime: Number.POSITIVE_INFINITY,
+} as const;
+
 export function RefereeMatchWorkflow() {
   const [step, setStep] = useState(0);
   const [recognitionClosed, setRecognitionClosed] = useState(false);
@@ -292,6 +301,7 @@ function RecognitionStep({
   const [decisionOrder, setDecisionOrder] = useState<readonly string[]>([]);
   const [isRecognitionClosed, setIsRecognitionClosed] = useState(false);
   const query = useQuery({
+    ...manifestQueryOptions,
     queryFn: () => fetchRecognitionSubjects(matchId),
     queryKey: [...queryKeys.recognitions, matchId],
   });
@@ -564,8 +574,9 @@ function MatchReportStep({
     queryKey: [...queryKeys.matchReports, matchId],
   });
   const recognitionSubjectsQuery = useQuery({
+    ...manifestQueryOptions,
     queryFn: () => fetchRecognitionSubjects(matchId),
-    queryKey: [...queryKeys.recognitions, matchId, "report-options"],
+    queryKey: [...queryKeys.recognitions, matchId],
   });
   const [step, setStep] = useState(0);
   const [report, setReport] = useState<MatchReportDraft | null>(null);
