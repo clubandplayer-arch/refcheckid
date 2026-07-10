@@ -24,8 +24,9 @@ export async function enrichPlayersWithBackendPhotos(
   const flags = getPhotoFeatureFlags();
   const legacyPlayers = flags.legacyLocalFallback ? applyManagerPhotoOverrides(team, players) : players;
   if (!flags.officialBackendRead) return legacyPlayers;
+  const legacyPlayerById = new Map(legacyPlayers.map((player) => [player.id, player]));
   return Promise.all(players.map(async (player) => {
-    const legacyPlayer = legacyPlayers.find((item) => item.id === player.id) ?? player;
+    const legacyPlayer = legacyPlayerById.get(player.id) ?? player;
     const photo = await readBackendPhotoState(player.id, player.registrationId, legacyPlayer.photoUrl);
     return { ...player, photo, photoUrl: photo.currentPhotoUrl };
   }));
