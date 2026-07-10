@@ -87,6 +87,23 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   );
   router.register('POST', '/api/v1/photos/upload-intent', controllers.createPhotoUploadIntent);
   router.register('POST', '/api/v1/photos/uploads/:id/complete', controllers.completePhotoUpload);
+  router.register('GET', '/api/v1/photos/versions/:id', async (request) => ({
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+    body: await container.repositories.photoVersions.findById(request.params.id as never),
+  }));
+  router.register('GET', '/api/v1/photos/versions/:id/content', async (request) => ({
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+    body: await container.services.photos.createSignedReadUrl(
+      request.params.id as never,
+      { actorRole: 'admin', actorId: '00000000-0000-4000-8000-000000000099' },
+      {
+        rendition: request.query.rendition as never,
+        ttlSeconds: Number(request.query.ttlSeconds ?? 300),
+      },
+    ),
+  }));
   router.register('GET', '/api/v1/photo-approvals', controllers.listPhotoApprovals);
   router.register('POST', '/api/v1/photo-approvals/:id/approve', controllers.approvePhotoApproval);
   router.register('POST', '/api/v1/photo-approvals/:id/reject', controllers.rejectPhotoApproval);

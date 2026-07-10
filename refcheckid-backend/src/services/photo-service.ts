@@ -22,6 +22,9 @@ import {
   assertPhotoApprovalTransition,
   assertPhotoVersionTransition,
 } from './photo-state-machine.js';
+import type { PhotoObjectStore } from './photo-object-store.js';
+import { PhotoPolicyEngine } from './photo-policy-engine.js';
+import { PhotoValidationPipeline } from './photo-validation-pipeline.js';
 
 export class PhotoInvariantViolationError extends Error {
   constructor(message: string) {
@@ -46,6 +49,9 @@ export interface PhotoServiceDependencies {
   readonly matchSheetPhotoSnapshots: MatchSheetPhotoSnapshotRepository;
   readonly photoAccessGrants: PhotoAccessGrantRepository;
   readonly photoAuditEvents: PhotoAuditEventRepository;
+  readonly objectStore?: PhotoObjectStore;
+  readonly policyEngine?: PhotoPolicyEngine;
+  readonly validationPipeline?: PhotoValidationPipeline;
 }
 
 export interface PhotoAccessContext {
@@ -59,8 +65,275 @@ export interface PhotoAccessContext {
   readonly grant?: PhotoAccessGrant;
 }
 
+export interface CreateUploadIntentCommand {
+  readonly playerId: UUID;
+  readonly registrationId: UUID;
+  readonly federationId: UUID;
+  readonly seasonId: string;
+  readonly mimeType: string;
+  readonly fileSizeBytes: number;
+  readonly sha256: string;
+  readonly context: PhotoAccessContext;
+}
+export interface CompleteUploadCommand {
+  readonly uploadId: UUID;
+  readonly objectKey: string;
+  readonly contentBase64?: string;
+  readonly context: PhotoAccessContext;
+}
+
 export class PhotoService {
-  constructor(private readonly dependencies: PhotoServiceDependencies) {}
+  private readonly policyEngine: PhotoPolicyEngine;
+  private readonly validationPipeline: PhotoValidationPipeline;
+  private readonly uploadSessions = new Map<
+    UUID,
+    CreateUploadIntentCommand & { photoSubjectId: UUID; globalOfficialPhotoId: UUID }
+  >();
+
+  constructor(private readonly dependencies: PhotoServiceDependencies) {
+    this.policyEngine = dependencies.policyEngine ?? new PhotoPolicyEngine();
+    this.validationPipeline = dependencies.validationPipeline ?? new PhotoValidationPipeline();
+  }
+
+  async createUploadIntent(command: CreateUploadIntentCommand) {
+    const player = await this.dependencies.photoSubjects.create({
+      subjectKind: 'athlete',
+      canonicalPersonId: command.playerId,
+      dedupeKeyHash: command.playerId,
+    });
+    const global =
+      (await this.dependencies.globalOfficialPhotos.findBySubject(player.id)) ??
+      (await this.dependencies.globalOfficialPhotos.create({
+        photoSubjectId: player.id,
+        currentVersionId: null,
+        status: 'pending_first_approval',
+        lastApprovedAt: null,
+        lastChangedAt: new Date().toISOString(),
+      }));
+    const extension =
+      command.mimeType === 'image/png'
+        ? '.png'
+        : command.mimeType === 'image/webp'
+          ? '.webp'
+          : '.jpg';
+    const objectKey = `subjects/${player.id}/uploads/${crypto.randomUUID()}/original${extension}`;
+    if (
+      !this.policyEngine.canUpload(
+        command.context,
+        command.context.registrationClubId ?? command.context.clubId ?? '',
+        command.federationId,
+      )
+    )
+      throw new PhotoAuthorizationError('Actor cannot upload a photo for this registration.');
+    if (this.dependencies.objectStore === undefined)
+      throw new PhotoInvariantViolationError('Photo object store is not configured.');
+    const intent = await this.dependencies.objectStore.createUploadIntent({
+      objectKey,
+      mimeType: command.mimeType,
+      fileSizeBytes: command.fileSizeBytes,
+      sha256: command.sha256,
+    });
+    this.uploadSessions.set(intent.uploadId, {
+      ...command,
+      photoSubjectId: player.id,
+      globalOfficialPhotoId: global.id,
+    });
+    await this.dependencies.photoAuditEvents.create({
+      correlationId: intent.uploadId,
+      actorUserId: command.context.actorId,
+      actorRole: command.context.actorRole,
+      federationId: command.federationId,
+      seasonId: command.seasonId,
+      registrationId: command.registrationId,
+      photoSubjectId: player.id,
+      photoVersionId: null,
+      eventType: 'photo.upload_intent_created',
+      payload: { objectKey, globalOfficialPhotoId: global.id },
+      ipHash: null,
+      userAgentHash: null,
+    });
+    return { ...intent, photoSubjectId: player.id, globalOfficialPhotoId: global.id };
+  }
+
+  async completeUpload(command: CompleteUploadCommand) {
+    if (this.dependencies.objectStore === undefined)
+      throw new PhotoInvariantViolationError('Photo object store is not configured.');
+    if (command.contentBase64 !== undefined && this.dependencies.objectStore.putObject)
+      await this.dependencies.objectStore.putObject(
+        command.objectKey,
+        Buffer.from(command.contentBase64, 'base64'),
+      );
+    const uploaded = await this.dependencies.objectStore.confirmUploadedObject(command.objectKey);
+    const bytes = uploaded.bytes;
+    if (bytes === undefined)
+      throw new PhotoInvariantViolationError('Object store did not return bytes for validation.');
+    const intentMime = command.objectKey.endsWith('.png') ? 'image/png' : 'image/jpeg';
+    const validated = this.validationPipeline.validate({ bytes, declaredMimeType: intentMime });
+    const subjectId = command.objectKey.split('/')[1];
+    const global = await this.dependencies.globalOfficialPhotos.findBySubject(subjectId);
+    if (global === null)
+      throw new PhotoInvariantViolationError('Global official photo was not found for upload.');
+    const existing = await this.dependencies.photoVersions.listByGlobalPhoto(global.id);
+    const version = await this.dependencies.photoVersions.create({
+      globalOfficialPhotoId: global.id,
+      versionNumber: existing.length + 1,
+      uploadedByUserId: command.context.actorId,
+      uploadedByRole: command.context.actorRole,
+      uploadedByClubId: command.context.clubId ?? null,
+      originFederationId: command.context.federationId ?? null,
+      originSeasonId: this.uploadSessions.get(command.uploadId)?.seasonId ?? null,
+      storageOriginalKey: command.objectKey,
+      storageNormalizedKey: `${command.objectKey}.normalized`,
+      mimeType: validated.mimeType,
+      normalizedMimeType: validated.normalizedMimeType,
+      fileSizeBytes: validated.fileSizeBytes,
+      width: validated.width,
+      height: validated.height,
+      sha256: validated.sha256,
+      perceptualHash: validated.perceptualHash,
+      exifStripped: validated.exifStripped,
+      avScanStatus: validated.avScanStatus,
+      validationStatus: 'valid',
+      status: 'active',
+      activatedAt: null,
+      supersededAt: null,
+      archivedAt: null,
+      rejectionReasonCode: null,
+      rejectionNotes: null,
+    });
+    for (const active of await this.dependencies.photoVersions.listActiveByGlobalPhoto(global.id)) {
+      if (active.id !== version.id)
+        await this.dependencies.photoVersions.update(active.id, {
+          status: 'superseded',
+          supersededAt: new Date().toISOString(),
+        });
+    }
+    const session = this.uploadSessions.get(command.uploadId);
+    await this.dependencies.globalOfficialPhotos.update(global.id, {
+      currentVersionId: version.id,
+      status: 'active',
+      lastApprovedAt: new Date().toISOString(),
+      lastChangedAt: new Date().toISOString(),
+    });
+    if (session !== undefined) {
+      const approval = await this.dependencies.photoApprovals.create({
+        photoVersionId: version.id,
+        federationId: session.federationId,
+        disciplineId: null,
+        seasonId: session.seasonId,
+        registrationId: session.registrationId,
+        requestedByUserId: session.context.actorId,
+        requestedAt: new Date().toISOString(),
+        decidedByUserId: session.context.actorId,
+        decidedAt: new Date().toISOString(),
+        status: 'approved',
+        decisionReasonCode: 'auto_validated_milestone_b',
+        decisionNotes: null,
+        scope: 'single_registration',
+        slaDueAt: null,
+      });
+      const existingSeasonPhoto =
+        await this.dependencies.seasonRegistrationPhotos.findByRegistrationSeason(
+          session.registrationId,
+          session.seasonId,
+        );
+      if (existingSeasonPhoto === null) {
+        await this.dependencies.seasonRegistrationPhotos.create({
+          federationId: session.federationId,
+          disciplineId: null,
+          seasonId: session.seasonId,
+          registrationId: session.registrationId,
+          photoSubjectId: subjectId,
+          globalOfficialPhotoId: global.id,
+          effectiveVersionId: version.id,
+          approvalId: approval.id,
+          status: 'valid',
+          validFrom: new Date().toISOString(),
+          validUntil: null,
+        });
+      } else {
+        await this.dependencies.seasonRegistrationPhotos.update(existingSeasonPhoto.id, {
+          effectiveVersionId: version.id,
+          approvalId: approval.id,
+          status: 'valid',
+        });
+      }
+    }
+    await this.dependencies.objectStore.registerRendition({
+      sourceObjectKey: command.objectKey,
+      renditionObjectKey: `${command.objectKey}.normalized`,
+      rendition: 'normalized',
+      mimeType: validated.normalizedMimeType,
+      width: validated.width,
+      height: validated.height,
+      bytes: validated.normalized,
+    });
+    await this.dependencies.photoAuditEvents.create({
+      correlationId: command.uploadId,
+      actorUserId: command.context.actorId,
+      actorRole: command.context.actorRole,
+      federationId: command.context.federationId ?? null,
+      seasonId: null,
+      registrationId: null,
+      photoSubjectId: subjectId,
+      photoVersionId: version.id,
+      eventType: 'photo.validation_passed',
+      payload: { sha256: validated.sha256, perceptualHash: validated.perceptualHash },
+      ipHash: null,
+      userAgentHash: null,
+    });
+    return version;
+  }
+
+  async createSignedReadUrl(
+    versionId: UUID,
+    context: PhotoAccessContext,
+    requested: {
+      rendition?: 'original' | 'normalized' | 'thumb_128' | 'thumb_320';
+      ttlSeconds?: number;
+      disposition?: 'inline' | 'attachment';
+    } = {},
+  ) {
+    const version = await this.requirePhotoVersion(versionId);
+    const registrations = await this.dependencies.seasonRegistrationPhotos.listByVersion(
+      version.id,
+    );
+    const policy = registrations[0]
+      ? this.policyEngine.readPolicy(context, registrations[0], requested)
+      : {
+          rendition: requested.rendition ?? 'normalized',
+          ttlSeconds: Math.min(requested.ttlSeconds ?? 300, 900),
+          disposition: requested.disposition ?? 'inline',
+        };
+    if (this.dependencies.objectStore === undefined)
+      throw new PhotoInvariantViolationError('Photo object store is not configured.');
+    const objectKey =
+      policy.rendition === 'original'
+        ? version.storageOriginalKey
+        : (version.storageNormalizedKey ?? version.storageOriginalKey);
+    const signed = await this.dependencies.objectStore.createSignedReadUrl({
+      objectKey,
+      rendition: policy.rendition,
+      ttlSeconds: policy.ttlSeconds,
+      disposition: policy.disposition,
+      correlationId: crypto.randomUUID(),
+    });
+    await this.dependencies.photoAuditEvents.create({
+      correlationId: crypto.randomUUID(),
+      actorUserId: context.actorId,
+      actorRole: context.actorRole,
+      federationId: context.federationId ?? null,
+      seasonId: registrations[0]?.seasonId ?? null,
+      registrationId: registrations[0]?.registrationId ?? null,
+      photoSubjectId: null,
+      photoVersionId: version.id,
+      eventType: 'photo.signed_url_issued',
+      payload: { rendition: policy.rendition, ttlSeconds: policy.ttlSeconds },
+      ipHash: null,
+      userAgentHash: null,
+    });
+    return { version, signedUrl: signed, rendition: policy.rendition };
+  }
 
   async transitionPhotoVersion(
     versionId: UUID,

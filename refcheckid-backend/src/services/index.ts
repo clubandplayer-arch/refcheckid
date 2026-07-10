@@ -7,3 +7,5 @@ export * from './audit-service.js';
 export * from './photo-service.js';
 export * from './photo-state-machine.js';
 export * from './photo-object-store.js';
+export * from './photo-policy-engine.js';
+export * from './photo-validation-pipeline.js';

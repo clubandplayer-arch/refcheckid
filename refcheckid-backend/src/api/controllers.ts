@@ -51,39 +51,74 @@ export function createControllers(container: ApplicationContainer): Record<strin
       ),
     listPhotos: async () => json(200, await container.repositories.photos.list()),
     listPhotoSubjects: async () => json(200, await container.services.photos.listPhotoSubjects()),
-    getPlayerPhoto: () =>
-      json(501, {
-        status: 'defined',
-        milestone: 'ARCH-1 Milestone A',
-        implementationStatus: 'contract_only',
-        message:
-          'Official player photo resolution is defined by ARCH-1 and implemented in a later milestone.',
-      }),
-    getRegistrationSeasonPhoto: () =>
-      json(501, {
-        status: 'defined',
-        milestone: 'ARCH-1 Milestone A',
-        implementationStatus: 'contract_only',
-        message:
-          'Season registration photo resolution contract is defined but not operational yet.',
-      }),
+    getPlayerPhoto: async (request) => {
+      const subject = (await container.repositories.photoSubjects.list()).find(
+        (row) => row.canonicalPersonId === requireUuid(request.params.id, 'id'),
+      );
+      if (!subject) return json(404, { error: 'PHOTO_NOT_FOUND' });
+      const global = await container.repositories.globalOfficialPhotos.findBySubject(subject.id);
+      if (!global?.currentVersionId) return json(404, { error: 'PHOTO_NOT_FOUND' });
+      return json(
+        200,
+        await container.services.photos.createSignedReadUrl(
+          global.currentVersionId,
+          photoContext(request, request.query),
+          {
+            rendition: request.query.rendition as never,
+            ttlSeconds: Number(request.query.ttlSeconds ?? 300),
+          },
+        ),
+      );
+    },
+    getRegistrationSeasonPhoto: async (request) => {
+      const photo = (await container.repositories.seasonRegistrationPhotos.list()).find(
+        (row) => row.registrationId === requireUuid(request.params.id, 'id'),
+      );
+      if (!photo) return json(404, { error: 'PHOTO_NOT_FOUND' });
+      return json(
+        200,
+        await container.services.photos.createSignedReadUrl(
+          photo.effectiveVersionId,
+          photoContext(request, {
+            ...request.query,
+            registrationClubId: request.query.registrationClubId,
+          }),
+          {
+            rendition: request.query.rendition as never,
+            ttlSeconds: Number(request.query.ttlSeconds ?? 300),
+          },
+        ),
+      );
+    },
     createPhotoUploadIntent: async (request) => {
       const body = requireBodyObject(request.body);
-      return json(202, {
-        implementationStatus: 'stub',
-        intent: await container.objectStores.photos.createUploadIntent({
-          objectKey: requireString(body.objectKey, 'objectKey'),
-          mimeType: requireString(body.mimeType, 'mimeType'),
-          fileSizeBytes: Number(body.fileSizeBytes ?? 0),
-          sha256: requireString(body.sha256, 'sha256'),
-        }),
+      const intent = await container.services.photos.createUploadIntent({
+        playerId: requireUuid(String(body.playerId), 'playerId'),
+        registrationId: requireUuid(String(body.registrationId), 'registrationId'),
+        federationId: requireUuid(String(body.federationId), 'federationId'),
+        seasonId: requireString(body.seasonId, 'seasonId'),
+        mimeType: requireString(body.mimeType, 'mimeType'),
+        fileSizeBytes: Number(body.fileSizeBytes ?? 0),
+        sha256: requireString(body.sha256, 'sha256'),
+        context: photoContext(request, body),
       });
+      return json(202, { intent });
     },
-    completePhotoUpload: () =>
-      json(501, {
-        implementationStatus: 'contract_only',
-        message: 'Upload completion workflow is deferred.',
-      }),
+    completePhotoUpload: async (request) => {
+      const body = requireBodyObject(request.body);
+      const command = {
+        uploadId: requireUuid(request.params.id, 'id'),
+        objectKey: requireString(body.objectKey, 'objectKey'),
+        context: photoContext(request, body),
+      } as import('../services/photo-service.js').CompleteUploadCommand;
+      const contentBase64 = optionalString(body.contentBase64, 'contentBase64');
+      return json(
+        200,
+        await container.services.photos.completeUpload(
+          contentBase64 === null ? command : { ...command, contentBase64 },
+        ),
+      );
+    },
     listPhotoApprovals: async (request) =>
       json(
         200,
@@ -304,3 +339,24 @@ const containerOpenApiPlaceholder = {
 };
 const swaggerHtml =
   '<!doctype html><html><body><redoc spec-url="/api/docs/openapi.json"></redoc></body></html>';
+
+function photoContext(
+  request: { auth?: { actorId: string; roles: readonly string[] } },
+  source: Record<string, unknown>,
+) {
+  const role = optionalString(source.actorRole, 'actorRole') ?? request.auth?.roles[0] ?? 'admin';
+  const context: Record<string, unknown> = {
+    actorRole: role as 'manager' | 'federation' | 'referee' | 'admin',
+    actorId:
+      request.auth?.actorId ??
+      optionalString(source.actorId, 'actorId') ??
+      '00000000-0000-4000-8000-000000000099',
+  };
+  const clubId = optionalString(source.clubId, 'clubId');
+  const federationId = optionalString(source.federationId, 'federationId');
+  const registrationClubId = optionalString(source.registrationClubId, 'registrationClubId');
+  if (clubId !== null) context.clubId = clubId;
+  if (federationId !== null) context.federationId = federationId;
+  if (registrationClubId !== null) context.registrationClubId = registrationClubId;
+  return context as unknown as import('../services/photo-service.js').PhotoAccessContext;
+}
