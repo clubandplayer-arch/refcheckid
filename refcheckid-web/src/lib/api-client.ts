@@ -1,6 +1,8 @@
 import { getApiBaseUrl } from "./api-base-url";
 import { managerTeamConfig, getCurrentManagerTeam } from "./manager-team";
 import { applyManagerPhotoOverrides } from "./manager-photo-store";
+import { enrichPlayersWithBackendPhotos, enrichStaffWithBackendStatus } from "./manager-photo-backend";
+import { getPhotoFeatureFlags } from "./photo-feature-flags";
 import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
 import {
   isSessionExpired,
@@ -98,8 +100,8 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
   const players = await request<readonly Record<string, unknown>[]>("/players");
   const managerTeam = getCurrentManagerTeam();
   const pilotRoster = managerTeam === "away" ? pilotAwayPlayers : pilotPlayers;
-  if (players.length === 0) return applyManagerPhotoOverrides(managerTeam, pilotRoster);
-  return applyManagerPhotoOverrides(managerTeam, players.map((player) => ({
+  const flags = getPhotoFeatureFlags();
+  const mappedPlayers: readonly PlayerListItem[] = players.length === 0 ? pilotRoster : players.map((player) => ({
     id: String(player.id),
     firstName: String(player.firstName ?? player.first_name ?? ""),
     lastName: String(player.lastName ?? player.last_name ?? ""),
@@ -108,11 +110,13 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
 	    suspended: Boolean(player.suspended ?? false),
 	    selected: false,
 	    shirtNumber: null,
-	    role: "starter",
+	    role: "starter" as const,
 	    isGoalkeeper: false,
 	    isCaptain: false,
 	    isViceCaptain: false,
-	  })));
+	  }));
+  const withLegacyFallback = flags.legacyLocalFallback ? applyManagerPhotoOverrides(managerTeam, mappedPlayers) : mappedPlayers;
+  return enrichPlayersWithBackendPhotos(withLegacyFallback);
 }
 
 export async function fetchStaff(): Promise<readonly StaffListItem[]> {
@@ -120,8 +124,8 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
     await request<readonly Record<string, unknown>[]>("/staff-members");
   const managerTeam = getCurrentManagerTeam();
   const pilotRoster = managerTeam === "away" ? pilotAwayStaff : pilotStaff;
-  if (staff.length === 0) return applyManagerPhotoOverrides(managerTeam, pilotRoster);
-  return applyManagerPhotoOverrides(managerTeam, staff.map((staffMember) => ({
+  const flags = getPhotoFeatureFlags();
+  const mappedStaff: readonly StaffListItem[] = staff.length === 0 ? pilotRoster : staff.map((staffMember) => ({
     id: String(staffMember.id),
     fullName: String(
       staffMember.fullName ?? staffMember.full_name ?? staffMember.id,
@@ -129,7 +133,9 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
     role: String(staffMember.role ?? "staff"),
     photoUrl: staffMember.photoUrl ? String(staffMember.photoUrl) : null,
     selected: false,
-  })));
+  }));
+  const withLegacyFallback = flags.legacyLocalFallback ? applyManagerPhotoOverrides(managerTeam, mappedStaff) : mappedStaff;
+  return enrichStaffWithBackendStatus(withLegacyFallback);
 }
 
 export function fetchMatches(query = ""): Promise<readonly ApiMatch[]> {

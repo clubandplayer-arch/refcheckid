@@ -12,6 +12,8 @@ export interface ManagerDashboard {
   notifications: readonly string[];
 }
 
+import type { ManagerPhotoState } from "./manager-photo-backend";
+
 export interface PlayerListItem {
   id: string;
   firstName: string;
@@ -25,6 +27,7 @@ export interface PlayerListItem {
   isGoalkeeper: boolean;
   isCaptain: boolean;
   isViceCaptain: boolean;
+  photo?: ManagerPhotoState;
 }
 
 export interface StaffListItem {
@@ -33,4 +36,5 @@ export interface StaffListItem {
   role: string;
   photoUrl: string | null;
   selected: boolean;
+  photo?: ManagerPhotoState;
 }

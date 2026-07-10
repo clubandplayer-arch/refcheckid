@@ -26,10 +26,10 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("5 * 1024 * 1024");
     expect(source).toContain("Conferma una preview prima del salvataggio");
     expect(source).toContain("Conferma caricamento");
-    expect(source).toContain("immagine sostituirà quella attuale solo dopo approvazione");
-    expect(source).toContain("Foto mancante");
-    expect(source).toContain("localStorage del");
-    expect(source).toContain("storage remoto");
+    expect(source).toContain("foto ufficiale corrente resta visibile");
+    expect(source).toContain("Missing");
+    expect(source).toContain("backend è la Source of Truth");
+    expect(source).toContain("Upload Intent");
   });
 
   it("opens crop controls before saving the photo", () => {

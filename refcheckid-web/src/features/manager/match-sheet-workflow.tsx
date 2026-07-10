@@ -25,6 +25,8 @@ import {
 } from "@/lib/match-sheet-validation";
 import { managerTeamConfig, getCurrentManagerTeam } from "@/lib/manager-team";
 import { saveManagerSubjectPhoto } from "@/lib/manager-photo-store";
+import { uploadOfficialPlayerPhoto } from "@/lib/manager-photo-backend";
+import { getPhotoFeatureFlags } from "@/lib/photo-feature-flags";
 import { clearSubmittedMatchSheetSnapshot, saveSubmittedMatchSheetSnapshot } from "@/lib/submitted-match-sheet";
 import {
   fetchMatchSheets,
@@ -148,8 +150,27 @@ export function MatchSheetWorkflow() {
     if (isReadOnly) return;
     setSelectedStaff(updater(staff));
   }
-  function updatePlayerPhoto(playerId: string, photoUrl: string) {
+  async function updatePlayerPhoto(playerId: string, photoUrl: string) {
     const player = players.find((item) => item.id === playerId);
+    const flags = getPhotoFeatureFlags();
+    if (flags.officialBackendUpload) {
+      const state = await uploadOfficialPlayerPhoto({
+        playerId,
+        registrationId: playerId,
+        clubId: managerClubId,
+        federationId: managerTeamConfig[managerTeam].federationId,
+        seasonId: "2026",
+        dataUrl: photoUrl,
+      });
+      setPlayerList((current) =>
+        current.map((item) =>
+          item.id === playerId ? { ...item, photo: state, photoUrl: state.currentPhotoUrl ?? item.photoUrl } : item,
+        ),
+      );
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.players, managerTeam] });
+      notify(state.status === "pending" ? "Foto inviata al backend: richiesta in attesa di approvazione federale" : "Foto tesserato aggiornata dal backend", "success");
+      return;
+    }
     const status = saveManagerSubjectPhoto(
       managerTeam,
       playerId,
@@ -166,7 +187,7 @@ export function MatchSheetWorkflow() {
       notify("Foto tesserato aggiornata", "success");
       return;
     }
-    notify("Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto attuale a tuo rischio durante il riconoscimento", "success");
+    notify("Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto ufficiale corrente", "success");
   }
   function updateStaffPhoto(staffId: string, photoUrl: string) {
     const staffMember = staff.find((item) => item.id === staffId);
@@ -208,12 +229,12 @@ export function MatchSheetWorkflow() {
     });
     reader.readAsDataURL(file);
   }
-  async function confirmPhoto(subjectId: string, applyPhoto: (photoUrl: string) => void) {
+  async function confirmPhoto(subjectId: string, applyPhoto: (photoUrl: string) => void | Promise<void>) {
     if (!photoDraft || photoDraft.id !== subjectId) {
       setPhotoError("Conferma una preview prima del salvataggio.");
       return;
     }
-    applyPhoto(await cropPhotoDraft(photoDraft));
+    await applyPhoto(await cropPhotoDraft(photoDraft));
     setPhotoDraft(null);
     setPhotoError(null);
   }
@@ -489,11 +510,12 @@ function PlayersStep({
               <p className="text-xs leading-relaxed text-slate-500">
                 {player.warning ? "Diffida" : "Nessuna diffida"} ·{" "}
                 {player.suspended ? "Squalificato" : "Disponibile"}
-                {!player.photoUrl ? " · Foto mancante" : ""}
               </p>
+              <BackendPhotoStatus photo={player.photo} />
             </div>
+            <PhotoComparison currentPhotoUrl={player.photo?.currentPhotoUrl ?? player.photoUrl} proposedPhotoUrl={player.photo?.proposedPhotoUrl ?? null} />
             <PhotoCaptureControls
-              currentPhotoUrl={player.photoUrl}
+              currentPhotoUrl={player.photo?.currentPhotoUrl ?? player.photoUrl}
               onConfirm={() => onConfirmPhoto(player.id)}
               onPhotoSelected={(file) => onPhotoSelected(player.id, file)}
               onPhotoTransform={(transform) => onPhotoTransform(player.id, transform)}
@@ -519,6 +541,38 @@ function PlayersStep({
   );
 }
 
+function BackendPhotoStatus({ photo }: Readonly<{ photo: PlayerListItem["photo"] | StaffListItem["photo"] }>) {
+  const status = photo?.status ?? "missing";
+  const label = {
+    active: "Active",
+    missing: "Missing",
+    pending: "Pending Approval",
+    rejected: "Rejected",
+    suspended: "Suspended",
+  }[status];
+  const tone = {
+    active: "bg-green-100 text-green-800",
+    missing: "bg-slate-100 text-slate-700",
+    pending: "bg-amber-100 text-amber-800",
+    rejected: "bg-red-100 text-red-800",
+    suspended: "bg-orange-100 text-orange-800",
+  }[status];
+  return <span className={`inline-flex w-fit rounded-full px-2 py-1 text-[11px] font-semibold ${tone}`}>{label}</span>;
+}
+
+function PhotoComparison({ currentPhotoUrl, proposedPhotoUrl }: Readonly<{ currentPhotoUrl: string | null; proposedPhotoUrl: string | null }>) {
+  if (!proposedPhotoUrl) return null;
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] font-semibold text-amber-900">
+      <span>Foto ufficiale corrente</span>
+      {currentPhotoUrl ? <Image alt="Foto ufficiale corrente" className="h-12 w-9 rounded border object-cover" height={48} src={currentPhotoUrl} width={36} /> : <span>Missing</span>}
+      <span>↓</span>
+      <Image alt="Nuova foto proposta" className="h-12 w-9 rounded border object-cover" height={48} src={proposedPhotoUrl} width={36} />
+      <span>Nuova foto proposta</span>
+    </div>
+  );
+}
+
 function PhotoApprovalNotice() {
   return (
     <div className="grid gap-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-800 md:grid-cols-[minmax(0,1fr)_180px] md:items-center">
@@ -526,16 +580,10 @@ function PhotoApprovalNotice() {
         <p className="font-semibold">Nota foto tesserati</p>
         <p>
           Smartphone consigliato: inquadra tutto il volto. Da desktop puoi
-          caricare un file immagine. Se modifichi una foto già presente, la nuova
-          immagine sostituirà quella attuale solo dopo approvazione della
-          Federazione; fino ad allora il Club continua a usare la foto attuale, a
-          proprio rischio in caso di incongruenza visiva durante il riconoscimento.
-        </p>
-        <p className="mt-2 font-medium">
-          Nota pilota: le foto confermate sono salvate nel localStorage del
-          browser che le carica. Su un altro dispositivo o browser mobile non
-          risultano visibili finché non viene introdotto uno storage remoto
-          condiviso.
+          caricare un file immagine. L’upload usa Upload Intent e Upload Complete
+          del backend ARCH-1: il backend è la Source of Truth delle foto ufficiali.
+          Se sostituisci una foto attiva, la foto ufficiale corrente resta visibile
+          fino all’approvazione federale e la nuova foto compare come proposta pending.
         </p>
       </div>
       <PhotoExampleIllustration />
@@ -918,9 +966,7 @@ function StaffStep({
               {staffMember.fullName}
             </p>
             <p className="text-xs leading-relaxed text-slate-500">{staffMember.role}</p>
-            {!staffMember.photoUrl ? (
-              <p className="text-xs font-semibold text-red-600">Foto mancante</p>
-            ) : null}
+            <BackendPhotoStatus photo={staffMember.photo} />
           </div>
           <PhotoCaptureControls
             currentPhotoUrl={staffMember.photoUrl}
