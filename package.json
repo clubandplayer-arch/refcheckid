@@ -18,6 +18,10 @@
     "test:performance": "pnpm --filter refcheckid-backend test:performance",
     "coverage": "pnpm -r coverage",
     "build": "pnpm -r build",
-    "smoke": "node scripts/smoke-test.mjs"
+    "smoke": "node scripts/smoke-test.mjs",
+    "migrate": "pnpm -C refcheckid-backend migrate",
+    "migrate:status": "pnpm -C refcheckid-backend migrate:status",
+    "migrate:rollback": "pnpm -C refcheckid-backend migrate:rollback",
+    "migrate:dry-run": "pnpm -C refcheckid-backend migrate:dry-run"
   }
 }

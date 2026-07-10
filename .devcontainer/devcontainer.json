@@ -12,5 +12,6 @@
       "onAutoForward": "notify",
       "protocol": "http"
     }
-  }
+  },
+  "postCreateCommand": ".devcontainer/install-supabase-cli.sh && corepack enable && pnpm install --frozen-lockfile=false"
 }

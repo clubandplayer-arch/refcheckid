@@ -50,6 +50,73 @@ export function createControllers(container: ApplicationContainer): Record<strin
             ),
       ),
     listPhotos: async () => json(200, await container.repositories.photos.list()),
+    listPhotoSubjects: async () => json(200, await container.services.photos.listPhotoSubjects()),
+    getPlayerPhoto: () =>
+      json(501, {
+        status: 'defined',
+        milestone: 'ARCH-1 Milestone A',
+        implementationStatus: 'contract_only',
+        message:
+          'Official player photo resolution is defined by ARCH-1 and implemented in a later milestone.',
+      }),
+    getRegistrationSeasonPhoto: () =>
+      json(501, {
+        status: 'defined',
+        milestone: 'ARCH-1 Milestone A',
+        implementationStatus: 'contract_only',
+        message:
+          'Season registration photo resolution contract is defined but not operational yet.',
+      }),
+    createPhotoUploadIntent: async (request) => {
+      const body = requireBodyObject(request.body);
+      return json(202, {
+        implementationStatus: 'stub',
+        intent: await container.objectStores.photos.createUploadIntent({
+          objectKey: requireString(body.objectKey, 'objectKey'),
+          mimeType: requireString(body.mimeType, 'mimeType'),
+          fileSizeBytes: Number(body.fileSizeBytes ?? 0),
+          sha256: requireString(body.sha256, 'sha256'),
+        }),
+      });
+    },
+    completePhotoUpload: () =>
+      json(501, {
+        implementationStatus: 'contract_only',
+        message: 'Upload completion workflow is deferred.',
+      }),
+    listPhotoApprovals: async (request) =>
+      json(
+        200,
+        request.query.federationId === undefined
+          ? []
+          : await container.services.photos.listApprovalsByFederation(
+              requireUuid(request.query.federationId, 'federationId'),
+            ),
+      ),
+    approvePhotoApproval: () =>
+      json(501, {
+        implementationStatus: 'contract_only',
+        message: 'Approval command is defined for Milestone B.',
+      }),
+    rejectPhotoApproval: () =>
+      json(501, {
+        implementationStatus: 'contract_only',
+        message: 'Reject command is defined for Milestone B.',
+      }),
+    listMatchSheetPhotoSnapshots: async (request) =>
+      json(
+        200,
+        await container.repositories.matchSheetPhotoSnapshots.listByMatchSheet(
+          requireUuid(request.params.id, 'id'),
+        ),
+      ),
+    getMatchPhotoManifest: () =>
+      json(501, {
+        implementationStatus: 'contract_only',
+        message: 'Referee photo manifest is defined for later implementation.',
+      }),
+    listPhotoAuditEvents: async () =>
+      json(200, await container.repositories.photoAuditEvents.list()),
     listIdentityDocuments: () => json(200, []),
 
     syncFederation: async (request) =>

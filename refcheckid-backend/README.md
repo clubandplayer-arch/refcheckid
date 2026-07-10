@@ -87,6 +87,26 @@ Le convenzioni tecniche già definite per il progetto sono:
 
 Il repository contiene esclusivamente lo scheletro enterprise iniziale e la configurazione di base degli strumenti di sviluppo.
 
+## Database migrations
+
+RefCheckID backend migrations are applied through the official project workflow:
+
+```bash
+pnpm migrate
+```
+
+The command delegates to `refcheckid-backend/scripts/migrate.mjs`, validates the canonical SQL files in `database/migrations`, prepares a temporary Supabase CLI workdir and runs `supabase db push` against `SUPABASE_DB_URL` or `DATABASE_URL`.
+
+Useful commands:
+
+- `pnpm migrate:status` lists canonical migrations and checksums.
+- `pnpm -C refcheckid-backend migrate:dry-run` validates migration ordering/naming without connecting to the database.
+- `pnpm migrate:rollback` documents the forward-only policy and fails intentionally; rollback is performed through a new corrective migration.
+
+See `database/MIGRATIONS.md` for the full workflow.
+
+In GitHub Codespaces, Supabase CLI is installed by the devcontainer `postCreateCommand`; rebuild the container if `supabase --version` is not available in an existing Codespace.
+
 ## Backend application layer
 
 La Milestone 10 introduce lo skeleton iniziale dell'application layer backend:

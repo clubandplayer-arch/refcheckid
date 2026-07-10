@@ -20,7 +20,11 @@
     "test:regression": "vitest run tests/regression",
     "test:security": "vitest run tests/security",
     "test:performance": "vitest run tests/performance",
-    "coverage": "vitest run && node scripts/write-coverage-report.mjs"
+    "coverage": "vitest run && node scripts/write-coverage-report.mjs",
+    "migrate": "node scripts/migrate.mjs migrate",
+    "migrate:dry-run": "node scripts/migrate.mjs migrate --dry-run",
+    "migrate:status": "node scripts/migrate.mjs status",
+    "migrate:rollback": "node scripts/migrate.mjs rollback"
   },
   "engines": {
     "node": ">=20.0.0",

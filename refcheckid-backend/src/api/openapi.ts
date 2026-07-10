@@ -32,6 +32,37 @@ export function createOpenApiDocument(): OpenApiDocument {
         responses: { '200': { description: 'API is healthy.' } },
       },
     },
+
+    '/api/v1/players/{id}/photo': contractPath('getPlayerOfficialPhoto', 'Photo', 'defined'),
+    '/api/v1/registrations/{id}/season-photo': contractPath(
+      'getRegistrationSeasonPhoto',
+      'Photo',
+      'defined',
+    ),
+    '/api/v1/photos/upload-intent': contractPath('createPhotoUploadIntent', 'Photo', 'stub'),
+    '/api/v1/photos/uploads/{id}/complete': contractPath('completePhotoUpload', 'Photo', 'defined'),
+    '/api/v1/photo-approvals': contractPath('listPhotoApprovals', 'PhotoApproval', 'implemented'),
+    '/api/v1/photo-approvals/{id}/approve': contractPath(
+      'approvePhotoApproval',
+      'PhotoApproval',
+      'defined',
+    ),
+    '/api/v1/photo-approvals/{id}/reject': contractPath(
+      'rejectPhotoApproval',
+      'PhotoApproval',
+      'defined',
+    ),
+    '/api/v1/match-sheets/{id}/photo-snapshots': contractPath(
+      'listMatchSheetPhotoSnapshots',
+      'Photo',
+      'implemented',
+    ),
+    '/api/v1/matches/{id}/photo-manifest': contractPath(
+      'getMatchPhotoManifest',
+      'Photo',
+      'defined',
+    ),
+    '/api/v1/photos/audit': contractPath('listPhotoAuditEvents', 'PhotoAudit', 'implemented'),
     '/api/v1/federation-sync': {
       post: {
         tags: ['FederationSync'],
@@ -101,6 +132,26 @@ function mutationPath(operationId: string, tag: string): Record<string, unknown>
       responses: {
         '200': { description: 'Mutation completed.' },
         '400': { description: 'Validation error.' },
+      },
+    },
+  };
+}
+
+function contractPath(
+  operationId: string,
+  tag: string,
+  implementationStatus: 'implemented' | 'stub' | 'defined',
+): Record<string, unknown> {
+  const method = operationId.startsWith('get') || operationId.startsWith('list') ? 'get' : 'post';
+  return {
+    [method]: {
+      tags: [tag],
+      operationId,
+      'x-implementation-status': implementationStatus,
+      responses: {
+        '200': { description: `ARCH-1 ${implementationStatus} contract.` },
+        '202': { description: 'Accepted stub contract.' },
+        '501': { description: 'Defined for a later ARCH-1 milestone.' },
       },
     },
   };
