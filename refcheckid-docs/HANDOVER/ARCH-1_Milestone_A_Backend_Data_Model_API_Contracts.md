@@ -95,3 +95,14 @@ Implemented or stubbed in router/OpenAPI:
 - Implement approval commands and official photo read resolution.
 - Implement match sheet closure snapshot creation in the backend workflow.
 - Add live migration execution validation against PostgreSQL/Supabase.
+
+## Milestone A.1 migration infrastructure update
+
+Milestone A.1 adds the official migration workflow before Milestone B:
+
+- canonical SQL migrations remain in `refcheckid-backend/database/migrations`;
+- `pnpm migrate` is the official root command;
+- `pnpm migrate:status` lists migrations and checksums;
+- `pnpm -C refcheckid-backend migrate:dry-run` validates migrations without database access;
+- the runner prepares a temporary Supabase CLI workdir and applies migrations with `supabase db push`;
+- rollback remains forward-only by policy and is made explicit through `pnpm migrate:rollback`.
