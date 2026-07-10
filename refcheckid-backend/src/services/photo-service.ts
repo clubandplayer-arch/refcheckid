@@ -82,6 +82,13 @@ export interface CompleteUploadCommand {
   readonly context: PhotoAccessContext;
 }
 
+export interface PhotoDecisionCommand {
+  readonly approvalId: UUID;
+  readonly context: PhotoAccessContext;
+  readonly reasonCode?: string | undefined;
+  readonly notes?: string | undefined;
+}
+
 export class PhotoService {
   private readonly policyEngine: PhotoPolicyEngine;
   private readonly validationPipeline: PhotoValidationPipeline;
@@ -194,29 +201,16 @@ export class PhotoService {
       exifStripped: validated.exifStripped,
       avScanStatus: validated.avScanStatus,
       validationStatus: 'valid',
-      status: 'active',
+      status: 'pending_approval',
       activatedAt: null,
       supersededAt: null,
       archivedAt: null,
       rejectionReasonCode: null,
       rejectionNotes: null,
     });
-    for (const active of await this.dependencies.photoVersions.listActiveByGlobalPhoto(global.id)) {
-      if (active.id !== version.id)
-        await this.dependencies.photoVersions.update(active.id, {
-          status: 'superseded',
-          supersededAt: new Date().toISOString(),
-        });
-    }
     const session = this.uploadSessions.get(command.uploadId);
-    await this.dependencies.globalOfficialPhotos.update(global.id, {
-      currentVersionId: version.id,
-      status: 'active',
-      lastApprovedAt: new Date().toISOString(),
-      lastChangedAt: new Date().toISOString(),
-    });
     if (session !== undefined) {
-      const approval = await this.dependencies.photoApprovals.create({
+      await this.dependencies.photoApprovals.create({
         photoVersionId: version.id,
         federationId: session.federationId,
         disciplineId: null,
@@ -224,40 +218,14 @@ export class PhotoService {
         registrationId: session.registrationId,
         requestedByUserId: session.context.actorId,
         requestedAt: new Date().toISOString(),
-        decidedByUserId: session.context.actorId,
-        decidedAt: new Date().toISOString(),
-        status: 'approved',
-        decisionReasonCode: 'auto_validated_milestone_b',
+        decidedByUserId: null,
+        decidedAt: null,
+        status: 'pending',
+        decisionReasonCode: null,
         decisionNotes: null,
         scope: 'single_registration',
         slaDueAt: null,
       });
-      const existingSeasonPhoto =
-        await this.dependencies.seasonRegistrationPhotos.findByRegistrationSeason(
-          session.registrationId,
-          session.seasonId,
-        );
-      if (existingSeasonPhoto === null) {
-        await this.dependencies.seasonRegistrationPhotos.create({
-          federationId: session.federationId,
-          disciplineId: null,
-          seasonId: session.seasonId,
-          registrationId: session.registrationId,
-          photoSubjectId: subjectId,
-          globalOfficialPhotoId: global.id,
-          effectiveVersionId: version.id,
-          approvalId: approval.id,
-          status: 'valid',
-          validFrom: new Date().toISOString(),
-          validUntil: null,
-        });
-      } else {
-        await this.dependencies.seasonRegistrationPhotos.update(existingSeasonPhoto.id, {
-          effectiveVersionId: version.id,
-          approvalId: approval.id,
-          status: 'valid',
-        });
-      }
     }
     await this.dependencies.objectStore.registerRendition({
       sourceObjectKey: command.objectKey,
@@ -361,6 +329,146 @@ export class PhotoService {
         ? new Date().toISOString()
         : approval.decidedAt,
     });
+  }
+
+  async approvePhotoApproval(command: PhotoDecisionCommand): Promise<PhotoApproval> {
+    const approval = await this.requirePhotoApproval(command.approvalId);
+    this.assertCanDecideApproval(command.context, approval);
+    if (approval.status === 'approved') return approval;
+    if (approval.status !== 'pending') {
+      assertPhotoApprovalTransition(approval.status, 'approved');
+    }
+    const version = await this.requirePhotoVersion(approval.photoVersionId);
+    const global = await this.requireGlobalOfficialPhoto(version.globalOfficialPhotoId);
+    const now = new Date().toISOString();
+
+    const decided = await this.dependencies.photoApprovals.update(approval.id, {
+      status: 'approved',
+      decidedByUserId: command.context.actorId,
+      decidedAt: now,
+      decisionReasonCode: command.reasonCode ?? approval.decisionReasonCode ?? 'approved',
+      decisionNotes: command.notes ?? approval.decisionNotes,
+    });
+
+    if (version.status !== 'active') {
+      assertPhotoVersionTransition(version.status, 'active');
+      await this.dependencies.photoVersions.update(version.id, {
+        status: 'active',
+        activatedAt: now,
+      });
+    }
+    for (const active of await this.dependencies.photoVersions.listActiveByGlobalPhoto(global.id)) {
+      if (active.id !== version.id) {
+        await this.dependencies.photoVersions.update(active.id, {
+          status: 'superseded',
+          supersededAt: now,
+        });
+        await this.dependencies.photoAuditEvents.create({
+          correlationId: approval.id,
+          actorUserId: command.context.actorId,
+          actorRole: command.context.actorRole,
+          federationId: approval.federationId,
+          seasonId: approval.seasonId,
+          registrationId: approval.registrationId,
+          photoSubjectId: global.photoSubjectId,
+          photoVersionId: active.id,
+          eventType: 'photo.superseded',
+          payload: { replacementVersionId: version.id },
+          ipHash: null,
+          userAgentHash: null,
+        });
+      }
+    }
+    await this.dependencies.globalOfficialPhotos.update(global.id, {
+      currentVersionId: version.id,
+      status: 'active',
+      lastApprovedAt: now,
+      lastChangedAt: now,
+    });
+    if (approval.registrationId !== null) {
+      const existing = await this.dependencies.seasonRegistrationPhotos.findByRegistrationSeason(
+        approval.registrationId,
+        approval.seasonId,
+      );
+      if (existing === null) {
+        await this.dependencies.seasonRegistrationPhotos.create({
+          federationId: approval.federationId,
+          disciplineId: approval.disciplineId,
+          seasonId: approval.seasonId,
+          registrationId: approval.registrationId,
+          photoSubjectId: global.photoSubjectId,
+          globalOfficialPhotoId: global.id,
+          effectiveVersionId: version.id,
+          approvalId: approval.id,
+          status: 'valid',
+          validFrom: now,
+          validUntil: null,
+        });
+      } else {
+        await this.dependencies.seasonRegistrationPhotos.update(existing.id, {
+          effectiveVersionId: version.id,
+          approvalId: approval.id,
+          status: 'valid',
+        });
+      }
+    }
+    await this.dependencies.photoAuditEvents.create({
+      correlationId: approval.id,
+      actorUserId: command.context.actorId,
+      actorRole: command.context.actorRole,
+      federationId: approval.federationId,
+      seasonId: approval.seasonId,
+      registrationId: approval.registrationId,
+      photoSubjectId: global.photoSubjectId,
+      photoVersionId: version.id,
+      eventType: 'photo.approved',
+      payload: { reasonCode: decided.decisionReasonCode, notes: decided.decisionNotes },
+      ipHash: null,
+      userAgentHash: null,
+    });
+    return decided;
+  }
+
+  async rejectPhotoApproval(command: PhotoDecisionCommand): Promise<PhotoApproval> {
+    const approval = await this.requirePhotoApproval(command.approvalId);
+    this.assertCanDecideApproval(command.context, approval);
+    if (approval.status === 'rejected') return approval;
+    if (approval.status !== 'pending') {
+      assertPhotoApprovalTransition(approval.status, 'rejected');
+    }
+    const version = await this.requirePhotoVersion(approval.photoVersionId);
+    const global = await this.requireGlobalOfficialPhoto(version.globalOfficialPhotoId);
+    const now = new Date().toISOString();
+    const decided = await this.dependencies.photoApprovals.update(approval.id, {
+      status: 'rejected',
+      decidedByUserId: command.context.actorId,
+      decidedAt: now,
+      decisionReasonCode: command.reasonCode ?? 'rejected',
+      decisionNotes: command.notes ?? null,
+    });
+    if (version.status !== 'rejected') {
+      assertPhotoVersionTransition(version.status, 'rejected');
+      await this.dependencies.photoVersions.update(version.id, {
+        status: 'rejected',
+        rejectionReasonCode: decided.decisionReasonCode,
+        rejectionNotes: decided.decisionNotes,
+      });
+    }
+    await this.dependencies.photoAuditEvents.create({
+      correlationId: approval.id,
+      actorUserId: command.context.actorId,
+      actorRole: command.context.actorRole,
+      federationId: approval.federationId,
+      seasonId: approval.seasonId,
+      registrationId: approval.registrationId,
+      photoSubjectId: global.photoSubjectId,
+      photoVersionId: version.id,
+      eventType: 'photo.rejected',
+      payload: { reasonCode: decided.decisionReasonCode, notes: decided.decisionNotes },
+      ipHash: null,
+      userAgentHash: null,
+    });
+    return decided;
   }
 
   async createGlobalOfficialPhoto(
@@ -488,6 +596,24 @@ export class PhotoService {
 
   async listApprovalsByFederation(federationId: UUID): Promise<readonly PhotoApproval[]> {
     return this.dependencies.photoApprovals.listByFederation(federationId);
+  }
+
+  private assertCanDecideApproval(context: PhotoAccessContext, approval: PhotoApproval): void {
+    if (context.actorRole === 'admin') return;
+    if (context.actorRole === 'federation' && context.federationId === approval.federationId)
+      return;
+    throw new PhotoAuthorizationError('Actor cannot decide photo approvals for this federation.');
+  }
+
+  private async requireGlobalOfficialPhoto(
+    globalOfficialPhotoId: UUID,
+  ): Promise<GlobalOfficialPhoto> {
+    const global = await this.dependencies.globalOfficialPhotos.findById(globalOfficialPhotoId);
+    if (global === null)
+      throw new PhotoInvariantViolationError(
+        `Global official photo ${globalOfficialPhotoId} was not found.`,
+      );
+    return global;
   }
 
   private async requirePhotoVersion(versionId: UUID): Promise<PhotoVersion> {

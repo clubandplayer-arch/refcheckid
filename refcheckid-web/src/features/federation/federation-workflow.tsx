@@ -13,9 +13,10 @@ import {
   fetchFederationHistory,
   fetchFederationMatches,
   fetchFederationReports,
+  approvePhotoRequest,
   fetchPhotoRequests,
+  rejectPhotoRequest,
 } from "@/lib/federation-api-client";
-import { decideManagerPhotoApprovalRequest } from "@/lib/manager-photo-store";
 import type {
   FederationHistoryItem,
   FederationMatchListItem,
@@ -419,11 +420,17 @@ function PhotoRequestsPanel() {
     Record<string, PhotoRequestStatus>
   >({});
 
-  function transitionRequest(
+  async function transitionRequest(
     requestId: string,
     status: Exclude<PhotoRequestStatus, "pending">,
+    reasonCode = status === "approved" ? "identity_verified" : "quality_issue",
+    notes = "Decisione operatore federale",
   ) {
-    decideManagerPhotoApprovalRequest(requestId, status);
+    if (status === "approved") {
+      await approvePhotoRequest(requestId, reasonCode);
+    } else {
+      await rejectPhotoRequest(requestId, reasonCode, notes);
+    }
     setLocalStatuses((current) => ({ ...current, [requestId]: status }));
     notify(
       status === "approved"
@@ -480,21 +487,30 @@ function PhotoRequestCard({
   transitionRequest: (
     requestId: string,
     status: Exclude<PhotoRequestStatus, "pending">,
-  ) => void;
+    reasonCode?: string,
+    notes?: string,
+  ) => Promise<void>;
 }>) {
+  const [reasonCode, setReasonCode] = useState("quality_issue");
+  const [notes, setNotes] = useState("");
   return (
     <div className="space-y-3 rounded-xl border p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-bold">{request.playerName}</h3>
-          <p className="text-xs uppercase tracking-wide text-slate-400">Tesserato</p>
+          <p className="text-xs uppercase tracking-wide text-slate-400">
+            Tesserato
+          </p>
           <p className="text-sm text-slate-500">{request.clubName}</p>
         </div>
         <StatusBadge label={request.status} />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <PhotoBox label="Foto attuale" photoUrl={request.currentPhotoUrl} />
-        <PhotoBox label="Nuova foto da approvare" photoUrl={request.proposedPhotoUrl} />
+        <PhotoBox
+          label="Nuova foto da approvare"
+          photoUrl={request.proposedPhotoUrl}
+        />
       </div>
       {request.status === "rejected" ? (
         <p className="rounded-lg bg-red-50 p-2 text-xs text-red-700">
@@ -509,6 +525,18 @@ function PhotoRequestCard({
         </p>
       ) : null}
       <div className="grid gap-2 sm:grid-cols-2">
+        <Input
+          disabled={request.status !== "pending"}
+          onChange={(event) => setReasonCode(event.target.value)}
+          placeholder="Reason code"
+          value={reasonCode}
+        />
+        <Input
+          disabled={request.status !== "pending"}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Note rigetto"
+          value={notes}
+        />
         <Button
           disabled={request.status !== "pending"}
           onClick={() => transitionRequest(request.id, "approved")}
@@ -519,7 +547,9 @@ function PhotoRequestCard({
         <Button
           className="bg-red-600"
           disabled={request.status !== "pending"}
-          onClick={() => transitionRequest(request.id, "rejected")}
+          onClick={() =>
+            transitionRequest(request.id, "rejected", reasonCode, notes)
+          }
           type="button"
         >
           Rifiuta

@@ -105,6 +105,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
     ),
   }));
   router.register('GET', '/api/v1/photo-approvals', controllers.listPhotoApprovals);
+  router.register('GET', '/api/v1/photo-approvals/:id', controllers.getPhotoApproval);
   router.register('POST', '/api/v1/photo-approvals/:id/approve', controllers.approvePhotoApproval);
   router.register('POST', '/api/v1/photo-approvals/:id/reject', controllers.rejectPhotoApproval);
   router.register(
