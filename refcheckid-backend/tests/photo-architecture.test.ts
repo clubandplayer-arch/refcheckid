@@ -109,7 +109,7 @@ const authHeaders = {
 };
 
 describe('ARCH-1 photo backend foundations', () => {
-  it('publishes ARCH-1 API contracts without activating full workflows', async () => {
+  it('publishes ARCH-1 Milestone B API workflows', async () => {
     const document = createOpenApiDocument();
     expect(document.paths['/api/v1/players/{id}/photo']).toBeDefined();
     expect(document.paths['/api/v1/registrations/{id}/season-photo']).toBeDefined();
@@ -123,7 +123,7 @@ describe('ARCH-1 photo backend foundations', () => {
         headers: authHeaders,
         query: {},
       }),
-    ).resolves.toMatchObject({ status: 501, body: { implementationStatus: 'contract_only' } });
+    ).resolves.toMatchObject({ status: 404, body: { error: 'PHOTO_NOT_FOUND' } });
     await expect(
       router.handle({
         method: 'POST',
@@ -131,13 +131,17 @@ describe('ARCH-1 photo backend foundations', () => {
         headers: authHeaders,
         query: {},
         body: {
-          objectKey: 'subjects/s/v/original',
+          playerId: '90000000-0000-4000-8000-000000000001',
+          registrationId: '90000000-0000-4000-8000-000000000002',
+          federationId: '90000000-0000-4000-8000-000000000003',
+          seasonId: '2026',
           mimeType: 'image/jpeg',
           fileSizeBytes: 100,
           sha256: 'sha',
+          actorRole: 'admin',
         },
       }),
-    ).resolves.toMatchObject({ status: 202, body: { implementationStatus: 'stub' } });
+    ).resolves.toMatchObject({ status: 202, body: { intent: { method: 'PUT' } } });
   });
 
   it('declares non-destructive migration schema, constraints and indexes', () => {

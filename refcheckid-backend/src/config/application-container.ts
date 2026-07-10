@@ -29,7 +29,7 @@ import {
   MatchSheetService,
   PhotoService,
   RecognitionService,
-  StubPhotoObjectStore,
+  LocalPhotoObjectStore,
 } from '../services/index.js';
 import { pilotMatches, pilotMatchReports, pilotMatchSheets } from './pilot-data.js';
 
@@ -67,7 +67,7 @@ export interface ApplicationContainer {
     readonly recognitions: RecognitionService;
   };
   readonly objectStores: {
-    readonly photos: StubPhotoObjectStore;
+    readonly photos: LocalPhotoObjectStore;
   };
 }
 
@@ -117,7 +117,16 @@ export function createApplicationContainer(): ApplicationContainer {
       matchSheetsRepository: repositories.matchSheets,
       eventPublisher: events,
     }),
+    photos: undefined as never,
+    recognitions: undefined as never,
+  };
+
+  const objectStores = { photos: new LocalPhotoObjectStore() };
+
+  const completedServices = {
+    ...services,
     photos: new PhotoService({
+      objectStore: objectStores.photos,
       photoSubjects: repositories.photoSubjects,
       globalOfficialPhotos: repositories.globalOfficialPhotos,
       seasonRegistrationPhotos: repositories.seasonRegistrationPhotos,
@@ -134,7 +143,5 @@ export function createApplicationContainer(): ApplicationContainer {
     }),
   };
 
-  const objectStores = { photos: new StubPhotoObjectStore() };
-
-  return { events, repositories, services, objectStores };
+  return { events, repositories, services: completedServices, objectStores };
 }
