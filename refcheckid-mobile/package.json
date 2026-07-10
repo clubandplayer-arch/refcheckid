@@ -1,0 +1,14 @@
+{
+  "name": "refcheckid-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "test": "../refcheckid-web/node_modules/.bin/vitest run",
+    "test:unit": "../refcheckid-web/node_modules/.bin/vitest run tests/unit",
+    "typecheck": "../refcheckid-web/node_modules/.bin/tsc --noEmit",
+    "lint": "../refcheckid-web/node_modules/.bin/tsc --noEmit",
+    "build": "../refcheckid-web/node_modules/.bin/tsc --noEmit"
+  }
+}
