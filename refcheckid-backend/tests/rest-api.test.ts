@@ -73,3 +73,21 @@ describe('REST API layer', () => {
     expect(document.paths['/api/v1/identity-documents']).toBeDefined();
   });
 });
+
+it('returns the match photo manifest contract for referee recognition', async () => {
+  const container = createApplicationContainer();
+  await container.repositories.matches.upsert(match);
+  const router = createRestApiRouter(container);
+
+  await expect(
+    router.handle({
+      method: 'GET',
+      path: `/api/v1/matches/${match.id}/photo-manifest`,
+      headers: authHeaders,
+      query: {},
+    }),
+  ).resolves.toMatchObject({
+    status: 200,
+    body: { matchId: match.id, manifestVersion: 'live-v1', status: 'unavailable', subjects: [] },
+  });
+});

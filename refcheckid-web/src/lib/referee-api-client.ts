@@ -1,6 +1,7 @@
 import {
   completeRecognition,
   fetchMatches,
+  fetchMatchPhotoManifest,
   fetchMatchReports,
   fetchMatchSheets,
   lockMatchSheet,
@@ -10,6 +11,7 @@ import {
 } from "./api-client";
 import { managerTeamConfig } from "./manager-team";
 import { applyManagerPhotoOverrides } from "./manager-photo-store";
+import { getPhotoFeatureFlags } from "./photo-feature-flags";
 import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
 import {
   buildPilotAwaySubmittedMatchSheetSnapshot,
@@ -53,9 +55,16 @@ export async function fetchRefereeMatchSheets(
   return sheets.map((sheet, index) => toTeamSheetVerification(sheet, index));
 }
 
-export async function fetchRecognitionSubjects(): Promise<
+export async function fetchRecognitionSubjects(matchId?: string): Promise<
   readonly RecognitionSubject[]
 > {
+  const flags = getPhotoFeatureFlags();
+  if (flags.refereeManifest && matchId) {
+    const manifest = await fetchMatchPhotoManifest(matchId);
+    if (manifest.status !== "available") return [];
+    return manifest.subjects.map((subject) => ({ ...subject, decision: "pending" }));
+  }
+  if (!flags.legacyLocalFallback) return [];
   const sheets = await fetchMatchSheets();
   const homeSubmitted = sheets.some(
     (sheet) => sheet.clubId === managerTeamConfig.home.clubId && sheet.status !== "draft",
@@ -91,6 +100,10 @@ export async function fetchRecognitionSubjects(): Promise<
     roleLabel: subject.roleLabel,
     subjectKind: subject.subjectKind,
     photoUrl: subject.photoUrl,
+    photoStatus: subject.photoUrl ? "active" : "missing",
+    photoEtag: null,
+    manifestSource: "live_manifest",
+    isFrozenSnapshot: false,
     document: {
       type: subject.subjectKind === "player" ? "Documento atleta" : "Documento staff",
       number: subject.id,

@@ -193,11 +193,57 @@ export function createControllers(container: ApplicationContainer): Record<strin
           requireUuid(request.params.id, 'id'),
         ),
       ),
-    getMatchPhotoManifest: () =>
-      json(501, {
-        implementationStatus: 'contract_only',
-        message: 'Referee photo manifest is defined for later implementation.',
-      }),
+    getMatchPhotoManifest: async (request) => {
+      const matchId = requireUuid(request.params.id, 'id');
+      const sheets = await container.services.matchSheets.listMatchSheetsByMatch(matchId);
+      const snapshotRows = (
+        await Promise.all(
+          sheets.map((sheet) =>
+            container.repositories.matchSheetPhotoSnapshots.listByMatchSheet(sheet.id),
+          ),
+        )
+      ).flat();
+      const frozen = snapshotRows.length > 0;
+      const subjects = await Promise.all(
+        snapshotRows.map(async (snapshot) => {
+          const signed = await container.services.photos.createSignedReadUrl(
+            snapshot.photoVersionId,
+            photoContext(request, { matchId }),
+            { rendition: 'normalized', ttlSeconds: 900 },
+          );
+          const manifest = snapshot.renditionManifest;
+          return {
+            id: snapshot.registrationId,
+            firstName: typeof manifest.firstName === 'string' ? manifest.firstName : 'Tesserato',
+            lastName: typeof manifest.lastName === 'string' ? manifest.lastName : snapshot.registrationId,
+            shirtNumber: typeof manifest.shirtNumber === 'number' ? manifest.shirtNumber : null,
+            teamName: typeof manifest.teamName === 'string' ? manifest.teamName : 'Distinta gara',
+            roleLabel: typeof manifest.roleLabel === 'string' ? manifest.roleLabel : 'Tesserato',
+            subjectKind: manifest.subjectKind === 'staff' ? 'staff' : 'player',
+            photoUrl: signed.signedUrl.url,
+            photoStatus: 'active',
+            photoEtag: snapshot.photoEtag,
+            manifestSource: 'frozen_snapshot',
+            isFrozenSnapshot: true,
+            document: {
+              type: typeof manifest.documentType === 'string' ? manifest.documentType : 'Documento tesserato',
+              number: snapshot.registrationId,
+              expiresAt: snapshot.frozenAt,
+            },
+          };
+        }),
+      );
+      const photoEtag = snapshotRows.map((snapshot) => snapshot.photoEtag).join('|') || `manifest:${matchId}:empty`;
+      return json(200, {
+        matchId,
+        manifestVersion: frozen ? 'frozen-v1' : 'live-v1',
+        photoEtag,
+        generatedAt: new Date().toISOString(),
+        expiresAt: null,
+        status: sheets.length === 0 ? 'unavailable' : 'available',
+        subjects,
+      });
+    },
     listPhotoAuditEvents: async () =>
       json(200, await container.repositories.photoAuditEvents.list()),
     listIdentityDocuments: () => json(200, []),

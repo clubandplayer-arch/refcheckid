@@ -292,7 +292,7 @@ function RecognitionStep({
   const [decisionOrder, setDecisionOrder] = useState<readonly string[]>([]);
   const [isRecognitionClosed, setIsRecognitionClosed] = useState(false);
   const query = useQuery({
-    queryFn: fetchRecognitionSubjects,
+    queryFn: () => fetchRecognitionSubjects(matchId),
     queryKey: [...queryKeys.recognitions, matchId],
   });
   const mutation = useMutation({
@@ -300,6 +300,15 @@ function RecognitionStep({
     onMutate: onComplete,
   });
   const allSubjects = useMemo(() => query.data ?? [], [query.data]);
+  useEffect(() => {
+    const imageUrls = allSubjects
+      .filter((subject) => (subject.photoStatus ?? "active") === "active" && subject.photoUrl)
+      .map((subject) => subject.photoUrl as string);
+    imageUrls.forEach((photoUrl) => {
+      const image = new window.Image();
+      image.src = photoUrl;
+    });
+  }, [allSubjects]);
   const teamNames = useMemo(
     () => Array.from(new Set(allSubjects.map((subject) => subject.teamName))),
     [allSubjects],
@@ -463,18 +472,25 @@ function RecognitionStep({
       </div>
 
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-        <div className="relative mx-auto flex aspect-[3/4] w-full max-w-[260px] items-center justify-center overflow-hidden rounded-xl border-4 border-white bg-white text-center text-base font-semibold shadow-lg ring-1 ring-slate-200">
-          {currentSubject.photoUrl ? (
-            <Image
-              alt={`Foto ${currentSubject.firstName} ${currentSubject.lastName}`}
-              className="h-full w-full object-cover"
-              height={360}
-              src={currentSubject.photoUrl}
-              width={260}
-            />
-          ) : (
-            "Foto non disponibile"
-          )}
+        <div className="space-y-3">
+          <div className="relative mx-auto flex aspect-[3/4] w-full max-w-[260px] items-center justify-center overflow-hidden rounded-xl border-4 border-white bg-white text-center text-base font-semibold shadow-lg ring-1 ring-slate-200">
+            {(currentSubject.photoStatus ?? "missing") === "active" && currentSubject.photoUrl ? (
+              <Image
+                alt={`Foto ${currentSubject.firstName} ${currentSubject.lastName}`}
+                className="h-full w-full object-cover"
+                height={360}
+                src={currentSubject.photoUrl}
+                width={260}
+              />
+            ) : (
+              "Foto non disponibile"
+            )}
+          </div>
+          <div className="space-y-2 rounded-xl border bg-slate-50 p-3 text-sm">
+            <p className="font-semibold">Stato foto manifest: {photoStatusLabel(currentSubject.photoStatus ?? "missing")}</p>
+            <p className="text-slate-600">Fonte: {currentSubject.isFrozenSnapshot ? "Snapshot congelato" : "Manifest backend"}</p>
+            {currentSubject.photoEtag ? <p className="break-all text-xs text-slate-500">photoEtag: {currentSubject.photoEtag}</p> : null}
+          </div>
         </div>
         <div className="space-y-4">
           <div>
@@ -548,7 +564,7 @@ function MatchReportStep({
     queryKey: [...queryKeys.matchReports, matchId],
   });
   const recognitionSubjectsQuery = useQuery({
-    queryFn: fetchRecognitionSubjects,
+    queryFn: () => fetchRecognitionSubjects(matchId),
     queryKey: [...queryKeys.recognitions, matchId, "report-options"],
   });
   const [step, setStep] = useState(0);
@@ -1193,4 +1209,14 @@ function ResultPanel({
       </label>
     </div>
   );
+}
+
+function photoStatusLabel(status: NonNullable<RecognitionSubject["photoStatus"]>): string {
+  return {
+    active: "Active",
+    missing: "Missing",
+    pending: "Pending",
+    rejected: "Rejected",
+    suspended: "Suspended",
+  }[status];
 }

@@ -37,6 +37,40 @@ export interface ApiReport {
   summary: string | null;
 }
 
+
+export type ApiManifestPhotoStatus = "missing" | "pending" | "active" | "rejected" | "suspended";
+export type ApiManifestSource = "live_manifest" | "frozen_snapshot";
+
+export interface ApiMatchPhotoManifestSubject {
+  id: string;
+  firstName: string;
+  lastName: string;
+  shirtNumber: number | null;
+  teamName: string;
+  roleLabel: string;
+  subjectKind: "player" | "staff";
+  photoUrl: string | null;
+  photoStatus: ApiManifestPhotoStatus;
+  photoEtag: string | null;
+  manifestSource: ApiManifestSource;
+  isFrozenSnapshot: boolean;
+  document: {
+    type: string;
+    number: string;
+    expiresAt: string;
+  };
+}
+
+export interface ApiMatchPhotoManifest {
+  matchId: string;
+  manifestVersion: string;
+  photoEtag: string;
+  generatedAt: string;
+  expiresAt: string | null;
+  status: "available" | "expired" | "unavailable";
+  subjects: readonly ApiMatchPhotoManifestSubject[];
+}
+
 export interface ApiPhoto {
   id: string;
   playerId?: string;
@@ -184,6 +218,10 @@ export function fetchMatchReports(
 
 export function fetchPhotos(): Promise<readonly ApiPhoto[]> {
   return request<readonly ApiPhoto[]>("/photos");
+}
+
+export function fetchMatchPhotoManifest(matchId: string): Promise<ApiMatchPhotoManifest> {
+  return request<ApiMatchPhotoManifest>(`/matches/${encodeURIComponent(matchId)}/photo-manifest`);
 }
 
 export function submitMatchSheet(matchSheetId: string): Promise<ApiMatchSheet> {

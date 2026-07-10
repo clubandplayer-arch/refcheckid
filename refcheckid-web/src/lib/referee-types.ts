@@ -31,6 +31,9 @@ export interface TeamSheetVerification {
   staffCount: number;
 }
 
+export type ManifestPhotoStatus = "missing" | "pending" | "active" | "rejected" | "suspended";
+export type ManifestSource = "live_manifest" | "frozen_snapshot";
+
 export interface RecognitionSubject {
   id: string;
   firstName: string;
@@ -40,6 +43,10 @@ export interface RecognitionSubject {
   roleLabel: string;
   subjectKind: "player" | "staff";
   photoUrl: string | null;
+  photoStatus?: ManifestPhotoStatus;
+  photoEtag?: string | null;
+  manifestSource?: ManifestSource;
+  isFrozenSnapshot?: boolean;
   document: {
     type: string;
     number: string;
