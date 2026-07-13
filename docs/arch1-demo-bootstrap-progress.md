@@ -4,7 +4,7 @@ This document is the official progress tracker for the ARCH-1 Demo Bootstrap mil
 
 ## Current status
 
-Milestone 1 is complete.
+Milestone 2 is complete.
 
 ## Milestone 1 — Progettazione dell'infrastruttura Demo Bootstrap
 
@@ -57,11 +57,61 @@ Defined the official Demo Bootstrap infrastructure design for a reproducible ARC
 
 ### Stato
 
-Pending.
+Completed.
 
-### Obiettivo
+### Obiettivo raggiunto
 
-Define a deterministic dataset, remove duplication between Web and Backend demo data, identify the source of truth, and prepare asset loading.
+Defined a deterministic ARCH-1 demo manifest and made it the Source of Truth for Web pilot rosters and Backend pilot match identifiers. Prepared demo asset directories and a manifest loader/validator for later bootstrap milestones.
+
+### File modificati
+
+- `docs/ARCH-1_Demo_Bootstrap_Design.md`
+- `docs/arch1-demo-bootstrap-progress.md`
+- `refcheckid-backend/demo/arch1-demo-manifest.json`
+- `refcheckid-backend/demo/assets/README.md`
+- `refcheckid-backend/demo/assets/photos/athletes/.gitkeep`
+- `refcheckid-backend/demo/assets/photos/staff/.gitkeep`
+- `refcheckid-backend/src/config/pilot-data.ts`
+- `refcheckid-web/src/lib/pilot-data.ts`
+- `scripts/lib/demo-manifest.mjs`
+
+### Decisioni architetturali
+
+- `refcheckid-backend/demo/arch1-demo-manifest.json` is the deterministic Source of Truth for ARCH-1 demo entities and photo asset mappings.
+- Web pilot players/staff are now derived from the manifest instead of local duplicated arrays.
+- Backend pilot IDs, match sheets, match reports, and match metadata are now derived from the manifest.
+- Demo asset paths are declared in the manifest, while concrete runtime storage remains owned by future Upload Intent and Upload Complete milestones.
+- `scripts/lib/demo-manifest.mjs` provides manifest loading, relationship validation, duplicate detection, and asset path resolution for later runner work.
+
+### Problemi risolti
+
+- Removed duplicated player/staff names and deterministic UUID generation from the Web pilot data file.
+- Removed duplicated backend pilot ID and match constants from the backend pilot data file.
+- Added early validation for duplicate IDs and broken subject/registration/photo relationships before bootstrap orchestration exists.
+
+### Test eseguiti
+
+- `node -e "import('./scripts/lib/demo-manifest.mjs').then(async (m)=>{const manifest=await m.loadArch1DemoManifest(); console.log(manifest.players.length, manifest.staffMembers.length, manifest.photos.length); console.log(m.resolveDemoAssetPath(manifest.photos[0]));})"`
+- `pnpm -C refcheckid-web typecheck`
+- `pnpm -C refcheckid-backend typecheck`
+- `pnpm -C refcheckid-backend build`
+- `pnpm -C refcheckid-web test:unit`
+- `pnpm -C refcheckid-backend test:regression`
+- `pnpm -s lint`
+- `pnpm -C refcheckid-web build`
+- `git diff --check`
+
+### Limitazioni residue
+
+- `pnpm -C refcheckid-web build` completes successfully but emits the existing Next.js warning for `<img>` usage in `src/features/federation/federation-workflow.tsx`; this milestone does not modify that component.
+
+### TODO rimasti
+
+- Milestone 3: implement the bootstrap runner orchestration and authentication/Federation Sync phases.
+- Milestone 4: implement official photo upload through Upload Intent and Upload Complete using manifest assets.
+- Milestone 5: implement Federation Approval automation.
+- Milestone 6: implement verification and doctor commands.
+- Milestone 7: complete Backend/Web/Mobile integration validation.
 
 ## Milestone 3 — Implementazione del Demo Bootstrap Runner
 

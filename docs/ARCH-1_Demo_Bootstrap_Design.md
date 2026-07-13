@@ -155,6 +155,21 @@ Minimum report sections:
 - storage object existence checks;
 - pending approval checks.
 
+
+## Milestone 2 implementation baseline
+
+Milestone 2 establishes `refcheckid-backend/demo/arch1-demo-manifest.json` as the deterministic Source of Truth for ARCH-1 demo data. Backend pilot match data and Web pilot roster data must derive from this manifest instead of duplicating names, IDs, seasons, registrations, and match identifiers in separate files.
+
+The manifest owns:
+
+- demo federation, club, referee, match, sheet, and report identifiers;
+- player and staff subject identifiers;
+- player and staff seasonal registration identifiers;
+- roster metadata used by Manager Web fallback/demo screens;
+- photo subject mappings and deterministic asset paths for later Upload Intent and Upload Complete milestones.
+
+The asset directories under `refcheckid-backend/demo/assets/photos/` are reserved for committed demo input images. These files are bootstrap inputs only: later milestones must read them and submit them through official photo APIs, never copy them directly into runtime storage.
+
 ## Operation order
 
 1. Preflight:

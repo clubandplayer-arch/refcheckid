@@ -1,0 +1,1365 @@
+{
+  "version": 1,
+  "seasonId": "2026",
+  "generatedAt": "2026-07-01T00:00:00.000Z",
+  "ids": {
+    "federation": "70000000-0000-4000-8000-000000000002",
+    "homeClub": "70000000-0000-4000-8000-000000000003",
+    "awayClub": "70000000-0000-4000-8000-000000000004",
+    "referee": "70000000-0000-4000-8000-000000000005",
+    "match": "70000000-0000-4000-8000-000000000006",
+    "homeSheet": "70000000-0000-4000-8000-000000000007",
+    "awaySheet": "70000000-0000-4000-8000-000000000008",
+    "report": "70000000-0000-4000-8000-000000000009"
+  },
+  "federation": {
+    "id": "70000000-0000-4000-8000-000000000002",
+    "name": "Federazione Demo RefCheckID"
+  },
+  "clubs": [
+    {
+      "id": "70000000-0000-4000-8000-000000000003",
+      "name": "Atletico Aurora",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000004",
+      "name": "Sporting Litorale",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away"
+    }
+  ],
+  "referees": [
+    {
+      "id": "70000000-0000-4000-8000-000000000005",
+      "firstName": "Aria",
+      "lastName": "Bianchi",
+      "federationId": "70000000-0000-4000-8000-000000000002"
+    }
+  ],
+  "players": [
+    {
+      "id": "71000000-0000-4000-8000-000000000001",
+      "firstName": "Matteo",
+      "lastName": "Rinaldi",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": true,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000002",
+      "firstName": "Luca",
+      "lastName": "Ferrari",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000003",
+      "firstName": "Andrea",
+      "lastName": "Conti",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000004",
+      "firstName": "Davide",
+      "lastName": "Moretti",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000005",
+      "firstName": "Simone",
+      "lastName": "Gallo",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000006",
+      "firstName": "Marco",
+      "lastName": "De Luca",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000007",
+      "firstName": "Federico",
+      "lastName": "Romano",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": true,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000008",
+      "firstName": "Alessio",
+      "lastName": "Greco",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000009",
+      "firstName": "Gabriele",
+      "lastName": "Marini",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000010",
+      "firstName": "Tommaso",
+      "lastName": "Leone",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000011",
+      "firstName": "Riccardo",
+      "lastName": "Costa",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000012",
+      "firstName": "Edoardo",
+      "lastName": "Fontana",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "reserve",
+      "isGoalkeeper": true,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000013",
+      "firstName": "Nicolò",
+      "lastName": "Serra",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": true,
+      "role": "reserve",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000014",
+      "firstName": "Pietro",
+      "lastName": "Villa",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "reserve",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000015",
+      "firstName": "Samuele",
+      "lastName": "Barbieri",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "reserve",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000016",
+      "firstName": "Daniele",
+      "lastName": "Ferri",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "reserve",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000017",
+      "firstName": "Giacomo",
+      "lastName": "Monti",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "reserve",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "71000000-0000-4000-8000-000000000018",
+      "firstName": "Leonardo",
+      "lastName": "Riva",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home",
+      "warning": false,
+      "suspended": false,
+      "role": "reserve",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000001",
+      "firstName": "Antonio",
+      "lastName": "Marchetti",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": true,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000002",
+      "firstName": "Francesco",
+      "lastName": "Lombardi",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000003",
+      "firstName": "Michele",
+      "lastName": "Bianchi",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000004",
+      "firstName": "Emanuele",
+      "lastName": "Caruso",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000005",
+      "firstName": "Giorgio",
+      "lastName": "Pellegrini",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000006",
+      "firstName": "Vittorio",
+      "lastName": "Sanna",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000007",
+      "firstName": "Cristian",
+      "lastName": "Ruggieri",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": true,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000008",
+      "firstName": "Manuel",
+      "lastName": "Longo",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000009",
+      "firstName": "Fabio",
+      "lastName": "Sala",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000010",
+      "firstName": "Stefano",
+      "lastName": "Neri",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000011",
+      "firstName": "Lorenzo",
+      "lastName": "Martini",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "starter",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000012",
+      "firstName": "Filippo",
+      "lastName": "Grassi",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "reserve",
+      "isGoalkeeper": true,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000013",
+      "firstName": "Enrico",
+      "lastName": "D'Amico",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": true,
+      "role": "reserve",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000014",
+      "firstName": "Claudio",
+      "lastName": "Palmieri",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "reserve",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000015",
+      "firstName": "Roberto",
+      "lastName": "Gatti",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "reserve",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000016",
+      "firstName": "Diego",
+      "lastName": "Fiore",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "reserve",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000017",
+      "firstName": "Massimo",
+      "lastName": "Bernardi",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "reserve",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    },
+    {
+      "id": "75000000-0000-4000-8000-000000000018",
+      "firstName": "Giulio",
+      "lastName": "Piras",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away",
+      "warning": false,
+      "suspended": false,
+      "role": "reserve",
+      "isGoalkeeper": false,
+      "isCaptain": false,
+      "isViceCaptain": false
+    }
+  ],
+  "playerRegistrations": [
+    {
+      "id": "72000000-0000-4000-8000-000000000001",
+      "playerId": "71000000-0000-4000-8000-000000000001",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000002",
+      "playerId": "71000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000003",
+      "playerId": "71000000-0000-4000-8000-000000000003",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000004",
+      "playerId": "71000000-0000-4000-8000-000000000004",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000005",
+      "playerId": "71000000-0000-4000-8000-000000000005",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000006",
+      "playerId": "71000000-0000-4000-8000-000000000006",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000007",
+      "playerId": "71000000-0000-4000-8000-000000000007",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000008",
+      "playerId": "71000000-0000-4000-8000-000000000008",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000009",
+      "playerId": "71000000-0000-4000-8000-000000000009",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000010",
+      "playerId": "71000000-0000-4000-8000-000000000010",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000011",
+      "playerId": "71000000-0000-4000-8000-000000000011",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000012",
+      "playerId": "71000000-0000-4000-8000-000000000012",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000013",
+      "playerId": "71000000-0000-4000-8000-000000000013",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000014",
+      "playerId": "71000000-0000-4000-8000-000000000014",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000015",
+      "playerId": "71000000-0000-4000-8000-000000000015",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000016",
+      "playerId": "71000000-0000-4000-8000-000000000016",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000017",
+      "playerId": "71000000-0000-4000-8000-000000000017",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "72000000-0000-4000-8000-000000000018",
+      "playerId": "71000000-0000-4000-8000-000000000018",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000001",
+      "playerId": "75000000-0000-4000-8000-000000000001",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000002",
+      "playerId": "75000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000003",
+      "playerId": "75000000-0000-4000-8000-000000000003",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000004",
+      "playerId": "75000000-0000-4000-8000-000000000004",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000005",
+      "playerId": "75000000-0000-4000-8000-000000000005",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000006",
+      "playerId": "75000000-0000-4000-8000-000000000006",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000007",
+      "playerId": "75000000-0000-4000-8000-000000000007",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000008",
+      "playerId": "75000000-0000-4000-8000-000000000008",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000009",
+      "playerId": "75000000-0000-4000-8000-000000000009",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000010",
+      "playerId": "75000000-0000-4000-8000-000000000010",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000011",
+      "playerId": "75000000-0000-4000-8000-000000000011",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000012",
+      "playerId": "75000000-0000-4000-8000-000000000012",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000013",
+      "playerId": "75000000-0000-4000-8000-000000000013",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000014",
+      "playerId": "75000000-0000-4000-8000-000000000014",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000015",
+      "playerId": "75000000-0000-4000-8000-000000000015",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000016",
+      "playerId": "75000000-0000-4000-8000-000000000016",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000017",
+      "playerId": "75000000-0000-4000-8000-000000000017",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "76000000-0000-4000-8000-000000000018",
+      "playerId": "75000000-0000-4000-8000-000000000018",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    }
+  ],
+  "staffMembers": [
+    {
+      "id": "73000000-0000-4000-8000-000000000001",
+      "firstName": "Mario",
+      "lastName": "Rossi",
+      "fullName": "Mario Rossi",
+      "role": "Allenatore",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home"
+    },
+    {
+      "id": "73000000-0000-4000-8000-000000000002",
+      "firstName": "Lucia",
+      "lastName": "Bianchi",
+      "fullName": "Lucia Bianchi",
+      "role": "Medico",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home"
+    },
+    {
+      "id": "73000000-0000-4000-8000-000000000003",
+      "firstName": "Paolo",
+      "lastName": "Verdi",
+      "fullName": "Paolo Verdi",
+      "role": "Dirigente accompagnatore",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "home"
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000001",
+      "firstName": "Mario",
+      "lastName": "Rossi Ospite",
+      "fullName": "Mario Rossi Ospite",
+      "role": "Allenatore",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away"
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000002",
+      "firstName": "Lucia",
+      "lastName": "Bianchi Ospite",
+      "fullName": "Lucia Bianchi Ospite",
+      "role": "Medico",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away"
+    },
+    {
+      "id": "77000000-0000-4000-8000-000000000003",
+      "firstName": "Paolo",
+      "lastName": "Verdi Ospite",
+      "fullName": "Paolo Verdi Ospite",
+      "role": "Dirigente accompagnatore",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "side": "away"
+    }
+  ],
+  "staffRegistrations": [
+    {
+      "id": "74000000-0000-4000-8000-000000000001",
+      "staffMemberId": "73000000-0000-4000-8000-000000000001",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "74000000-0000-4000-8000-000000000002",
+      "staffMemberId": "73000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "74000000-0000-4000-8000-000000000003",
+      "staffMemberId": "73000000-0000-4000-8000-000000000003",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000001",
+      "staffMemberId": "77000000-0000-4000-8000-000000000001",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000002",
+      "staffMemberId": "77000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    },
+    {
+      "id": "78000000-0000-4000-8000-000000000003",
+      "staffMemberId": "77000000-0000-4000-8000-000000000003",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "season": "2026",
+      "status": "active"
+    }
+  ],
+  "matches": [
+    {
+      "id": "70000000-0000-4000-8000-000000000006",
+      "homeClubId": "70000000-0000-4000-8000-000000000003",
+      "awayClubId": "70000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "refereeId": "70000000-0000-4000-8000-000000000005",
+      "scheduledAt": "2026-07-01T18:00:00.000Z",
+      "season": "2026",
+      "status": "scheduled",
+      "venue": "QA Stadium"
+    }
+  ],
+  "matchSheets": [
+    {
+      "id": "70000000-0000-4000-8000-000000000007",
+      "matchId": "70000000-0000-4000-8000-000000000006",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "status": "draft"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000008",
+      "matchId": "70000000-0000-4000-8000-000000000006",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "status": "draft"
+    }
+  ],
+  "matchReports": [
+    {
+      "id": "70000000-0000-4000-8000-000000000009",
+      "matchId": "70000000-0000-4000-8000-000000000006",
+      "refereeId": "70000000-0000-4000-8000-000000000005",
+      "status": "draft",
+      "summary": null
+    }
+  ],
+  "photos": [
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000001",
+      "registrationId": "72000000-0000-4000-8000-000000000001",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-01.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000002",
+      "registrationId": "72000000-0000-4000-8000-000000000002",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-02.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000003",
+      "registrationId": "72000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-03.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000004",
+      "registrationId": "72000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-04.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000005",
+      "registrationId": "72000000-0000-4000-8000-000000000005",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-05.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000006",
+      "registrationId": "72000000-0000-4000-8000-000000000006",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-06.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000007",
+      "registrationId": "72000000-0000-4000-8000-000000000007",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-07.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000008",
+      "registrationId": "72000000-0000-4000-8000-000000000008",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-08.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000009",
+      "registrationId": "72000000-0000-4000-8000-000000000009",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-09.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000010",
+      "registrationId": "72000000-0000-4000-8000-000000000010",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-10.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000011",
+      "registrationId": "72000000-0000-4000-8000-000000000011",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-11.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000012",
+      "registrationId": "72000000-0000-4000-8000-000000000012",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-12.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000013",
+      "registrationId": "72000000-0000-4000-8000-000000000013",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-13.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000014",
+      "registrationId": "72000000-0000-4000-8000-000000000014",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-14.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000015",
+      "registrationId": "72000000-0000-4000-8000-000000000015",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-15.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000016",
+      "registrationId": "72000000-0000-4000-8000-000000000016",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-16.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000017",
+      "registrationId": "72000000-0000-4000-8000-000000000017",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-17.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000018",
+      "registrationId": "72000000-0000-4000-8000-000000000018",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/home-18.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000001",
+      "registrationId": "76000000-0000-4000-8000-000000000001",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-01.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000002",
+      "registrationId": "76000000-0000-4000-8000-000000000002",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-02.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000003",
+      "registrationId": "76000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-03.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000004",
+      "registrationId": "76000000-0000-4000-8000-000000000004",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-04.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000005",
+      "registrationId": "76000000-0000-4000-8000-000000000005",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-05.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000006",
+      "registrationId": "76000000-0000-4000-8000-000000000006",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-06.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000007",
+      "registrationId": "76000000-0000-4000-8000-000000000007",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-07.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000008",
+      "registrationId": "76000000-0000-4000-8000-000000000008",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-08.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000009",
+      "registrationId": "76000000-0000-4000-8000-000000000009",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-09.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000010",
+      "registrationId": "76000000-0000-4000-8000-000000000010",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-10.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000011",
+      "registrationId": "76000000-0000-4000-8000-000000000011",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-11.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000012",
+      "registrationId": "76000000-0000-4000-8000-000000000012",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-12.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000013",
+      "registrationId": "76000000-0000-4000-8000-000000000013",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-13.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000014",
+      "registrationId": "76000000-0000-4000-8000-000000000014",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-14.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000015",
+      "registrationId": "76000000-0000-4000-8000-000000000015",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-15.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000016",
+      "registrationId": "76000000-0000-4000-8000-000000000016",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-16.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000017",
+      "registrationId": "76000000-0000-4000-8000-000000000017",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-17.jpg"
+    },
+    {
+      "subjectKind": "athlete",
+      "subjectId": "75000000-0000-4000-8000-000000000018",
+      "registrationId": "76000000-0000-4000-8000-000000000018",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/athletes/away-18.jpg"
+    },
+    {
+      "subjectKind": "staff_member",
+      "subjectId": "73000000-0000-4000-8000-000000000001",
+      "registrationId": "74000000-0000-4000-8000-000000000001",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/staff/home-01.jpg"
+    },
+    {
+      "subjectKind": "staff_member",
+      "subjectId": "73000000-0000-4000-8000-000000000002",
+      "registrationId": "74000000-0000-4000-8000-000000000002",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/staff/home-02.jpg"
+    },
+    {
+      "subjectKind": "staff_member",
+      "subjectId": "73000000-0000-4000-8000-000000000003",
+      "registrationId": "74000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/staff/home-03.jpg"
+    },
+    {
+      "subjectKind": "staff_member",
+      "subjectId": "77000000-0000-4000-8000-000000000001",
+      "registrationId": "78000000-0000-4000-8000-000000000001",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/staff/away-01.jpg"
+    },
+    {
+      "subjectKind": "staff_member",
+      "subjectId": "77000000-0000-4000-8000-000000000002",
+      "registrationId": "78000000-0000-4000-8000-000000000002",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/staff/away-02.jpg"
+    },
+    {
+      "subjectKind": "staff_member",
+      "subjectId": "77000000-0000-4000-8000-000000000003",
+      "registrationId": "78000000-0000-4000-8000-000000000003",
+      "federationId": "70000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "seasonId": "2026",
+      "assetPath": "refcheckid-backend/demo/assets/photos/staff/away-03.jpg"
+    }
+  ]
+}
