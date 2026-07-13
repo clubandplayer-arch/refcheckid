@@ -8,7 +8,7 @@ The dataset is intentionally declarative. It must be consumed by bootstrap scrip
 
 1. authenticate with demo users;
 2. call `POST /api/v1/federation-sync` with `federationSyncPayload`;
-3. generate demo images at runtime from `photoPlan.generatedImage`;
+3. generate demo images at runtime from `photoPlan.generatedImage` using `scripts/demo-image-generator.ts`;
 4. call `POST /api/v1/photos/upload-intent`;
 5. call `POST /api/v1/photos/uploads/:id/complete`;
 6. call `POST /api/v1/photo-approvals/:id/approve`;
@@ -16,6 +16,16 @@ The dataset is intentionally declarative. It must be consumed by bootstrap scrip
 8. start and complete recognition;
 9. transition the match and submit the match report;
 10. run final verification through public read APIs.
+
+## Runtime image generation
+
+`scripts/demo-image-generator.ts` converts a JSON `generatedImage` spec to PNG bytes at runtime. The generated PNG is written only by the caller, for example to stdout or directly into an Upload Complete payload; no generated image file is versioned in the repository.
+
+Example:
+
+```bash
+pnpm build && node dist/scripts/demo-image-generator.js '{"initials":"HU","shirtNumber":10,"primaryColor":"#1d4ed8","secondaryColor":"#ffffff"}' > /tmp/refcheckid-demo.png
+```
 
 ## Non-goals
 
