@@ -26,7 +26,7 @@ pnpm demo:bootstrap -- --dry-run
 pnpm demo:bootstrap
 ```
 
-The command validates this dataset, authenticates with the demo federation account, calls `POST /api/v1/federation-sync`, and verifies the synchronized federation, clubs, referees, players, registrations, staff, and match through public read APIs. The dry run validates the dataset and prints the expected Federation Sync counts without calling the backend.
+The command validates this dataset, authenticates with the demo federation and manager accounts, calls `POST /api/v1/federation-sync`, verifies the synchronized federation, clubs, referees, players, registrations, staff, and match through public read APIs, then executes the official photo flow for every `photoPlan` item: Upload Intent, Upload Complete, pending approval lookup, federation Approval, and season-photo verification. The dry run validates the dataset and prints the expected Federation Sync counts and photo upload count without calling the backend.
 
 ## Runtime image generation
 

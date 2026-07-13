@@ -1,13 +1,18 @@
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { generateDemoPng, type DemoImageSpec } from './demo-image-generator.js';
 
 interface DemoDataset {
   readonly schemaVersion: string;
   readonly seasonId: string;
   readonly auth: {
+    readonly homeManager: DemoCredentials;
+    readonly awayManager: DemoCredentials;
     readonly federation: DemoCredentials;
   };
   readonly federationSyncPayload: FederationSyncPayload;
+  readonly photoPlan: readonly DemoPhotoPlanItem[];
 }
 
 interface DemoCredentials {
@@ -17,6 +22,45 @@ interface DemoCredentials {
 
 interface DemoEntity {
   readonly id: string;
+}
+
+interface DemoPhotoPlanItem {
+  readonly label: string;
+  readonly subjectKind: 'athlete' | 'staff_member';
+  readonly subjectId: string;
+  readonly registrationId: string;
+  readonly clubId: string;
+  readonly manager: 'homeManager' | 'awayManager';
+  readonly generatedImage: DemoImageSpec;
+}
+
+interface PhotoUploadIntentResponse {
+  readonly intent: {
+    readonly uploadId: string;
+    readonly objectKey: string;
+  };
+}
+
+interface PhotoApproval {
+  readonly id: string;
+  readonly registrationId: string | null;
+  readonly status: string;
+}
+
+interface SeasonPhotoResponse {
+  readonly version: {
+    readonly id: string;
+    readonly status: string;
+  };
+  readonly signedUrl: {
+    readonly url: string;
+  };
+}
+
+interface DemoSessions {
+  readonly homeManager: SessionResponse;
+  readonly awayManager: SessionResponse;
+  readonly federation: SessionResponse;
 }
 
 interface FederationSyncPayload {
@@ -70,24 +114,26 @@ async function main(): Promise<void> {
   }
 
   await waitForBackend(options.apiBaseUrl);
-  const session = await login(options.apiBaseUrl, dataset.auth.federation);
+  const sessions = await loginDemoUsers(options.apiBaseUrl, dataset);
   const syncResult = await postJson<FederationSyncResult>(
     `${options.apiBaseUrl}/federation-sync`,
     dataset.federationSyncPayload,
-    session.accessToken,
+    sessions.federation.accessToken,
   );
   assertCounts(syncResult, expected);
   await verifyFederationData(
     options.apiBaseUrl,
     dataset.federationSyncPayload,
-    session.accessToken,
+    sessions.federation.accessToken,
   );
+  await uploadAndApproveDemoPhotos(options.apiBaseUrl, dataset, sessions);
 
-  console.info('[RefCheckID][demo-bootstrap] Federation Sync bootstrap completed.', {
+  console.info('[RefCheckID][demo-bootstrap] Federation Sync and photo bootstrap completed.', {
     apiBaseUrl: options.apiBaseUrl,
     schemaVersion: dataset.schemaVersion,
     seasonId: dataset.seasonId,
     counts: syncResult,
+    uploadedPhotos: dataset.photoPlan.length,
   });
 }
 
@@ -150,7 +196,16 @@ function assertDataset(value: unknown, source: string): asserts value is DemoDat
   if (typeof candidate.auth?.federation?.email !== 'string') {
     throw new Error(`Demo dataset ${source} must define federation demo credentials.`);
   }
+  if (typeof candidate.auth.homeManager?.email !== 'string') {
+    throw new Error(`Demo dataset ${source} must define home manager demo credentials.`);
+  }
+  if (typeof candidate.auth.awayManager?.email !== 'string') {
+    throw new Error(`Demo dataset ${source} must define away manager demo credentials.`);
+  }
   assertFederationSyncPayload(candidate.federationSyncPayload, source);
+  if (!Array.isArray(candidate.photoPlan)) {
+    throw new Error(`Demo dataset ${source} must define photoPlan.`);
+  }
 }
 
 function assertFederationSyncPayload(
@@ -201,6 +256,7 @@ function printPlan(
     schemaVersion: dataset.schemaVersion,
     seasonId: dataset.seasonId,
     expectedFederationSyncCounts: expected,
+    expectedPhotoUploads: dataset.photoPlan.length,
   });
 }
 
@@ -217,8 +273,126 @@ async function waitForBackend(apiBaseUrl: string): Promise<void> {
   throw new Error(`Backend health check did not become ready: ${healthUrl}`);
 }
 
+async function loginDemoUsers(apiBaseUrl: string, dataset: DemoDataset): Promise<DemoSessions> {
+  return {
+    homeManager: await login(apiBaseUrl, dataset.auth.homeManager),
+    awayManager: await login(apiBaseUrl, dataset.auth.awayManager),
+    federation: await login(apiBaseUrl, dataset.auth.federation),
+  };
+}
+
 async function login(apiBaseUrl: string, credentials: DemoCredentials): Promise<SessionResponse> {
   return postJson<SessionResponse>(`${apiBaseUrl}/auth/login`, credentials);
+}
+
+async function uploadAndApproveDemoPhotos(
+  apiBaseUrl: string,
+  dataset: DemoDataset,
+  sessions: DemoSessions,
+): Promise<void> {
+  for (const photo of dataset.photoPlan) {
+    const session = sessions[photo.manager];
+    const png = generateDemoPng(photo.generatedImage);
+    const intent = await postJson<PhotoUploadIntentResponse>(
+      `${apiBaseUrl}/photos/upload-intent`,
+      {
+        subjectKind: photo.subjectKind,
+        subjectId: photo.subjectId,
+        registrationId: photo.registrationId,
+        federationId: dataset.federationSyncPayload.federations[0].id,
+        seasonId: dataset.seasonId,
+        mimeType: 'image/png',
+        fileSizeBytes: png.byteLength,
+        sha256: createHash('sha256').update(png).digest('hex'),
+        actorRole: 'manager',
+        clubId: photo.clubId,
+        registrationClubId: photo.clubId,
+      },
+      session.accessToken,
+    );
+
+    await postJson<unknown>(
+      `${apiBaseUrl}/photos/uploads/${intent.intent.uploadId}/complete`,
+      {
+        objectKey: intent.intent.objectKey,
+        contentBase64: png.toString('base64'),
+        actorRole: 'manager',
+        clubId: photo.clubId,
+        registrationClubId: photo.clubId,
+      },
+      session.accessToken,
+    );
+  }
+
+  const pending = await getJson<readonly PhotoApproval[]>(
+    `${apiBaseUrl}/photo-approvals?federationId=${encodeURIComponent(dataset.federationSyncPayload.federations[0].id)}&status=pending`,
+    sessions.federation.accessToken,
+  );
+  const expectedRegistrationIds = new Set(dataset.photoPlan.map((photo) => photo.registrationId));
+  const approvalsToApprove = pending.filter(
+    (approval) =>
+      approval.registrationId !== null && expectedRegistrationIds.has(approval.registrationId),
+  );
+
+  if (approvalsToApprove.length !== dataset.photoPlan.length) {
+    throw new Error(
+      `Expected ${dataset.photoPlan.length} pending photo approvals, found ${approvalsToApprove.length}.`,
+    );
+  }
+
+  for (const approval of approvalsToApprove) {
+    await postJson<PhotoApproval>(
+      `${apiBaseUrl}/photo-approvals/${approval.id}/approve`,
+      {
+        actorRole: 'federation',
+        federationId: dataset.federationSyncPayload.federations[0].id,
+        reasonCode: 'identity_verified',
+        notes: 'ARCH-1 demo bootstrap approval',
+      },
+      sessions.federation.accessToken,
+    );
+  }
+
+  await verifyApprovedPhotos(apiBaseUrl, dataset, sessions.federation.accessToken);
+}
+
+async function verifyApprovedPhotos(
+  apiBaseUrl: string,
+  dataset: DemoDataset,
+  accessToken: string,
+): Promise<void> {
+  const pending = await getJson<readonly PhotoApproval[]>(
+    `${apiBaseUrl}/photo-approvals?federationId=${encodeURIComponent(dataset.federationSyncPayload.federations[0].id)}&status=pending`,
+    accessToken,
+  );
+  const expectedRegistrationIds = new Set(dataset.photoPlan.map((photo) => photo.registrationId));
+  const pendingDemoApprovals = pending.filter(
+    (approval) =>
+      approval.registrationId !== null && expectedRegistrationIds.has(approval.registrationId),
+  );
+
+  if (pendingDemoApprovals.length > 0) {
+    throw new Error(
+      `Demo photo approvals are still pending: ${pendingDemoApprovals.map((approval) => approval.id).join(', ')}.`,
+    );
+  }
+
+  for (const photo of dataset.photoPlan) {
+    const seasonPhoto = await getJson<SeasonPhotoResponse>(
+      `${apiBaseUrl}/registrations/${photo.registrationId}/season-photo`,
+      accessToken,
+    );
+    if (seasonPhoto.version.status !== 'active') {
+      throw new Error(
+        `Season photo for registration ${photo.registrationId} is not active: ${seasonPhoto.version.status}.`,
+      );
+    }
+    if (seasonPhoto.signedUrl.url.length === 0) {
+      throw new Error(
+        `Season photo for registration ${photo.registrationId} did not return a signed URL.`,
+      );
+    }
+  }
 }
 
 async function verifyFederationData(
