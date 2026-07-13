@@ -87,15 +87,13 @@ export class LocalPhotoObjectStore implements PhotoObjectStore {
     };
   }
 
-  createSignedReadUrl(input: SignedPhotoReadUrlInput): Promise<SignedPhotoReadUrl> {
+  async createSignedReadUrl(input: SignedPhotoReadUrlInput): Promise<SignedPhotoReadUrl> {
     const expiresAt = new Date(Date.now() + input.ttlSeconds * 1000).toISOString();
-    const token = createHash('sha256')
-      .update(`${input.objectKey}:${input.correlationId}:${expiresAt}`)
-      .digest('hex');
-    return Promise.resolve({
-      url: `file://${this.pathFor(input.objectKey)}?rendition=${input.rendition}&expiresAt=${encodeURIComponent(expiresAt)}&disposition=${input.disposition ?? 'inline'}&signature=${token}`,
+    const bytes = await readFile(this.pathFor(input.objectKey));
+    return {
+      url: `data:${mimeTypeForObjectKey(input.objectKey)};base64,${bytes.toString('base64')}`,
       expiresAt,
-    });
+    };
   }
 
   async quarantineObject(objectKey: string): Promise<void> {
@@ -117,3 +115,9 @@ export class LocalPhotoObjectStore implements PhotoObjectStore {
 }
 
 export class StubPhotoObjectStore extends LocalPhotoObjectStore {}
+
+function mimeTypeForObjectKey(objectKey: string): string {
+  if (objectKey.endsWith('.png') || objectKey.includes('.png.')) return 'image/png';
+  if (objectKey.endsWith('.webp') || objectKey.includes('.webp.')) return 'image/webp';
+  return 'image/jpeg';
+}

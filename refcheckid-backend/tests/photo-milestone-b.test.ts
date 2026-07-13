@@ -48,7 +48,7 @@ describe('ARCH-1 Milestone B photo core', () => {
       { actorRole: 'admin', actorId },
       { ttlSeconds: 120, rendition: 'normalized' },
     );
-    expect(signed.signedUrl.url).toContain('signature=');
+    expect(signed.signedUrl.url).toMatch(/^data:image\/png;base64,/);
     expect(signed.rendition).toBe('normalized');
   });
 
