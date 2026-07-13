@@ -53,6 +53,21 @@ describe("regression: manager photo capture flow", () => {
     expect(source).not.toContain("context.ellipse");
   });
 
+  it("scopes photo errors to the subject that triggered them", () => {
+    expect(source).toContain("type PhotoErrorState");
+    expect(source).toContain("useState<PhotoErrorState | null>");
+    expect(source).toContain('handlePhotoSelected("athlete", playerId, file)');
+    expect(source).toContain(
+      'handlePhotoSelected("staff_member", staffId, file)',
+    );
+    expect(source).toContain('confirmPhoto("athlete", playerId');
+    expect(source).toContain('confirmPhoto("staff_member", staffId');
+    expect(source).toContain('photoError?.subjectKind === "athlete"');
+    expect(source).toContain('photoError?.subjectKind === "staff_member"');
+    expect(source).toContain("photoError.subjectId === player.id");
+    expect(source).toContain("photoError.subjectId === staffMember.id");
+  });
+
   it("exposes a smoke-only reset for submitted sheets", () => {
     expect(source).toContain("Ripristina distinta di prova");
     expect(source).toContain("isSmokeResetAvailable");
