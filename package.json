@@ -4,6 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "scripts": {
+    "demo:bootstrap": "node scripts/demo-bootstrap.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:backend": "pnpm -C refcheckid-backend dev",
     "dev:web": "pnpm -C refcheckid-web dev",

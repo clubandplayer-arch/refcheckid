@@ -170,6 +170,15 @@ The manifest owns:
 
 The asset directories under `refcheckid-backend/demo/assets/photos/` are reserved for committed demo input images. These files are bootstrap inputs only: later milestones must read them and submit them through official photo APIs, never copy them directly into runtime storage.
 
+
+## Milestone 3 implementation baseline
+
+Milestone 3 introduces the first executable bootstrap runner through `pnpm demo:bootstrap`. The runner performs manifest loading/validation, authenticates the official demo users, builds the Federation Sync payload from the manifest, submits it to `POST /api/v1/federation-sync`, and verifies returned counts.
+
+Milestone 3 intentionally stops before any photo mutation. Upload Intent, Upload Complete, Approval, storage population, and photo verification remain assigned to later milestones.
+
+The runner supports `--dry-run` for local validation without a running backend. Dry runs validate the manifest and show expected Federation Sync counts, but do not create application data.
+
 ## Operation order
 
 1. Preflight:

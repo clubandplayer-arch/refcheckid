@@ -4,7 +4,7 @@ This document is the official progress tracker for the ARCH-1 Demo Bootstrap mil
 
 ## Current status
 
-Milestone 2 is complete.
+Milestone 3 is complete.
 
 ## Milestone 1 — Progettazione dell'infrastruttura Demo Bootstrap
 
@@ -117,11 +117,57 @@ Defined a deterministic ARCH-1 demo manifest and made it the Source of Truth for
 
 ### Stato
 
-Pending.
+Completed.
 
-### Obiettivo
+### Obiettivo raggiunto
 
-Implement login for demo users, Federation Sync, and bootstrap orchestration.
+Implemented the first executable Demo Bootstrap runner. The command loads and validates the manifest, authenticates official demo users, builds a Federation Sync payload from the manifest, calls the official Federation Sync endpoint, and verifies returned counts.
+
+### File modificati
+
+- `docs/ARCH-1_Demo_Bootstrap_Design.md`
+- `docs/arch1-demo-bootstrap-progress.md`
+- `package.json`
+- `scripts/demo-bootstrap.mjs`
+- `scripts/lib/demo-api-client.mjs`
+- `scripts/lib/demo-federation-sync.mjs`
+
+### Decisioni architetturali
+
+- `pnpm demo:bootstrap` is now the official entrypoint for Demo Bootstrap execution.
+- The runner uses only public application APIs for Milestone 3: `POST /api/v1/auth/login` and `POST /api/v1/federation-sync`.
+- The runner authenticates manager home, manager away, and federation demo users so later milestones can reuse the sessions for upload and approval phases.
+- Federation Sync payload construction is isolated in `scripts/lib/demo-federation-sync.mjs`.
+- `--dry-run` validates the manifest and expected sync counts without mutating backend state.
+- Photo upload, approval, storage population, and verification remain out of scope for Milestone 3.
+
+### Problemi risolti
+
+- Added a single executable bootstrap entrypoint instead of ad-hoc manual sync commands.
+- Added count verification so Federation Sync failures are detected immediately.
+- Added support for both `pnpm demo:bootstrap --dry-run` and `pnpm demo:bootstrap -- --dry-run` invocation styles.
+
+### Test eseguiti
+
+- `pnpm demo:bootstrap -- --dry-run`
+- `pnpm demo:bootstrap --dry-run`
+- `pnpm -C refcheckid-backend typecheck`
+- `pnpm -C refcheckid-web typecheck`
+- `pnpm -s lint`
+- `git diff --check`
+- `pnpm -C refcheckid-backend dev`
+- `pnpm demo:bootstrap`
+
+### Limitazioni residue
+
+- Milestone 3 does not upload photos, create approvals, approve photos, populate runtime photo storage, or run photo verification. These are intentionally deferred to Milestones 4, 5, and 6.
+
+### TODO rimasti
+
+- Milestone 4: implement official photo upload through Upload Intent and Upload Complete using manifest assets.
+- Milestone 5: implement Federation Approval automation.
+- Milestone 6: implement verification and doctor commands.
+- Milestone 7: complete Backend/Web/Mobile integration validation.
 
 ## Milestone 4 — Workflow ufficiale Upload Photo
 
