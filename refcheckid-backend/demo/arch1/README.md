@@ -17,6 +17,17 @@ The dataset is intentionally declarative. It must be consumed by bootstrap scrip
 9. transition the match and submit the match report;
 10. run final verification through public read APIs.
 
+## Federation Sync bootstrap
+
+The first executable bootstrap slice is available as:
+
+```bash
+pnpm demo:bootstrap -- --dry-run
+pnpm demo:bootstrap
+```
+
+The command validates this dataset, authenticates with the demo federation account, calls `POST /api/v1/federation-sync`, and verifies the synchronized federation, clubs, referees, players, registrations, staff, and match through public read APIs. The dry run validates the dataset and prints the expected Federation Sync counts without calling the backend.
+
 ## Runtime image generation
 
 `scripts/demo-image-generator.ts` converts a JSON `generatedImage` spec to PNG bytes at runtime. The generated PNG is written only by the caller, for example to stdout or directly into an Upload Complete payload; no generated image file is versioned in the repository.
