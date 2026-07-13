@@ -9,10 +9,12 @@ interface DemoDataset {
   readonly auth: {
     readonly homeManager: DemoCredentials;
     readonly awayManager: DemoCredentials;
+    readonly referee: DemoCredentials;
     readonly federation: DemoCredentials;
   };
   readonly federationSyncPayload: FederationSyncPayload;
   readonly photoPlan: readonly DemoPhotoPlanItem[];
+  readonly workflowPlan: WorkflowPlan;
 }
 
 interface DemoCredentials {
@@ -57,9 +59,39 @@ interface SeasonPhotoResponse {
   };
 }
 
+interface MatchSheet {
+  readonly id: string;
+  readonly status: 'draft' | 'submitted' | 'locked';
+}
+
+interface Match {
+  readonly id: string;
+  readonly status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+}
+
+interface RecognitionWorkflow {
+  readonly matchId: string;
+  readonly status: 'not_started' | 'in_progress' | 'locked';
+}
+
+interface MatchReport {
+  readonly id: string;
+  readonly status: 'draft' | 'in_compilation' | 'submitted';
+  readonly summary: string | null;
+}
+
+interface WorkflowPlan {
+  readonly matchId: string;
+  readonly homeSheetId: string;
+  readonly awaySheetId: string;
+  readonly refereeId: string;
+  readonly reportSummary: string;
+}
+
 interface DemoSessions {
   readonly homeManager: SessionResponse;
   readonly awayManager: SessionResponse;
+  readonly referee: SessionResponse;
   readonly federation: SessionResponse;
 }
 
@@ -127,14 +159,19 @@ async function main(): Promise<void> {
     sessions.federation.accessToken,
   );
   await uploadAndApproveDemoPhotos(options.apiBaseUrl, dataset, sessions);
+  await completeMatchWorkflow(options.apiBaseUrl, dataset.workflowPlan, sessions);
 
-  console.info('[RefCheckID][demo-bootstrap] Federation Sync and photo bootstrap completed.', {
-    apiBaseUrl: options.apiBaseUrl,
-    schemaVersion: dataset.schemaVersion,
-    seasonId: dataset.seasonId,
-    counts: syncResult,
-    uploadedPhotos: dataset.photoPlan.length,
-  });
+  console.info(
+    '[RefCheckID][demo-bootstrap] Federation Sync, photo, and match workflow bootstrap completed.',
+    {
+      apiBaseUrl: options.apiBaseUrl,
+      schemaVersion: dataset.schemaVersion,
+      seasonId: dataset.seasonId,
+      counts: syncResult,
+      uploadedPhotos: dataset.photoPlan.length,
+      matchId: dataset.workflowPlan.matchId,
+    },
+  );
 }
 
 function parseArgs(args: readonly string[]): BootstrapOptions {
@@ -202,9 +239,15 @@ function assertDataset(value: unknown, source: string): asserts value is DemoDat
   if (typeof candidate.auth.awayManager?.email !== 'string') {
     throw new Error(`Demo dataset ${source} must define away manager demo credentials.`);
   }
+  if (typeof candidate.auth.referee?.email !== 'string') {
+    throw new Error(`Demo dataset ${source} must define referee demo credentials.`);
+  }
   assertFederationSyncPayload(candidate.federationSyncPayload, source);
   if (!Array.isArray(candidate.photoPlan)) {
     throw new Error(`Demo dataset ${source} must define photoPlan.`);
+  }
+  if (typeof candidate.workflowPlan?.matchId !== 'string') {
+    throw new Error(`Demo dataset ${source} must define workflowPlan.`);
   }
 }
 
@@ -257,6 +300,7 @@ function printPlan(
     seasonId: dataset.seasonId,
     expectedFederationSyncCounts: expected,
     expectedPhotoUploads: dataset.photoPlan.length,
+    workflowMatchId: dataset.workflowPlan.matchId,
   });
 }
 
@@ -277,6 +321,7 @@ async function loginDemoUsers(apiBaseUrl: string, dataset: DemoDataset): Promise
   return {
     homeManager: await login(apiBaseUrl, dataset.auth.homeManager),
     awayManager: await login(apiBaseUrl, dataset.auth.awayManager),
+    referee: await login(apiBaseUrl, dataset.auth.referee),
     federation: await login(apiBaseUrl, dataset.auth.federation),
   };
 }
@@ -354,6 +399,138 @@ async function uploadAndApproveDemoPhotos(
   }
 
   await verifyApprovedPhotos(apiBaseUrl, dataset, sessions.federation.accessToken);
+}
+
+async function completeMatchWorkflow(
+  apiBaseUrl: string,
+  workflow: WorkflowPlan,
+  sessions: DemoSessions,
+): Promise<void> {
+  await submitAndLockMatchSheet(apiBaseUrl, workflow.homeSheetId, sessions.homeManager.accessToken);
+  await submitAndLockMatchSheet(apiBaseUrl, workflow.awaySheetId, sessions.awayManager.accessToken);
+
+  await postJson<RecognitionWorkflow>(
+    `${apiBaseUrl}/recognitions/start`,
+    { matchId: workflow.matchId },
+    sessions.referee.accessToken,
+  );
+  const recognition = await postJson<RecognitionWorkflow>(
+    `${apiBaseUrl}/recognitions/complete`,
+    { matchId: workflow.matchId },
+    sessions.referee.accessToken,
+  );
+  if (recognition.status !== 'locked') {
+    throw new Error(`Recognition workflow for match ${workflow.matchId} is not locked.`);
+  }
+
+  await completeMatch(apiBaseUrl, workflow.matchId, sessions.referee.accessToken);
+  await submitMatchReport(apiBaseUrl, workflow, sessions.referee.accessToken);
+}
+
+async function submitAndLockMatchSheet(
+  apiBaseUrl: string,
+  matchSheetId: string,
+  accessToken: string,
+): Promise<void> {
+  const matchSheet = await getJson<MatchSheet>(
+    `${apiBaseUrl}/match-sheets/${matchSheetId}`,
+    accessToken,
+  );
+
+  if (matchSheet.status === 'draft') {
+    await postJson<MatchSheet>(
+      `${apiBaseUrl}/match-sheets/${matchSheetId}/submit`,
+      {},
+      accessToken,
+    );
+    await postJson<MatchSheet>(`${apiBaseUrl}/match-sheets/${matchSheetId}/lock`, {}, accessToken);
+  } else if (matchSheet.status === 'submitted') {
+    await postJson<MatchSheet>(`${apiBaseUrl}/match-sheets/${matchSheetId}/lock`, {}, accessToken);
+  }
+
+  const locked = await getJson<MatchSheet>(
+    `${apiBaseUrl}/match-sheets/${matchSheetId}`,
+    accessToken,
+  );
+  if (locked.status !== 'locked') {
+    throw new Error(`Match sheet ${matchSheetId} is not locked: ${locked.status}.`);
+  }
+}
+
+async function completeMatch(
+  apiBaseUrl: string,
+  matchId: string,
+  accessToken: string,
+): Promise<void> {
+  const match = await getJson<Match>(`${apiBaseUrl}/matches/${matchId}`, accessToken);
+
+  if (match.status === 'scheduled') {
+    await postJson<Match>(
+      `${apiBaseUrl}/matches/${matchId}/status`,
+      { status: 'in_progress' },
+      accessToken,
+    );
+    await postJson<Match>(
+      `${apiBaseUrl}/matches/${matchId}/status`,
+      { status: 'completed' },
+      accessToken,
+    );
+  } else if (match.status === 'in_progress') {
+    await postJson<Match>(
+      `${apiBaseUrl}/matches/${matchId}/status`,
+      { status: 'completed' },
+      accessToken,
+    );
+  }
+
+  const completed = await getJson<Match>(`${apiBaseUrl}/matches/${matchId}`, accessToken);
+  if (completed.status !== 'completed') {
+    throw new Error(`Match ${matchId} is not completed: ${completed.status}.`);
+  }
+}
+
+async function submitMatchReport(
+  apiBaseUrl: string,
+  workflow: WorkflowPlan,
+  accessToken: string,
+): Promise<void> {
+  const existingReport = await getJson<MatchReport | null>(
+    `${apiBaseUrl}/match-reports?matchId=${encodeURIComponent(workflow.matchId)}`,
+    accessToken,
+  );
+  const report =
+    existingReport === null
+      ? await postJson<MatchReport>(
+          `${apiBaseUrl}/match-reports`,
+          {
+            matchId: workflow.matchId,
+            refereeId: workflow.refereeId,
+            summary: workflow.reportSummary,
+          },
+          accessToken,
+        )
+      : existingReport;
+
+  const updated =
+    report.status === 'submitted'
+      ? report
+      : await patchJson<MatchReport>(
+          `${apiBaseUrl}/match-reports/${report.id}`,
+          { summary: workflow.reportSummary },
+          accessToken,
+        );
+  const submitted =
+    updated.status === 'submitted'
+      ? updated
+      : await postJson<MatchReport>(
+          `${apiBaseUrl}/match-reports/${updated.id}/submit`,
+          {},
+          accessToken,
+        );
+
+  if (submitted.status !== 'submitted') {
+    throw new Error(`Match report ${submitted.id} is not submitted: ${submitted.status}.`);
+  }
 }
 
 async function verifyApprovedPhotos(
@@ -454,6 +631,17 @@ async function getJson<T>(url: string, accessToken: string): Promise<T> {
   return requestJson<T>(url, {
     method: 'GET',
     headers: authHeaders(accessToken),
+  });
+}
+
+async function patchJson<T>(url: string, body: unknown, accessToken: string): Promise<T> {
+  return requestJson<T>(url, {
+    method: 'PATCH',
+    headers: {
+      'content-type': 'application/json',
+      ...authHeaders(accessToken),
+    },
+    body: JSON.stringify(body),
   });
 }
 
