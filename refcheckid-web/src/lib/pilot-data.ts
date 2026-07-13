@@ -44,17 +44,18 @@ const awayPlayerNames = [
 
 function buildPilotPlayers(
   names: readonly (readonly [string, string])[],
-  idPrefix: string,
+  subjectUuidPrefix: string,
+  registrationUuidPrefix: string,
 ): readonly PlayerListItem[] {
   return names.map(([firstName, lastName], index) => {
     const number = index + 1;
     return {
-      id: `${idPrefix}-${number}`,
+      id: buildPilotUuid(subjectUuidPrefix, number),
       firstName,
       lastName,
       photoUrl: null,
-      registrationId: null,
-      season: null,
+      registrationId: buildPilotUuid(registrationUuidPrefix, number),
+      season: "2026",
       warning: number === 7,
       suspended: number === 13,
       selected: false,
@@ -69,24 +70,31 @@ function buildPilotPlayers(
 
 export const pilotPlayers: readonly PlayerListItem[] = buildPilotPlayers(
   homePlayerNames,
-  "pilot-player",
+  "71000000",
+  "72000000",
 );
 
 export const pilotStaff: readonly StaffListItem[] = [
-  { id: "pilot-staff-1", fullName: "Mario Rossi", role: "Allenatore", photoUrl: null, registrationId: null, season: null, selected: false },
-  { id: "pilot-staff-2", fullName: "Lucia Bianchi", role: "Medico", photoUrl: null, registrationId: null, season: null, selected: false },
-  { id: "pilot-staff-3", fullName: "Paolo Verdi", role: "Dirigente accompagnatore", photoUrl: null, registrationId: null, season: null, selected: false },
+  { id: buildPilotUuid("73000000", 1), fullName: "Mario Rossi", role: "Allenatore", photoUrl: null, registrationId: buildPilotUuid("74000000", 1), season: "2026", selected: false },
+  { id: buildPilotUuid("73000000", 2), fullName: "Lucia Bianchi", role: "Medico", photoUrl: null, registrationId: buildPilotUuid("74000000", 2), season: "2026", selected: false },
+  { id: buildPilotUuid("73000000", 3), fullName: "Paolo Verdi", role: "Dirigente accompagnatore", photoUrl: null, registrationId: buildPilotUuid("74000000", 3), season: "2026", selected: false },
 ];
 
 
 export const pilotAwayPlayers: readonly PlayerListItem[] = buildPilotPlayers(
   awayPlayerNames,
-  "pilot-away-player",
+  "75000000",
+  "76000000",
 );
 
 export const pilotAwayStaff: readonly StaffListItem[] = pilotStaff.map((staffMember, index) => ({
   ...staffMember,
-  id: `pilot-away-staff-${index + 1}`,
+  id: buildPilotUuid("77000000", index + 1),
+  registrationId: buildPilotUuid("78000000", index + 1),
   fullName: `${staffMember.fullName} Ospite`,
   selected: false,
 }));
+
+function buildPilotUuid(prefix: string, number: number): string {
+  return `${prefix}-0000-4000-8000-${String(number).padStart(12, "0")}`;
+}
