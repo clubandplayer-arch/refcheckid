@@ -970,7 +970,7 @@ function StaffStep({
       ) : null}
       {staff.map((staffMember) => (
         <div
-          className="grid gap-3 rounded-xl border p-4 md:grid-cols-[32px_96px_minmax(0,1fr)_minmax(220px,340px)_minmax(220px,340px)] md:items-start"
+          className="grid gap-3 rounded-xl border p-4 md:grid-cols-[32px_96px_minmax(0,1fr)] xl:grid-cols-[32px_96px_minmax(240px,1fr)_minmax(220px,340px)_minmax(220px,340px)] md:items-start"
           key={staffMember.id}
         >
           <label className="flex items-center gap-2 text-sm md:justify-start">
@@ -1001,8 +1001,11 @@ function StaffStep({
             <p className="text-xs leading-relaxed text-slate-500">{staffMember.role}</p>
             <BackendPhotoStatus photo={staffMember.photo} />
           </div>
-          <PhotoComparison currentPhotoUrl={staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl} proposedPhotoUrl={staffMember.photo?.proposedPhotoUrl ?? null} />
-          <PhotoCaptureControls
+          <div className="md:col-start-3 xl:col-start-auto">
+            <PhotoComparison currentPhotoUrl={staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl} proposedPhotoUrl={staffMember.photo?.proposedPhotoUrl ?? null} />
+          </div>
+          <div className="md:col-start-3 xl:col-start-auto">
+            <PhotoCaptureControls
             currentPhotoUrl={staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl}
             onConfirm={() => onConfirmPhoto(staffMember.id)}
             onPhotoSelected={(file) => onPhotoSelected(staffMember.id, file)}
@@ -1010,7 +1013,8 @@ function StaffStep({
             photoDraft={photoDraft?.id === staffMember.id ? photoDraft : null}
             photoError={photoError}
             subjectLabel={staffMember.fullName}
-          />
+            />
+          </div>
         </div>
       ))}
     </Card>

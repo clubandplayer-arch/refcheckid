@@ -74,7 +74,8 @@ describe('ARCH-1 Milestone B photo core', () => {
       contentBase64: oneByOnePng.toString('base64'),
       context: { actorRole: 'manager', actorId, clubId, federationId },
     });
-    const approval = (await container.repositories.photoApprovals.list())[0]!;
+    const [approval] = await container.repositories.photoApprovals.list();
+    expect(approval).toBeDefined();
     await container.services.photos.approvePhotoApproval({
       approvalId: approval.id,
       context: { actorRole: 'federation', actorId, federationId },

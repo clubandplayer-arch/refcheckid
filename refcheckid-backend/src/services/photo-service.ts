@@ -114,6 +114,13 @@ export class PhotoService {
     const dedupeKeyHash = `${subjectKind}:${subjectId}`;
     const subject =
       (await this.dependencies.photoSubjects.findByDedupeKeyHash(dedupeKeyHash)) ??
+      (await this.dependencies.photoSubjects.findByDedupeKeyHash(subjectId)) ??
+      (await this.dependencies.photoSubjects.list()).find(
+        (row) =>
+          row.deletedAt === null &&
+          row.subjectKind === subjectKind &&
+          row.canonicalPersonId === subjectId,
+      ) ??
       (await this.dependencies.photoSubjects.create({
         subjectKind,
         canonicalPersonId: subjectId,

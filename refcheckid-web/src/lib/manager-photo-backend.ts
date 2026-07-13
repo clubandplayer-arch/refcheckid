@@ -13,7 +13,7 @@ export interface ManagerPhotoState {
   readonly approvalId: string | null;
 }
 
-interface SignedReadResponse { signedUrl?: { url?: string }; version?: { status?: string } }
+interface SignedReadResponse { signedUrl?: { url?: string }; version?: { status?: string }; status?: string; renditions?: { normalized?: { url?: string }; thumb320?: { url?: string }; thumb128?: { url?: string } } }
 interface ApprovalResponse { id: string; photoVersionId: string; registrationId: string | null; requestedAt?: string; status: string; decisionReasonCode?: string | null; decisionNotes?: string | null }
 interface UploadIntentResponse { intent: { uploadId: string; objectKey: string; uploadUrl?: { url?: string; method?: string; headers?: Record<string, string> } } }
 
@@ -56,11 +56,16 @@ export async function readBackendPhotoState(subjectKind: "athlete" | "staff_memb
   try {
     const endpoint = subjectKind === "staff_member" ? "staff-members" : "players";
     const signed = await request<SignedReadResponse>(`/${endpoint}/${encodeURIComponent(subjectId)}/photo?rendition=normalized&ttlSeconds=300`);
-    currentPhotoUrl = signed.signedUrl?.url ?? null;
-    currentStatus = signed.version?.status === "suspended" ? "suspended" : currentPhotoUrl ? "active" : "missing";
+    currentPhotoUrl = signed.signedUrl?.url ?? signed.renditions?.normalized?.url ?? signed.renditions?.thumb320?.url ?? null;
+    currentStatus = signed.version?.status === "suspended" || signed.status === "suspended" ? "suspended" : currentPhotoUrl ? "active" : "missing";
   } catch {
-    if (flags.legacyLocalFallback) currentPhotoUrl = legacyPhotoUrl;
-    currentStatus = currentPhotoUrl ? "active" : "missing";
+    if (registrationId) {
+      const signed = await readRegistrationSeasonPhoto(registrationId).catch(() => null);
+      currentPhotoUrl = signed?.signedUrl?.url ?? signed?.renditions?.normalized?.url ?? signed?.renditions?.thumb320?.url ?? null;
+      currentStatus = signed?.version?.status === "suspended" || signed?.status === "suspended" ? "suspended" : currentPhotoUrl ? "active" : "missing";
+    }
+    if (!currentPhotoUrl && flags.legacyLocalFallback) currentPhotoUrl = legacyPhotoUrl;
+    currentStatus = currentStatus === "suspended" ? "suspended" : currentPhotoUrl ? "active" : "missing";
   }
   const approval = registrationId ? await readLatestApproval(registrationId) : null;
   if (!approval) return { approvalId: null, currentPhotoUrl, proposedPhotoUrl: null, status: currentStatus };
@@ -115,6 +120,10 @@ export async function uploadOfficialSubjectPhoto(input: { subjectKind: "athlete"
 
 export function uploadOfficialPlayerPhoto(input: { playerId: string; registrationId: string; clubId: string; federationId: string; seasonId: string; dataUrl: string; mimeType?: string }): Promise<ManagerPhotoState> {
   return uploadOfficialSubjectPhoto({ ...input, subjectKind: "athlete", subjectId: input.playerId });
+}
+
+async function readRegistrationSeasonPhoto(registrationId: string): Promise<SignedReadResponse> {
+  return request<SignedReadResponse>(`/registrations/${encodeURIComponent(registrationId)}/season-photo?rendition=normalized&ttlSeconds=300`);
 }
 
 async function readLatestApproval(registrationId: string): Promise<ApprovalResponse | null> {

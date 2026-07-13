@@ -134,7 +134,7 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
   const pilotRoster = managerTeam === "away" ? pilotAwayPlayers : pilotPlayers;
   const managerClubId = managerTeamConfig[managerTeam].clubId;
   const registrations = await fetchPlayerRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`);
-  const registrationByPlayerId = new Map(registrations.map((registration) => [registration.playerId, registration]));
+  const registrationByPlayerId = new Map(registrations.map((registration) => [normalizeRegistrationSubjectId(registration, "player"), registration]));
   const mappedPlayers: readonly PlayerListItem[] = players.length === 0 ? pilotRoster : players.map((player) => {
     const registration = registrationByPlayerId.get(String(player.id));
     return {
@@ -142,8 +142,8 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
     firstName: String(player.firstName ?? player.first_name ?? ""),
     lastName: String(player.lastName ?? player.last_name ?? ""),
     photoUrl: normalizePhotoUrl(player.photoUrl ?? player.photo_url),
-    registrationId: registration?.id ?? null,
-    season: registration?.season ?? null,
+    registrationId: normalizeRegistrationId(registration),
+    season: normalizeRegistrationSeason(registration),
 	    warning: Boolean(player.warning ?? false),
 	    suspended: Boolean(player.suspended ?? false),
 	    selected: false,
@@ -163,7 +163,7 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
   const managerTeam = getCurrentManagerTeam();
   const managerClubId = managerTeamConfig[managerTeam].clubId;
   const registrations = await fetchStaffRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`);
-  const registrationByStaffId = new Map(registrations.map((registration) => [registration.staffMemberId, registration]));
+  const registrationByStaffId = new Map(registrations.map((registration) => [normalizeRegistrationSubjectId(registration, "staff"), registration]));
   const pilotRoster = managerTeam === "away" ? pilotAwayStaff : pilotStaff;
   const mappedStaff: readonly StaffListItem[] = staff.length === 0 ? pilotRoster : staff.map((staffMember) => {
     const registration = registrationByStaffId.get(String(staffMember.id));
@@ -174,8 +174,8 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
       ),
       role: String(registration?.role ?? staffMember.role ?? "staff"),
       photoUrl: staffMember.photoUrl ? String(staffMember.photoUrl) : null,
-      registrationId: registration?.id ?? null,
-      season: registration?.season ?? null,
+      registrationId: normalizeRegistrationId(registration),
+      season: normalizeRegistrationSeason(registration),
       selected: false,
     };
   });
@@ -184,8 +184,10 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
 
 export interface ApiPlayerRegistration {
   id: string;
-  playerId: string;
-  clubId: string;
+  playerId?: string;
+  player_id?: string;
+  clubId?: string;
+  club_id?: string;
   season: string;
   status: string;
 }
@@ -196,8 +198,10 @@ export function fetchPlayerRegistrations(query = ""): Promise<readonly ApiPlayer
 
 export interface ApiStaffRegistration {
   id: string;
-  staffMemberId: string;
-  clubId: string;
+  staffMemberId?: string;
+  staff_member_id?: string;
+  clubId?: string;
+  club_id?: string;
   season: string;
   role: string;
   status: string;
@@ -210,6 +214,23 @@ export function fetchStaffRegistrations(query = ""): Promise<readonly ApiStaffRe
 function normalizePhotoUrl(value: unknown): string | null {
   if (typeof value !== "string" || value.length === 0) return null;
   return value === "/placeholder-player.svg" ? null : value;
+}
+
+function normalizeRegistrationId(registration: ApiPlayerRegistration | ApiStaffRegistration | undefined): string | null {
+  return typeof registration?.id === "string" && registration.id.length > 0 ? registration.id : null;
+}
+
+function normalizeRegistrationSeason(registration: ApiPlayerRegistration | ApiStaffRegistration | undefined): string | null {
+  return typeof registration?.season === "string" && registration.season.length > 0 ? registration.season : null;
+}
+
+function normalizeRegistrationSubjectId(registration: ApiPlayerRegistration | ApiStaffRegistration, kind: "player" | "staff"): string {
+  if (kind === "player") {
+    const playerRegistration = registration as ApiPlayerRegistration;
+    return String(playerRegistration.playerId ?? playerRegistration.player_id ?? "");
+  }
+  const staffRegistration = registration as ApiStaffRegistration;
+  return String(staffRegistration.staffMemberId ?? staffRegistration.staff_member_id ?? "");
 }
 
 export function fetchMatches(query = ""): Promise<readonly ApiMatch[]> {
