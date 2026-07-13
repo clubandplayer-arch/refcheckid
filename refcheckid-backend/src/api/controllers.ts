@@ -31,8 +31,15 @@ export function createControllers(container: ApplicationContainer): Record<strin
         200,
         await container.repositories.referees.findById(requireUuid(request.params.id, 'id')),
       ),
-    listPlayerRegistrations: async () =>
-      json(200, await container.repositories.registrations.list()),
+    listPlayerRegistrations: async (request) =>
+      json(
+        200,
+        request.query.clubId === undefined
+          ? await container.repositories.registrations.list()
+          : await container.repositories.registrations.listByClub(
+              requireUuid(request.query.clubId, 'clubId'),
+            ),
+      ),
     getPlayerRegistration: async (request) =>
       json(
         200,
@@ -119,12 +126,14 @@ export function createControllers(container: ApplicationContainer): Record<strin
       const legacyPlayerId = optionalString(body.playerId, 'playerId');
       const legacyStaffMemberId = optionalString(body.staffMemberId, 'staffMemberId');
       const subjectId =
-        optionalString(body.subjectId, 'subjectId') ??
-        legacyPlayerId ??
-        legacyStaffMemberId;
+        optionalString(body.subjectId, 'subjectId') ?? legacyPlayerId ?? legacyStaffMemberId;
       const resolvedSubjectKind =
         subjectKind ??
-        (legacyStaffMemberId !== null ? 'staff_member' : legacyPlayerId !== null ? 'athlete' : undefined);
+        (legacyStaffMemberId !== null
+          ? 'staff_member'
+          : legacyPlayerId !== null
+            ? 'athlete'
+            : undefined);
       const intent = await container.services.photos.createUploadIntent({
         ...(resolvedSubjectKind === undefined ? {} : { subjectKind: resolvedSubjectKind }),
         ...(subjectId === null ? {} : { subjectId: requireUuid(subjectId, 'subjectId') }),
@@ -253,7 +262,8 @@ export function createControllers(container: ApplicationContainer): Record<strin
           return {
             id: snapshot.registrationId,
             firstName: typeof manifest.firstName === 'string' ? manifest.firstName : 'Tesserato',
-            lastName: typeof manifest.lastName === 'string' ? manifest.lastName : snapshot.registrationId,
+            lastName:
+              typeof manifest.lastName === 'string' ? manifest.lastName : snapshot.registrationId,
             shirtNumber: typeof manifest.shirtNumber === 'number' ? manifest.shirtNumber : null,
             teamName: typeof manifest.teamName === 'string' ? manifest.teamName : 'Distinta gara',
             roleLabel: typeof manifest.roleLabel === 'string' ? manifest.roleLabel : 'Tesserato',
@@ -264,14 +274,18 @@ export function createControllers(container: ApplicationContainer): Record<strin
             manifestSource: 'frozen_snapshot',
             isFrozenSnapshot: true,
             document: {
-              type: typeof manifest.documentType === 'string' ? manifest.documentType : 'Documento tesserato',
+              type:
+                typeof manifest.documentType === 'string'
+                  ? manifest.documentType
+                  : 'Documento tesserato',
               number: snapshot.registrationId,
               expiresAt: snapshot.frozenAt,
             },
           };
         }),
       );
-      const photoEtag = snapshotRows.map((snapshot) => snapshot.photoEtag).join('|') || `manifest:${matchId}:empty`;
+      const photoEtag =
+        snapshotRows.map((snapshot) => snapshot.photoEtag).join('|') || `manifest:${matchId}:empty`;
       return json(200, {
         matchId,
         manifestVersion: frozen ? 'frozen-v1' : 'live-v1',

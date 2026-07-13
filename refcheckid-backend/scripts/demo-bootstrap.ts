@@ -26,6 +26,18 @@ interface DemoEntity {
   readonly id: string;
 }
 
+interface DemoPlayerRegistration extends DemoEntity {
+  readonly playerId: string;
+  readonly clubId: string;
+  readonly season: string;
+}
+
+interface DemoStaffRegistration extends DemoEntity {
+  readonly staffMemberId: string;
+  readonly clubId: string;
+  readonly season: string;
+}
+
 interface DemoPhotoPlanItem {
   readonly label: string;
   readonly subjectKind: 'athlete' | 'staff_member';
@@ -100,9 +112,9 @@ interface FederationSyncPayload {
   readonly clubs: readonly DemoEntity[];
   readonly referees: readonly DemoEntity[];
   readonly players: readonly DemoEntity[];
-  readonly playerRegistrations: readonly DemoEntity[];
+  readonly playerRegistrations: readonly DemoPlayerRegistration[];
   readonly staffMembers: readonly DemoEntity[];
-  readonly staffRegistrations: readonly (DemoEntity & { readonly clubId: string })[];
+  readonly staffRegistrations: readonly DemoStaffRegistration[];
   readonly matches: readonly DemoEntity[];
 }
 
@@ -243,6 +255,7 @@ function assertDataset(value: unknown, source: string): asserts value is DemoDat
     throw new Error(`Demo dataset ${source} must define referee demo credentials.`);
   }
   assertFederationSyncPayload(candidate.federationSyncPayload, source);
+  assertFederationRegistrationIntegrity(candidate.federationSyncPayload);
   if (!Array.isArray(candidate.photoPlan)) {
     throw new Error(`Demo dataset ${source} must define photoPlan.`);
   }
@@ -590,15 +603,75 @@ async function verifyFederationData(
   await assertEndpointContainsIds(`${apiBaseUrl}/matches`, payload.matches, accessToken);
 
   for (const club of payload.clubs) {
-    const expectedStaffRegistrations = payload.staffRegistrations.filter(
-      (registration) => registration.clubId === club.id,
+    await assertClubScopedRegistrations(
+      `${apiBaseUrl}/player-registrations?clubId=${encodeURIComponent(club.id)}`,
+      payload.playerRegistrations.filter((registration) => registration.clubId === club.id),
+      club.id,
+      accessToken,
     );
-    await assertEndpointContainsIds(
+    await assertClubScopedRegistrations(
       `${apiBaseUrl}/staff-registrations?clubId=${encodeURIComponent(club.id)}`,
-      expectedStaffRegistrations,
+      payload.staffRegistrations.filter((registration) => registration.clubId === club.id),
+      club.id,
       accessToken,
     );
   }
+
+  assertFederationRegistrationIntegrity(payload);
+}
+
+function assertFederationRegistrationIntegrity(payload: FederationSyncPayload): void {
+  const playerIds = new Set(payload.players.map((player) => player.id));
+  const staffMemberIds = new Set(payload.staffMembers.map((staffMember) => staffMember.id));
+  const clubIds = new Set(payload.clubs.map((club) => club.id));
+
+  for (const registration of payload.playerRegistrations) {
+    if (!playerIds.has(registration.playerId)) {
+      throw new Error(
+        `Player registration ${registration.id} references missing player ${registration.playerId}.`,
+      );
+    }
+    if (!clubIds.has(registration.clubId)) {
+      throw new Error(
+        `Player registration ${registration.id} references missing club ${registration.clubId}.`,
+      );
+    }
+    if (registration.season.length === 0) {
+      throw new Error(`Player registration ${registration.id} must define a season.`);
+    }
+  }
+
+  for (const registration of payload.staffRegistrations) {
+    if (!staffMemberIds.has(registration.staffMemberId)) {
+      throw new Error(
+        `Staff registration ${registration.id} references missing staff member ${registration.staffMemberId}.`,
+      );
+    }
+    if (!clubIds.has(registration.clubId)) {
+      throw new Error(
+        `Staff registration ${registration.id} references missing club ${registration.clubId}.`,
+      );
+    }
+    if (registration.season.length === 0) {
+      throw new Error(`Staff registration ${registration.id} must define a season.`);
+    }
+  }
+}
+
+async function assertClubScopedRegistrations<T extends DemoEntity & { readonly clubId: string }>(
+  url: string,
+  expectedEntities: readonly T[],
+  clubId: string,
+  accessToken: string,
+): Promise<void> {
+  const rows = await getJson<readonly T[]>(url, accessToken);
+  const wrongClubRows = rows.filter((row) => row.clubId !== clubId).map((row) => row.id);
+  if (wrongClubRows.length > 0) {
+    throw new Error(
+      `Demo verification failed for ${url}. Rows from another club: ${wrongClubRows.join(', ')}`,
+    );
+  }
+  assertRowsContainIds(url, rows, expectedEntities);
 }
 
 async function assertEndpointContainsIds(
@@ -607,6 +680,14 @@ async function assertEndpointContainsIds(
   accessToken: string,
 ): Promise<void> {
   const rows = await getJson<readonly DemoEntity[]>(url, accessToken);
+  assertRowsContainIds(url, rows, expectedEntities);
+}
+
+function assertRowsContainIds(
+  url: string,
+  rows: readonly DemoEntity[],
+  expectedEntities: readonly DemoEntity[],
+): void {
   const returnedIds = new Set(rows.map((row) => row.id));
   const missingIds = expectedEntities
     .map((entity) => entity.id)
