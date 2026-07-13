@@ -26,7 +26,8 @@
     "migrate:status": "node scripts/migrate.mjs status",
     "migrate:rollback": "node scripts/migrate.mjs rollback",
     "demo:bootstrap": "pnpm build && node dist/scripts/demo-bootstrap.js",
-    "demo:bootstrap:dry-run": "pnpm demo:bootstrap -- --dry-run"
+    "demo:bootstrap:dry-run": "pnpm demo:bootstrap -- --dry-run",
+    "demo:verify": "pnpm build && node dist/scripts/demo-verify.js"
   },
   "engines": {
     "node": ">=20.0.0",

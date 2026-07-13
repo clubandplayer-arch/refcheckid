@@ -24,6 +24,7 @@
     "migrate:rollback": "pnpm -C refcheckid-backend migrate:rollback",
     "migrate:dry-run": "pnpm -C refcheckid-backend migrate:dry-run",
     "demo:bootstrap": "pnpm -C refcheckid-backend demo:bootstrap",
-    "demo:bootstrap:dry-run": "pnpm -C refcheckid-backend demo:bootstrap:dry-run"
+    "demo:bootstrap:dry-run": "pnpm -C refcheckid-backend demo:bootstrap:dry-run",
+    "demo:verify": "pnpm -C refcheckid-backend demo:verify"
   }
 }

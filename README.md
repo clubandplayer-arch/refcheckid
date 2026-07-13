@@ -77,6 +77,23 @@ pnpm dev
 
 This starts the backend on port `4000` and the frontend on port `3000` from the repository root.
 
+## ARCH-1 demo bootstrap
+
+A fresh Codespace can recreate the local ARCH-1 demo through the official public workflows only. Start the backend in one terminal:
+
+```bash
+pnpm dev:backend
+```
+
+Then run the bootstrap from another terminal:
+
+```bash
+pnpm demo:bootstrap
+pnpm demo:verify
+```
+
+The bootstrap performs Federation Sync, generated-photo Upload Intent/Upload Complete, federation Approval, match sheet submit/lock, recognition, match completion, and referee report submission. Demo images are generated at runtime from text metadata; no binary demo images are committed to the repository.
+
 ## Quality gate
 
 ```bash
