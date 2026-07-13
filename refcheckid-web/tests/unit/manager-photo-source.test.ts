@@ -53,6 +53,17 @@ describe("regression: manager photo capture flow", () => {
     expect(source).not.toContain("context.ellipse");
   });
 
+  it("distinguishes missing official registrations from upload failures", () => {
+    expect(source).toContain("officialPhotoUploadEnabled");
+    expect(source).toContain("getOfficialPhotoUploadUnavailableReason");
+    expect(source).toContain("Upload ufficiale non disponibile");
+    expect(source).toContain("manca il tesseramento stagionale atleta");
+    expect(source).toContain("manca il tesseramento stagionale staff");
+    expect(source).toContain("uploadUnavailableReason");
+    expect(source).toContain("disabled={Boolean(uploadUnavailableReason)}");
+    expect(source).toContain("cursor-not-allowed opacity-60");
+  });
+
   it("scopes photo errors to the subject that triggered them", () => {
     expect(source).toContain("type PhotoErrorState");
     expect(source).toContain("useState<PhotoErrorState | null>");

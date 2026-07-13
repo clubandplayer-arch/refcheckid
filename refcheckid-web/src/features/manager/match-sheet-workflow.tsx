@@ -67,6 +67,8 @@ export function MatchSheetWorkflow() {
   const managerTeam = getCurrentManagerTeam();
   const managerTeamLabel = managerTeamConfig[managerTeam].label;
   const managerClubId = managerTeamConfig[managerTeam].clubId;
+  const officialPhotoUploadEnabled =
+    getPhotoFeatureFlags().officialBackendUpload;
   const queryClient = useQueryClient();
   const { notify } = useToast();
   const playersQuery = useQuery({
@@ -526,6 +528,7 @@ export function MatchSheetWorkflow() {
           photoDraft={photoDraft}
           onPhotoTransform={updatePhotoDraftTransform}
           photoError={photoError}
+          officialPhotoUploadEnabled={officialPhotoUploadEnabled}
           players={filteredPlayers}
           query={query}
           setQuery={setQuery}
@@ -557,6 +560,7 @@ export function MatchSheetWorkflow() {
           onPhotoTransform={updatePhotoDraftTransform}
           photoDraft={photoDraft}
           photoError={photoError}
+          officialPhotoUploadEnabled={officialPhotoUploadEnabled}
           staff={staff}
           toggleStaff={toggleStaff}
         />
@@ -580,6 +584,7 @@ function PlayersStep({
   onPhotoTransform,
   photoDraft,
   photoError,
+  officialPhotoUploadEnabled,
   players,
   query,
   setQuery,
@@ -599,6 +604,7 @@ function PlayersStep({
     offsetY: number;
   } | null;
   photoError: PhotoErrorState | null;
+  officialPhotoUploadEnabled: boolean;
   players: readonly PlayerListItem[];
   query: string;
   setQuery: (value: string) => void;
@@ -625,6 +631,13 @@ function PlayersStep({
         ) : null}
         {players.map((player) => {
           const statusTone = getPlayerStatusTone(player);
+          const uploadUnavailableReason =
+            getOfficialPhotoUploadUnavailableReason(
+              officialPhotoUploadEnabled,
+              player.registrationId,
+              player.season,
+              "atleta",
+            );
           return (
             <div
               className={`grid gap-3 p-4 md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px] md:items-start ${
@@ -684,6 +697,7 @@ function PlayersStep({
                     : null
                 }
                 subjectLabel={`${player.lastName} ${player.firstName}`}
+                uploadUnavailableReason={uploadUnavailableReason}
               />
               <label className="flex items-center gap-2 text-sm md:justify-end">
                 <span className="md:sr-only">Convoca</span>
@@ -847,6 +861,7 @@ function PhotoCaptureControls({
   photoDraft,
   photoError,
   subjectLabel,
+  uploadUnavailableReason,
 }: Readonly<{
   currentPhotoUrl: string | null;
   onConfirm: () => void;
@@ -863,23 +878,36 @@ function PhotoCaptureControls({
   } | null;
   photoError: string | null;
   subjectLabel: string;
+  uploadUnavailableReason: string | null;
 }>) {
   return (
     <div className="w-full space-y-2 text-xs md:max-w-[340px]">
       <p className="font-semibold text-slate-600">
         {currentPhotoUrl ? "Modifica foto" : "Aggiungi foto"}
       </p>
-      <label className="block rounded-lg border border-dashed bg-white p-2 text-center transition hover:border-primary">
+      <label
+        className={`block rounded-lg border border-dashed bg-white p-2 text-center transition ${
+          uploadUnavailableReason
+            ? "cursor-not-allowed opacity-60"
+            : "hover:border-primary"
+        }`}
+      >
         <span>Scatta/carica foto</span>
         <input
           accept="image/*"
           aria-label={`${currentPhotoUrl ? "Modifica" : "Aggiungi"} foto ${subjectLabel}`}
           capture="environment"
           className="sr-only"
+          disabled={Boolean(uploadUnavailableReason)}
           onChange={(event) => onPhotoSelected(event.target.files?.[0] ?? null)}
           type="file"
         />
       </label>
+      {uploadUnavailableReason ? (
+        <p className="rounded-md bg-amber-50 p-2 text-amber-800">
+          {uploadUnavailableReason}
+        </p>
+      ) : null}
       {photoDraft ? (
         <div className="space-y-2 rounded-lg bg-muted p-2">
           <div className="relative mx-auto flex aspect-[3/4] h-36 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
@@ -940,6 +968,7 @@ function PhotoCaptureControls({
           </label>
           <Button
             className="w-full py-1 text-xs"
+            disabled={Boolean(uploadUnavailableReason)}
             onClick={onConfirm}
             type="button"
           >
@@ -950,6 +979,19 @@ function PhotoCaptureControls({
       {photoError ? <p className="text-red-600">{photoError}</p> : null}
     </div>
   );
+}
+
+function getOfficialPhotoUploadUnavailableReason(
+  officialPhotoUploadEnabled: boolean,
+  registrationId: string | null,
+  season: string | null,
+  subjectLabel: "atleta" | "staff",
+): string | null {
+  if (!officialPhotoUploadEnabled) return null;
+  if (registrationId && season) return null;
+  return subjectLabel === "atleta"
+    ? "Upload ufficiale non disponibile: manca il tesseramento stagionale atleta."
+    : "Upload ufficiale non disponibile: manca il tesseramento stagionale staff.";
 }
 
 function OrderStep({
@@ -1156,6 +1198,7 @@ function StaffStep({
   onPhotoTransform,
   photoDraft,
   photoError,
+  officialPhotoUploadEnabled,
   staff,
   toggleStaff,
 }: Readonly<{
@@ -1173,6 +1216,7 @@ function StaffStep({
     offsetY: number;
   } | null;
   photoError: PhotoErrorState | null;
+  officialPhotoUploadEnabled: boolean;
   staff: readonly StaffListItem[];
   toggleStaff: (id: string) => void;
 }>) {
@@ -1184,70 +1228,84 @@ function StaffStep({
         <EmptyState message="Nessuno staff disponibile." />
       ) : null}
       <div className="divide-y rounded-xl border">
-        {staff.map((staffMember) => (
-          <div
-            className="grid gap-3 p-4 md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px] md:items-start"
-            key={staffMember.id}
-          >
-            <div className="flex items-start gap-3 md:block">
-              {staffMember.photoUrl ? (
-                <Image
-                  alt={`Foto ${staffMember.fullName}`}
-                  className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
-                  height={96}
-                  src={staffMember.photoUrl}
-                  width={80}
-                />
-              ) : (
-                <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
-                  Foto
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 space-y-1">
-              <p className="break-words text-base font-semibold leading-tight text-slate-900">
-                {staffMember.fullName}
-              </p>
-              <p className="text-xs leading-relaxed text-slate-500">
-                {staffMember.role}
-              </p>
-              <BackendPhotoStatus photo={staffMember.photo} />
-            </div>
-            <PhotoComparison
-              currentPhotoUrl={
-                staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl
-              }
-              proposedPhotoUrl={staffMember.photo?.proposedPhotoUrl ?? null}
-            />
-            <PhotoCaptureControls
-              currentPhotoUrl={
-                staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl
-              }
-              onConfirm={() => onConfirmPhoto(staffMember.id)}
-              onPhotoSelected={(file) => onPhotoSelected(staffMember.id, file)}
-              onPhotoTransform={(transform) =>
-                onPhotoTransform(staffMember.id, transform)
-              }
-              photoDraft={photoDraft?.id === staffMember.id ? photoDraft : null}
-              photoError={
-                photoError?.subjectKind === "staff_member" &&
-                photoError.subjectId === staffMember.id
-                  ? photoError.message
-                  : null
-              }
-              subjectLabel={staffMember.fullName}
-            />
-            <label className="flex items-center gap-2 text-sm md:justify-end">
-              <span className="md:sr-only">Seleziona</span>
-              <input
-                aria-label={`Seleziona ${staffMember.fullName}`}
-                checked={staffMember.selected}
-                onChange={() => toggleStaff(staffMember.id)}
-                type="checkbox"
+        {staff.map((staffMember) => {
+          const uploadUnavailableReason =
+            getOfficialPhotoUploadUnavailableReason(
+              officialPhotoUploadEnabled,
+              staffMember.registrationId,
+              staffMember.season,
+              "staff",
+            );
+          return (
+            <div
+              className="grid gap-3 p-4 md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px] md:items-start"
+              key={staffMember.id}
+            >
+              <div className="flex items-start gap-3 md:block">
+                {staffMember.photoUrl ? (
+                  <Image
+                    alt={`Foto ${staffMember.fullName}`}
+                    className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
+                    height={96}
+                    src={staffMember.photoUrl}
+                    width={80}
+                  />
+                ) : (
+                  <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
+                    Foto
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 space-y-1">
+                <p className="break-words text-base font-semibold leading-tight text-slate-900">
+                  {staffMember.fullName}
+                </p>
+                <p className="text-xs leading-relaxed text-slate-500">
+                  {staffMember.role}
+                </p>
+                <BackendPhotoStatus photo={staffMember.photo} />
+              </div>
+              <PhotoComparison
+                currentPhotoUrl={
+                  staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl
+                }
+                proposedPhotoUrl={staffMember.photo?.proposedPhotoUrl ?? null}
               />
-            </label>
-          </div>
-        ))}
+              <PhotoCaptureControls
+                currentPhotoUrl={
+                  staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl
+                }
+                onConfirm={() => onConfirmPhoto(staffMember.id)}
+                onPhotoSelected={(file) =>
+                  onPhotoSelected(staffMember.id, file)
+                }
+                onPhotoTransform={(transform) =>
+                  onPhotoTransform(staffMember.id, transform)
+                }
+                photoDraft={
+                  photoDraft?.id === staffMember.id ? photoDraft : null
+                }
+                photoError={
+                  photoError?.subjectKind === "staff_member" &&
+                  photoError.subjectId === staffMember.id
+                    ? photoError.message
+                    : null
+                }
+                subjectLabel={staffMember.fullName}
+                uploadUnavailableReason={uploadUnavailableReason}
+              />
+              <label className="flex items-center gap-2 text-sm md:justify-end">
+                <span className="md:sr-only">Seleziona</span>
+                <input
+                  aria-label={`Seleziona ${staffMember.fullName}`}
+                  checked={staffMember.selected}
+                  onChange={() => toggleStaff(staffMember.id)}
+                  type="checkbox"
+                />
+              </label>
+            </div>
+          );
+        })}
       </div>
     </Card>
   );
