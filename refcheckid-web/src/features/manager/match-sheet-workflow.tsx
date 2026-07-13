@@ -968,51 +968,56 @@ function StaffStep({
       {staff.length === 0 ? (
         <EmptyState message="Nessuno staff disponibile." />
       ) : null}
-      {staff.map((staffMember) => (
-        <div
-          className="grid gap-3 rounded-xl border p-4 md:grid-cols-[32px_96px_minmax(0,1fr)_minmax(220px,340px)_minmax(220px,340px)] md:items-start"
-          key={staffMember.id}
-        >
-          <label className="flex items-center gap-2 text-sm md:justify-start">
-            <input
-              checked={staffMember.selected}
-              onChange={() => toggleStaff(staffMember.id)}
-              type="checkbox"
-            />
-            <span className="md:sr-only">Seleziona</span>
-          </label>
-          {staffMember.photoUrl ? (
-            <Image
-              alt={`Foto ${staffMember.fullName}`}
-              className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
-              height={96}
-              src={staffMember.photoUrl}
-              width={80}
-            />
-          ) : (
-            <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
-              Foto
+      <div className="divide-y rounded-xl border">
+        {staff.map((staffMember) => (
+          <div
+            className="grid gap-3 p-4 md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px] md:items-start"
+            key={staffMember.id}
+          >
+            <div className="flex items-start gap-3 md:block">
+              {staffMember.photoUrl ? (
+                <Image
+                  alt={`Foto ${staffMember.fullName}`}
+                  className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
+                  height={96}
+                  src={staffMember.photoUrl}
+                  width={80}
+                />
+              ) : (
+                <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
+                  Foto
+                </div>
+              )}
             </div>
-          )}
-          <div className="min-w-0 space-y-1">
-            <p className="break-words text-base font-semibold leading-tight text-slate-900">
-              {staffMember.fullName}
-            </p>
-            <p className="text-xs leading-relaxed text-slate-500">{staffMember.role}</p>
-            <BackendPhotoStatus photo={staffMember.photo} />
+            <div className="min-w-0 space-y-1">
+              <p className="break-words text-base font-semibold leading-tight text-slate-900">
+                {staffMember.fullName}
+              </p>
+              <p className="text-xs leading-relaxed text-slate-500">{staffMember.role}</p>
+              <BackendPhotoStatus photo={staffMember.photo} />
+            </div>
+            <PhotoComparison currentPhotoUrl={staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl} proposedPhotoUrl={staffMember.photo?.proposedPhotoUrl ?? null} />
+            <PhotoCaptureControls
+              currentPhotoUrl={staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl}
+              onConfirm={() => onConfirmPhoto(staffMember.id)}
+              onPhotoSelected={(file) => onPhotoSelected(staffMember.id, file)}
+              onPhotoTransform={(transform) => onPhotoTransform(staffMember.id, transform)}
+              photoDraft={photoDraft?.id === staffMember.id ? photoDraft : null}
+              photoError={photoError}
+              subjectLabel={staffMember.fullName}
+            />
+            <label className="flex items-center gap-2 text-sm md:justify-end">
+              <span className="md:sr-only">Seleziona</span>
+              <input
+                aria-label={`Seleziona ${staffMember.fullName}`}
+                checked={staffMember.selected}
+                onChange={() => toggleStaff(staffMember.id)}
+                type="checkbox"
+              />
+            </label>
           </div>
-          <PhotoComparison currentPhotoUrl={staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl} proposedPhotoUrl={staffMember.photo?.proposedPhotoUrl ?? null} />
-          <PhotoCaptureControls
-            currentPhotoUrl={staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl}
-            onConfirm={() => onConfirmPhoto(staffMember.id)}
-            onPhotoSelected={(file) => onPhotoSelected(staffMember.id, file)}
-            onPhotoTransform={(transform) => onPhotoTransform(staffMember.id, transform)}
-            photoDraft={photoDraft?.id === staffMember.id ? photoDraft : null}
-            photoError={photoError}
-            subjectLabel={staffMember.fullName}
-          />
-        </div>
-      ))}
+        ))}
+      </div>
     </Card>
   );
 }
