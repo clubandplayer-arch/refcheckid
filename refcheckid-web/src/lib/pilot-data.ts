@@ -1,92 +1,59 @@
-import type { PlayerListItem, StaffListItem } from "./types";
+import arch1DemoManifest from "../../../refcheckid-backend/demo/arch1-demo-manifest.json";
+import type { PlayerLineupRole, PlayerListItem, StaffListItem } from "./types";
 
-const homePlayerNames = [
-  ["Matteo", "Rinaldi"],
-  ["Luca", "Ferrari"],
-  ["Andrea", "Conti"],
-  ["Davide", "Moretti"],
-  ["Simone", "Gallo"],
-  ["Marco", "De Luca"],
-  ["Federico", "Romano"],
-  ["Alessio", "Greco"],
-  ["Gabriele", "Marini"],
-  ["Tommaso", "Leone"],
-  ["Riccardo", "Costa"],
-  ["Edoardo", "Fontana"],
-  ["Nicolò", "Serra"],
-  ["Pietro", "Villa"],
-  ["Samuele", "Barbieri"],
-  ["Daniele", "Ferri"],
-  ["Giacomo", "Monti"],
-  ["Leonardo", "Riva"],
-] as const;
+type DemoSide = "home" | "away";
 
-const awayPlayerNames = [
-  ["Antonio", "Marchetti"],
-  ["Francesco", "Lombardi"],
-  ["Michele", "Bianchi"],
-  ["Emanuele", "Caruso"],
-  ["Giorgio", "Pellegrini"],
-  ["Vittorio", "Sanna"],
-  ["Cristian", "Ruggieri"],
-  ["Manuel", "Longo"],
-  ["Fabio", "Sala"],
-  ["Stefano", "Neri"],
-  ["Lorenzo", "Martini"],
-  ["Filippo", "Grassi"],
-  ["Enrico", "D'Amico"],
-  ["Claudio", "Palmieri"],
-  ["Roberto", "Gatti"],
-  ["Diego", "Fiore"],
-  ["Massimo", "Bernardi"],
-  ["Giulio", "Piras"],
-] as const;
+type DemoPlayer = (typeof arch1DemoManifest.players)[number];
+type DemoStaffMember = (typeof arch1DemoManifest.staffMembers)[number];
 
-function buildPilotPlayers(
-  names: readonly (readonly [string, string])[],
-  idPrefix: string,
-): readonly PlayerListItem[] {
-  return names.map(([firstName, lastName], index) => {
-    const number = index + 1;
-    return {
-      id: `${idPrefix}-${number}`,
-      firstName,
-      lastName,
-      photoUrl: null,
-      registrationId: null,
-      season: null,
-      warning: number === 7,
-      suspended: number === 13,
-      selected: false,
-      shirtNumber: null,
-      role: number <= 11 ? "starter" : "reserve",
-      isGoalkeeper: number === 1 || number === 12,
-      isCaptain: false,
-      isViceCaptain: false,
-    };
-  });
+function mapDemoPlayer(player: DemoPlayer): PlayerListItem {
+  const registration = arch1DemoManifest.playerRegistrations.find(
+    (candidate) => candidate.playerId === player.id,
+  );
+
+  return {
+    id: player.id,
+    firstName: player.firstName,
+    lastName: player.lastName,
+    photoUrl: null,
+    registrationId: registration?.id ?? null,
+    season: registration?.season ?? arch1DemoManifest.seasonId,
+    warning: player.warning,
+    suspended: player.suspended,
+    selected: false,
+    shirtNumber: null,
+    role: player.role as PlayerLineupRole,
+    isGoalkeeper: player.isGoalkeeper,
+    isCaptain: player.isCaptain,
+    isViceCaptain: player.isViceCaptain,
+  };
 }
 
-export const pilotPlayers: readonly PlayerListItem[] = buildPilotPlayers(
-  homePlayerNames,
-  "pilot-player",
-);
+function mapDemoStaffMember(staffMember: DemoStaffMember): StaffListItem {
+  const registration = arch1DemoManifest.staffRegistrations.find(
+    (candidate) => candidate.staffMemberId === staffMember.id,
+  );
 
-export const pilotStaff: readonly StaffListItem[] = [
-  { id: "pilot-staff-1", fullName: "Mario Rossi", role: "Allenatore", photoUrl: null, registrationId: null, season: null, selected: false },
-  { id: "pilot-staff-2", fullName: "Lucia Bianchi", role: "Medico", photoUrl: null, registrationId: null, season: null, selected: false },
-  { id: "pilot-staff-3", fullName: "Paolo Verdi", role: "Dirigente accompagnatore", photoUrl: null, registrationId: null, season: null, selected: false },
-];
+  return {
+    id: staffMember.id,
+    fullName: staffMember.fullName,
+    role: staffMember.role,
+    photoUrl: null,
+    registrationId: registration?.id ?? null,
+    season: registration?.season ?? arch1DemoManifest.seasonId,
+    selected: false,
+  };
+}
 
+function demoPlayersForSide(side: DemoSide): readonly PlayerListItem[] {
+  return arch1DemoManifest.players.filter((player) => player.side === side).map(mapDemoPlayer);
+}
 
-export const pilotAwayPlayers: readonly PlayerListItem[] = buildPilotPlayers(
-  awayPlayerNames,
-  "pilot-away-player",
-);
+function demoStaffForSide(side: DemoSide): readonly StaffListItem[] {
+  return arch1DemoManifest.staffMembers.filter((staffMember) => staffMember.side === side).map(mapDemoStaffMember);
+}
 
-export const pilotAwayStaff: readonly StaffListItem[] = pilotStaff.map((staffMember, index) => ({
-  ...staffMember,
-  id: `pilot-away-staff-${index + 1}`,
-  fullName: `${staffMember.fullName} Ospite`,
-  selected: false,
-}));
+export const pilotPlayers: readonly PlayerListItem[] = demoPlayersForSide("home");
+export const pilotAwayPlayers: readonly PlayerListItem[] = demoPlayersForSide("away");
+export const pilotStaff: readonly StaffListItem[] = demoStaffForSide("home");
+export const pilotAwayStaff: readonly StaffListItem[] = demoStaffForSide("away");

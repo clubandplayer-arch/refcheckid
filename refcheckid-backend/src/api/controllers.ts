@@ -52,18 +52,16 @@ export function createControllers(container: ApplicationContainer): Record<strin
     listPhotos: async () => json(200, await container.repositories.photos.list()),
     listPhotoSubjects: async () => json(200, await container.services.photos.listPhotoSubjects()),
     getPlayerPhoto: async (request) => {
-      const subject = (await container.repositories.photoSubjects.list()).find(
-        (row) =>
-          row.subjectKind === 'athlete' &&
-          row.canonicalPersonId === requireUuid(request.params.id, 'id'),
+      const resolved = await resolveOfficialPhotoBySubject(
+        container,
+        'athlete',
+        requireUuid(request.params.id, 'id'),
       );
-      if (!subject) return json(404, { error: 'PHOTO_NOT_FOUND' });
-      const global = await container.repositories.globalOfficialPhotos.findBySubject(subject.id);
-      if (!global?.currentVersionId) return json(404, { error: 'PHOTO_NOT_FOUND' });
+      if (!resolved) return json(404, { error: 'PHOTO_NOT_FOUND' });
       return json(
         200,
         await container.services.photos.createSignedReadUrl(
-          global.currentVersionId,
+          resolved.currentVersionId,
           photoContext(request, request.query),
           {
             rendition: request.query.rendition as never,
@@ -73,18 +71,16 @@ export function createControllers(container: ApplicationContainer): Record<strin
       );
     },
     getStaffMemberPhoto: async (request) => {
-      const subject = (await container.repositories.photoSubjects.list()).find(
-        (row) =>
-          row.subjectKind === 'staff_member' &&
-          row.canonicalPersonId === requireUuid(request.params.id, 'id'),
+      const resolved = await resolveOfficialPhotoBySubject(
+        container,
+        'staff_member',
+        requireUuid(request.params.id, 'id'),
       );
-      if (!subject) return json(404, { error: 'PHOTO_NOT_FOUND' });
-      const global = await container.repositories.globalOfficialPhotos.findBySubject(subject.id);
-      if (!global?.currentVersionId) return json(404, { error: 'PHOTO_NOT_FOUND' });
+      if (!resolved) return json(404, { error: 'PHOTO_NOT_FOUND' });
       return json(
         200,
         await container.services.photos.createSignedReadUrl(
-          global.currentVersionId,
+          resolved.currentVersionId,
           photoContext(request, request.query),
           {
             rendition: request.query.rendition as never,
@@ -472,6 +468,26 @@ function normalizeSubjectKind(value: unknown): 'athlete' | 'staff_member' | 'ref
   if (value === 'player') return 'athlete';
   if (value === 'staff') return 'staff_member';
   throw new Error(`Invalid subjectKind: ${String(value)}`);
+}
+
+async function resolveOfficialPhotoBySubject(
+  container: ApplicationContainer,
+  subjectKind: 'athlete' | 'staff_member' | 'referee',
+  canonicalPersonId: string,
+): Promise<{ currentVersionId: string } | null> {
+  const subjects = (await container.repositories.photoSubjects.list()).filter(
+    (row) =>
+      row.deletedAt === null &&
+      row.canonicalPersonId === canonicalPersonId &&
+      row.subjectKind === subjectKind,
+  );
+
+  for (const subject of subjects) {
+    const global = await container.repositories.globalOfficialPhotos.findBySubject(subject.id);
+    if (global?.currentVersionId) return { currentVersionId: global.currentVersionId };
+  }
+
+  return null;
 }
 
 const containerOpenApiPlaceholder = {

@@ -48,7 +48,7 @@ describe('ARCH-1 Milestone B photo core', () => {
       { actorRole: 'admin', actorId },
       { ttlSeconds: 120, rendition: 'normalized' },
     );
-    expect(signed.signedUrl.url).toContain('signature=');
+    expect(signed.signedUrl.url).toMatch(/^data:image\/png;base64,/);
     expect(signed.rendition).toBe('normalized');
   });
 
@@ -74,7 +74,8 @@ describe('ARCH-1 Milestone B photo core', () => {
       contentBase64: oneByOnePng.toString('base64'),
       context: { actorRole: 'manager', actorId, clubId, federationId },
     });
-    const approval = (await container.repositories.photoApprovals.list())[0]!;
+    const [approval] = await container.repositories.photoApprovals.list();
+    expect(approval).toBeDefined();
     await container.services.photos.approvePhotoApproval({
       approvalId: approval.id,
       context: { actorRole: 'federation', actorId, federationId },
