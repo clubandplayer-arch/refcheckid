@@ -56,15 +56,15 @@ export async function readBackendPhotoState(subjectKind: "athlete" | "staff_memb
   try {
     const endpoint = subjectKind === "staff_member" ? "staff-members" : "players";
     const signed = await request<SignedReadResponse>(`/${endpoint}/${encodeURIComponent(subjectId)}/photo?rendition=normalized&ttlSeconds=300`);
-    currentPhotoUrl = signed.signedUrl?.url ?? signed.renditions?.normalized?.url ?? signed.renditions?.thumb320?.url ?? null;
+    currentPhotoUrl = normalizeBrowserPhotoUrl(readSignedPhotoUrl(signed));
     currentStatus = signed.version?.status === "suspended" || signed.status === "suspended" ? "suspended" : currentPhotoUrl ? "active" : "missing";
   } catch {
     if (registrationId) {
       const signed = await readRegistrationSeasonPhoto(registrationId).catch(() => null);
-      currentPhotoUrl = signed?.signedUrl?.url ?? signed?.renditions?.normalized?.url ?? signed?.renditions?.thumb320?.url ?? null;
+      currentPhotoUrl = normalizeBrowserPhotoUrl(readSignedPhotoUrl(signed));
       currentStatus = signed?.version?.status === "suspended" || signed?.status === "suspended" ? "suspended" : currentPhotoUrl ? "active" : "missing";
     }
-    if (!currentPhotoUrl && flags.legacyLocalFallback) currentPhotoUrl = legacyPhotoUrl;
+    if (!currentPhotoUrl && flags.legacyLocalFallback) currentPhotoUrl = normalizeBrowserPhotoUrl(legacyPhotoUrl);
     currentStatus = currentStatus === "suspended" ? "suspended" : currentPhotoUrl ? "active" : "missing";
   }
   const approval = registrationId ? await readLatestApproval(registrationId) : null;
@@ -136,7 +136,16 @@ async function readLatestApproval(registrationId: string): Promise<ApprovalRespo
 
 async function readVersionUrl(versionId: string): Promise<string | null> {
   const signed = await request<SignedReadResponse>(`/photos/versions/${encodeURIComponent(versionId)}/content?rendition=normalized&ttlSeconds=300`);
-  return signed.signedUrl?.url ?? null;
+  return normalizeBrowserPhotoUrl(readSignedPhotoUrl(signed));
+}
+
+function readSignedPhotoUrl(signed: SignedReadResponse | null): string | null {
+  return signed?.signedUrl?.url ?? signed?.renditions?.normalized?.url ?? signed?.renditions?.thumb320?.url ?? signed?.renditions?.thumb128?.url ?? null;
+}
+
+function normalizeBrowserPhotoUrl(url: string | null): string | null {
+  if (!url) return null;
+  return url.startsWith("file://") ? null : url;
 }
 
 function dataUrlToBytes(dataUrl: string): Uint8Array {

@@ -33,6 +33,8 @@ describe("ARCH-1 manager web photo migration", () => {
     expect(backendSource).toContain("staff-members");
     expect(backendSource).toContain("/photo-approvals");
     expect(backendSource).toContain("legacyLocalFallback");
+    expect(backendSource).toContain("normalizeBrowserPhotoUrl");
+    expect(backendSource).toContain('url.startsWith("file://") ? null : url');
     expect(backendSource).toContain("applyManagerPhotoOverrides(team, players)");
     expect(backendSource).toContain(".sort((left, right)");
     expect(workflowSource).toContain("Pending Approval");
