@@ -17,6 +17,10 @@ export class RegistrationRepository extends DrizzleRepository<PlayerRegistration
     return Promise.resolve(this.values().filter((registration) => registration.clubId === clubId));
   }
 
+  findPlayerRegistrationById(registrationId: UUID): Promise<PlayerRegistration | null> {
+    return this.findById(registrationId);
+  }
+
   syncStaffMember(staffMember: StaffMember): Promise<StaffMember> {
     return this.staffMembers.upsert(staffMember);
   }
@@ -27,6 +31,14 @@ export class RegistrationRepository extends DrizzleRepository<PlayerRegistration
 
   listStaffMembers(): Promise<readonly StaffMember[]> {
     return this.staffMembers.list();
+  }
+
+  findStaffMemberById(staffMemberId: UUID): Promise<StaffMember | null> {
+    return this.staffMembers.findById(staffMemberId);
+  }
+
+  findStaffRegistrationById(registrationId: UUID): Promise<StaffRegistration | null> {
+    return this.staffRegistrations.findById(registrationId);
   }
 
   listStaffRegistrationsByClub(clubId: UUID): Promise<readonly StaffRegistration[]> {

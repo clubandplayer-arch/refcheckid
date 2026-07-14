@@ -1,6 +1,15 @@
-import type { MatchSheet, MatchSheetStatus, UUID } from '../domain/index.js';
+import { randomUUID } from 'node:crypto';
+
+import type { MatchSheet, MatchSheetPhotoSnapshot, MatchSheetStatus, UUID } from '../domain/index.js';
 import type { EventPublisher } from '../events/index.js';
-import type { MatchSheetRepositoryPort } from '../repositories/index.js';
+import type {
+  MatchSheetPlayerRepositoryPort,
+  MatchSheetRepositoryPort,
+  MatchSheetStaffRepositoryPort,
+  PlayerRepository,
+  RegistrationRepository,
+} from '../repositories/index.js';
+import type { PhotoService } from './photo-service.js';
 
 const allowedMatchSheetStatusTransitions: Readonly<
   Record<MatchSheetStatus, readonly MatchSheetStatus[]>
@@ -34,6 +43,27 @@ export class LockedMatchSheetError extends Error {
 export interface MatchSheetServiceDependencies {
   readonly eventPublisher?: EventPublisher;
   readonly matchSheetsRepository: MatchSheetRepositoryPort;
+  readonly matchSheetPlayersRepository?: MatchSheetPlayerRepositoryPort;
+  readonly matchSheetStaffRepository?: MatchSheetStaffRepositoryPort;
+  readonly photosService?: PhotoService;
+  readonly playersRepository?: PlayerRepository;
+  readonly registrationsRepository?: RegistrationRepository;
+}
+
+export interface SubmitMatchSheetPlayerInput {
+  readonly playerRegistrationId: UUID;
+  readonly shirtNumber: number | null;
+  readonly role: string;
+}
+
+export interface SubmitMatchSheetStaffInput {
+  readonly staffRegistrationId: UUID;
+  readonly role: string;
+}
+
+export interface SubmitMatchSheetInput {
+  readonly players?: readonly SubmitMatchSheetPlayerInput[];
+  readonly staff?: readonly SubmitMatchSheetStaffInput[];
 }
 
 export class MatchSheetService {
@@ -51,12 +81,22 @@ export class MatchSheetService {
     return this.dependencies.matchSheetsRepository.listByClub(clubId);
   }
 
-  submitMatchSheet(matchSheetId: UUID): Promise<MatchSheet> {
+  async submitMatchSheet(matchSheetId: UUID, input: SubmitMatchSheetInput = {}): Promise<MatchSheet> {
+    const matchSheet = await this.dependencies.matchSheetsRepository.findById(matchSheetId);
+    if (matchSheet === null) {
+      throw new MatchSheetNotFoundError(matchSheetId);
+    }
+    if (matchSheet.status === 'locked') {
+      throw new LockedMatchSheetError(matchSheetId);
+    }
+    await this.replaceLineup(matchSheetId, input);
     return this.transitionMatchSheetStatus(matchSheetId, 'submitted');
   }
 
-  lockMatchSheet(matchSheetId: UUID): Promise<MatchSheet> {
-    return this.transitionMatchSheetStatus(matchSheetId, 'locked');
+  async lockMatchSheet(matchSheetId: UUID): Promise<MatchSheet> {
+    const locked = await this.transitionMatchSheetStatus(matchSheetId, 'locked');
+    await this.freezePhotoSnapshots(locked);
+    return locked;
   }
 
   async resetSmokeMatchSheet(matchSheetId: UUID): Promise<MatchSheet> {
@@ -97,5 +137,143 @@ export class MatchSheetService {
 
   protected get eventPublisher(): EventPublisher | undefined {
     return this.dependencies.eventPublisher;
+  }
+
+  private async replaceLineup(matchSheetId: UUID, input: SubmitMatchSheetInput): Promise<void> {
+    if (
+      this.dependencies.matchSheetPlayersRepository === undefined ||
+      this.dependencies.matchSheetStaffRepository === undefined
+    ) {
+      return;
+    }
+    await this.dependencies.matchSheetPlayersRepository.replaceByMatchSheet(
+      matchSheetId,
+      (input.players ?? []).map((player) => ({
+        matchSheetId,
+        playerRegistrationId: player.playerRegistrationId,
+        shirtNumber: player.shirtNumber,
+        role: player.role,
+        status: 'listed',
+      })),
+    );
+    await this.dependencies.matchSheetStaffRepository.replaceByMatchSheet(
+      matchSheetId,
+      (input.staff ?? []).map((staffMember) => ({
+        matchSheetId,
+        staffRegistrationId: staffMember.staffRegistrationId,
+        role: staffMember.role,
+        status: 'listed',
+      })),
+    );
+  }
+
+  private async freezePhotoSnapshots(matchSheet: MatchSheet): Promise<void> {
+    if (
+      this.dependencies.matchSheetPlayersRepository === undefined ||
+      this.dependencies.matchSheetStaffRepository === undefined ||
+      this.dependencies.photosService === undefined ||
+      this.dependencies.playersRepository === undefined ||
+      this.dependencies.registrationsRepository === undefined
+    ) {
+      return;
+    }
+    const {
+      matchSheetPlayersRepository,
+      matchSheetStaffRepository,
+      photosService,
+      playersRepository,
+      registrationsRepository,
+    } = this.dependencies;
+    const existingSnapshots = await photosService.listMatchSheetPhotoSnapshots(matchSheet.id);
+    if (existingSnapshots.length > 0) return;
+
+    const [players, staff] = await Promise.all([
+      matchSheetPlayersRepository.listByMatchSheet(matchSheet.id),
+      matchSheetStaffRepository.listByMatchSheet(matchSheet.id),
+    ]);
+
+    await Promise.all([
+      ...players.map(async (player) => {
+        const registration = await registrationsRepository.findPlayerRegistrationById(
+          player.playerRegistrationId,
+        );
+        if (registration === null) return;
+        const person = await playersRepository.findById(registration.playerId);
+        await this.freezeRegistrationPhoto({
+          matchSheet,
+          registrationId: player.playerRegistrationId,
+          seasonId: registration.season,
+          subjectKind: 'player',
+          renditionManifest: {
+            firstName: person?.firstName ?? 'Tesserato',
+            lastName: person?.lastName ?? player.playerRegistrationId,
+            shirtNumber: player.shirtNumber,
+            roleLabel: player.role,
+            teamName: matchSheet.clubId,
+            subjectKind: 'player',
+          },
+        });
+      }),
+      ...staff.map(async (staffMember) => {
+        const registration = await registrationsRepository.findStaffRegistrationById(
+          staffMember.staffRegistrationId,
+        );
+        if (registration === null) return;
+        const person = await registrationsRepository.findStaffMemberById(
+          registration.staffMemberId,
+        );
+        await this.freezeRegistrationPhoto({
+          matchSheet,
+          registrationId: staffMember.staffRegistrationId,
+          seasonId: registration.season,
+          subjectKind: 'staff',
+          renditionManifest: {
+            firstName: person?.firstName ?? 'Staff',
+            lastName: person?.lastName ?? staffMember.staffRegistrationId,
+            shirtNumber: null,
+            roleLabel: staffMember.role,
+            teamName: matchSheet.clubId,
+            subjectKind: 'staff',
+          },
+        });
+      }),
+    ]);
+  }
+
+  private async freezeRegistrationPhoto(input: {
+    readonly matchSheet: MatchSheet;
+    readonly registrationId: UUID;
+    readonly seasonId: string;
+    readonly subjectKind: 'player' | 'staff';
+    readonly renditionManifest: Record<string, unknown>;
+  }): Promise<MatchSheetPhotoSnapshot | null> {
+    if (this.dependencies.photosService === undefined) return null;
+    const seasonPhoto =
+      await this.dependencies.photosService.getSeasonRegistrationPhotoByRegistrationSeason(
+        input.registrationId,
+        input.seasonId,
+      );
+    if (seasonPhoto === null || seasonPhoto.status !== 'valid') return null;
+
+    const version = await this.dependencies.photosService.getPhotoVersionById(
+      seasonPhoto.effectiveVersionId,
+    );
+    if (version === null) return null;
+
+    return this.dependencies.photosService.createMatchSheetPhotoSnapshot({
+      matchSheetId: input.matchSheet.id,
+      matchId: input.matchSheet.matchId,
+      registrationId: input.registrationId,
+      seasonRegistrationPhotoId: seasonPhoto.id,
+      photoSubjectId: seasonPhoto.photoSubjectId,
+      globalOfficialPhotoId: seasonPhoto.globalOfficialPhotoId,
+      photoVersionId: seasonPhoto.effectiveVersionId,
+      photoEtag: version.sha256,
+      renditionManifest: input.renditionManifest,
+      frozenAt: new Date().toISOString(),
+      frozenByUserId: '00000000-0000-4000-8000-000000000001',
+      freezeReason: 'match_sheet_locked',
+      auditCorrelationId: randomUUID(),
+    });
   }
 }

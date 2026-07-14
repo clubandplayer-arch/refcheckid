@@ -296,11 +296,27 @@ export function fetchMatchPhotoManifest(
   );
 }
 
-export function submitMatchSheet(matchSheetId: string): Promise<ApiMatchSheet> {
+export interface SubmitMatchSheetPayload {
+  readonly players?: readonly {
+    readonly playerRegistrationId: string;
+    readonly shirtNumber: number | null;
+    readonly role: string;
+  }[];
+  readonly staff?: readonly {
+    readonly staffRegistrationId: string;
+    readonly role: string;
+  }[];
+}
+
+export function submitMatchSheet(
+  matchSheetId: string,
+  payload: SubmitMatchSheetPayload = {},
+): Promise<ApiMatchSheet> {
   return request<ApiMatchSheet>(
     `/match-sheets/${encodeURIComponent(matchSheetId)}/submit`,
     {
       method: "POST",
+      body: JSON.stringify(payload),
     },
   );
 }

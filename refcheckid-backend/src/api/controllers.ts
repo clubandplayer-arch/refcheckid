@@ -376,7 +376,10 @@ export function createControllers(container: ApplicationContainer): Record<strin
     submitMatchSheet: async (request) =>
       json(
         200,
-        await container.services.matchSheets.submitMatchSheet(requireUuid(request.params.id, 'id')),
+        await container.services.matchSheets.submitMatchSheet(
+          requireUuid(request.params.id, 'id'),
+          parseMatchSheetLineup(request.body),
+        ),
       ),
     lockMatchSheet: async (request) =>
       json(
@@ -486,6 +489,51 @@ function normalizeSubjectKind(value: unknown): 'athlete' | 'staff_member' | 'ref
   if (value === 'player') return 'athlete';
   if (value === 'staff') return 'staff_member';
   throw new Error(`Invalid subjectKind: ${String(value)}`);
+}
+
+function parseMatchSheetLineup(body: unknown) {
+  if (body === undefined || body === null) return {};
+  const parsed = requireBodyObject(body);
+  const lineup: {
+    players?: {
+      playerRegistrationId: string;
+      shirtNumber: number | null;
+      role: string;
+    }[];
+    staff?: {
+      staffRegistrationId: string;
+      role: string;
+    }[];
+  } = {};
+  if (Array.isArray(parsed.players)) {
+    lineup.players = parsed.players.map((player) => {
+        const row = requireBodyObject(player);
+        return {
+          playerRegistrationId: requireUuid(
+            row.playerRegistrationId as string | undefined,
+            'playerRegistrationId',
+          ),
+          shirtNumber:
+            row.shirtNumber === null || row.shirtNumber === undefined
+              ? null
+              : Number(row.shirtNumber),
+          role: requireString(row.role, 'role'),
+        };
+      });
+  }
+  if (Array.isArray(parsed.staff)) {
+    lineup.staff = parsed.staff.map((staffMember) => {
+        const row = requireBodyObject(staffMember);
+        return {
+          staffRegistrationId: requireUuid(
+            row.staffRegistrationId as string | undefined,
+            'staffRegistrationId',
+          ),
+          role: requireString(row.role, 'role'),
+        };
+      });
+  }
+  return lineup;
 }
 
 const containerOpenApiPlaceholder = {

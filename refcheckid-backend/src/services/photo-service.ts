@@ -555,7 +555,42 @@ export class PhotoService {
         'Match sheet photo snapshots are immutable per match sheet registration.',
       );
     }
-    return this.dependencies.matchSheetPhotoSnapshots.create(input);
+    const snapshot = await this.dependencies.matchSheetPhotoSnapshots.create(input);
+    await this.dependencies.photoAuditEvents.create({
+      correlationId: input.auditCorrelationId,
+      actorUserId: input.frozenByUserId,
+      actorRole: 'system',
+      federationId: null,
+      seasonId: null,
+      registrationId: input.registrationId,
+      photoSubjectId: input.photoSubjectId,
+      photoVersionId: input.photoVersionId,
+      eventType: 'match_sheet.photo_snapshot_frozen',
+      payload: {
+        freezeReason: input.freezeReason,
+        matchId: input.matchId,
+        matchSheetId: input.matchSheetId,
+        photoEtag: input.photoEtag,
+      },
+      ipHash: null,
+      userAgentHash: null,
+    });
+    return snapshot;
+  }
+
+  listMatchSheetPhotoSnapshots(matchSheetId: UUID): Promise<readonly MatchSheetPhotoSnapshot[]> {
+    return this.dependencies.matchSheetPhotoSnapshots.listByMatchSheet(matchSheetId);
+  }
+
+  getSeasonRegistrationPhotoByRegistrationSeason(
+    registrationId: UUID,
+    seasonId: string,
+  ): Promise<SeasonRegistrationPhoto | null> {
+    return this.dependencies.seasonRegistrationPhotos.findByRegistrationSeason(registrationId, seasonId);
+  }
+
+  getPhotoVersionById(photoVersionId: UUID): Promise<PhotoVersion | null> {
+    return this.dependencies.photoVersions.findById(photoVersionId);
   }
 
   async assertCanAccessSeasonRegistrationPhoto(

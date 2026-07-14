@@ -171,7 +171,7 @@ async function main(): Promise<void> {
     sessions.federation.accessToken,
   );
   await uploadAndApproveDemoPhotos(options.apiBaseUrl, dataset, sessions);
-  await completeMatchWorkflow(options.apiBaseUrl, dataset.workflowPlan, sessions);
+  await completeMatchWorkflow(options.apiBaseUrl, dataset.workflowPlan, dataset.photoPlan, sessions);
 
   console.info(
     '[RefCheckID][demo-bootstrap] Federation Sync, photo, and match workflow bootstrap completed.',
@@ -417,10 +417,21 @@ async function uploadAndApproveDemoPhotos(
 async function completeMatchWorkflow(
   apiBaseUrl: string,
   workflow: WorkflowPlan,
+  photoPlan: readonly DemoPhotoPlanItem[],
   sessions: DemoSessions,
 ): Promise<void> {
-  await submitAndLockMatchSheet(apiBaseUrl, workflow.homeSheetId, sessions.homeManager.accessToken);
-  await submitAndLockMatchSheet(apiBaseUrl, workflow.awaySheetId, sessions.awayManager.accessToken);
+  await submitAndLockMatchSheet(
+    apiBaseUrl,
+    workflow.homeSheetId,
+    buildDemoLineup(photoPlan, 'homeManager'),
+    sessions.homeManager.accessToken,
+  );
+  await submitAndLockMatchSheet(
+    apiBaseUrl,
+    workflow.awaySheetId,
+    buildDemoLineup(photoPlan, 'awayManager'),
+    sessions.awayManager.accessToken,
+  );
 
   await postJson<RecognitionWorkflow>(
     `${apiBaseUrl}/recognitions/start`,
@@ -443,6 +454,7 @@ async function completeMatchWorkflow(
 async function submitAndLockMatchSheet(
   apiBaseUrl: string,
   matchSheetId: string,
+  lineup: MatchSheetLineupPayload,
   accessToken: string,
 ): Promise<void> {
   const matchSheet = await getJson<MatchSheet>(
@@ -453,7 +465,7 @@ async function submitAndLockMatchSheet(
   if (matchSheet.status === 'draft') {
     await postJson<MatchSheet>(
       `${apiBaseUrl}/match-sheets/${matchSheetId}/submit`,
-      {},
+      lineup,
       accessToken,
     );
     await postJson<MatchSheet>(`${apiBaseUrl}/match-sheets/${matchSheetId}/lock`, {}, accessToken);
@@ -468,6 +480,41 @@ async function submitAndLockMatchSheet(
   if (locked.status !== 'locked') {
     throw new Error(`Match sheet ${matchSheetId} is not locked: ${locked.status}.`);
   }
+}
+
+interface MatchSheetLineupPayload {
+  readonly players: readonly {
+    readonly playerRegistrationId: string;
+    readonly shirtNumber: number | null;
+    readonly role: string;
+  }[];
+  readonly staff: readonly {
+    readonly staffRegistrationId: string;
+    readonly role: string;
+  }[];
+}
+
+function buildDemoLineup(
+  photoPlan: readonly DemoPhotoPlanItem[],
+  manager: DemoPhotoPlanItem['manager'],
+): MatchSheetLineupPayload {
+  const items = photoPlan.filter((item) => item.manager === manager);
+  return {
+    players: items
+      .filter((item) => item.subjectKind === 'athlete')
+      .map((item) => ({
+        playerRegistrationId: item.registrationId,
+        role: 'starter',
+        shirtNumber:
+          typeof item.generatedImage.shirtNumber === 'number' ? item.generatedImage.shirtNumber : null,
+      })),
+    staff: items
+      .filter((item) => item.subjectKind === 'staff_member')
+      .map((item) => ({
+        staffRegistrationId: item.registrationId,
+        role: 'Allenatore',
+      })),
+  };
 }
 
 async function completeMatch(

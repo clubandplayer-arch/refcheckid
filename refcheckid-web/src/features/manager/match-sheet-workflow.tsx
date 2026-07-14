@@ -103,7 +103,21 @@ export function MatchSheetWorkflow() {
         staff: calledStaff,
         team: managerTeam,
       });
-      return submitMatchSheet(firstSheet.id);
+      return submitMatchSheet(firstSheet.id, {
+        players: calledPlayers
+          .filter((player) => player.registrationId)
+          .map((player) => ({
+            playerRegistrationId: player.registrationId as string,
+            role: player.role,
+            shirtNumber: player.shirtNumber,
+          })),
+        staff: calledStaff
+          .filter((staffMember) => staffMember.registrationId)
+          .map((staffMember) => ({
+            staffRegistrationId: staffMember.registrationId as string,
+            role: staffMember.role,
+          })),
+      });
     },
     onSuccess() {
       notify("Distinta inviata", "success");
