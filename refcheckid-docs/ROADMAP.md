@@ -1,7 +1,7 @@
 # Roadmap RefCheckID
 
 **Versione:** v1.0
-**Stato:** Recovery-3 implementata; audit conclusivo pre-merge pronto
+**Stato:** Recovery-3 implementazione completata; audit conclusivo approvato; Ready for Merge
 **Ultimo aggiornamento:** 2026-07-14
 
 ## Indice
@@ -26,7 +26,7 @@
 
 - Recovery-1 — Core gara (distinta backend-first, snapshot, manifest arbitro): **Completata e chiusa**
 - Recovery-2 — RBAC, API pubbliche e audit: **Completata, validata e chiusa**
-- Recovery-3 — Workflow federazione: **Implementata; audit conclusivo pre-merge da approvare**
+- Recovery-3 — Workflow federazione: **Implementazione completata; audit conclusivo approvato; Ready for Merge**
 - Recovery-4 — Eliminazione fallback legacy: **Da pianificare**
 - Mobile — Da affrontare dopo consolidamento Backend/Web
 

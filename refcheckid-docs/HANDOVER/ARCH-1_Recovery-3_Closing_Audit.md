@@ -1,6 +1,6 @@
 # ARCH-1 Recovery-3 — Audit conclusivo workflow federazione
 
-**Stato:** Implementazione completata, audit conclusivo pronto per revisione pre-merge
+**Stato:** Implementazione completata, audit conclusivo approvato, Ready for Merge
 **Data audit:** 2026-07-14
 **Perimetro:** workflow federazione per approvazioni foto ufficiali ARCH-1.
 
@@ -68,6 +68,6 @@ Restano fuori da Recovery-3:
 
 ## Stato finale pre-merge
 
-Recovery-3 è implementata e l'audit conclusivo è pronto per revisione.
+Recovery-3 ha implementazione completata, audit conclusivo approvato ed è **Ready for Merge**.
 
-Non procedere al merge prima dell'approvazione esplicita dell'audit conclusivo.
+La chiusura definitiva della Recovery-3 avverrà dopo il merge su `main` e la conferma dei Quality Gate GitHub.
