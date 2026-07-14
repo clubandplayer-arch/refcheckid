@@ -22,6 +22,14 @@
 
 **Stato:** In corso
 
+### Recovery ARCH-1
+
+- Recovery-1 — Core gara (distinta backend-first, snapshot, manifest arbitro): **Completata**
+- Recovery-2 — RBAC, API pubbliche e audit: **Completata**
+- Recovery-3 — Workflow federazione: **Prossima**
+- Recovery-4 — Eliminazione fallback legacy: **Da pianificare**
+- Mobile — Da affrontare dopo consolidamento Backend/Web
+
 ### Milestone
 
 1. Product Tree
