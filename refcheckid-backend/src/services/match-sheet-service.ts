@@ -203,7 +203,6 @@ export class MatchSheetService {
           matchSheet,
           registrationId: player.playerRegistrationId,
           seasonId: registration.season,
-          subjectKind: 'player',
           renditionManifest: {
             firstName: person?.firstName ?? 'Tesserato',
             lastName: person?.lastName ?? player.playerRegistrationId,
@@ -226,7 +225,6 @@ export class MatchSheetService {
           matchSheet,
           registrationId: staffMember.staffRegistrationId,
           seasonId: registration.season,
-          subjectKind: 'staff',
           renditionManifest: {
             firstName: person?.firstName ?? 'Staff',
             lastName: person?.lastName ?? staffMember.staffRegistrationId,
@@ -244,7 +242,6 @@ export class MatchSheetService {
     readonly matchSheet: MatchSheet;
     readonly registrationId: UUID;
     readonly seasonId: string;
-    readonly subjectKind: 'player' | 'staff';
     readonly renditionManifest: Record<string, unknown>;
   }): Promise<MatchSheetPhotoSnapshot | null> {
     if (this.dependencies.photosService === undefined) return null;
@@ -253,12 +250,65 @@ export class MatchSheetService {
         input.registrationId,
         input.seasonId,
       );
-    if (seasonPhoto === null || seasonPhoto.status !== 'valid') return null;
+    if (seasonPhoto === null) {
+      return this.dependencies.photosService.createMatchSheetPhotoSnapshot({
+        matchSheetId: input.matchSheet.id,
+        matchId: input.matchSheet.matchId,
+        registrationId: input.registrationId,
+        seasonRegistrationPhotoId: null,
+        photoSubjectId: null,
+        globalOfficialPhotoId: null,
+        photoVersionId: null,
+        photoEtag: null,
+        photoStatus: 'missing',
+        renditionManifest: input.renditionManifest,
+        frozenAt: new Date().toISOString(),
+        frozenByUserId: '00000000-0000-4000-8000-000000000001',
+        freezeReason: 'match_sheet_locked',
+        auditCorrelationId: randomUUID(),
+      });
+    }
+
+    if (seasonPhoto.status !== 'valid') {
+      return this.dependencies.photosService.createMatchSheetPhotoSnapshot({
+        matchSheetId: input.matchSheet.id,
+        matchId: input.matchSheet.matchId,
+        registrationId: input.registrationId,
+        seasonRegistrationPhotoId: seasonPhoto.id,
+        photoSubjectId: seasonPhoto.photoSubjectId,
+        globalOfficialPhotoId: seasonPhoto.globalOfficialPhotoId,
+        photoVersionId: null,
+        photoEtag: null,
+        photoStatus: seasonPhoto.status === 'suspended' ? 'suspended' : 'unavailable',
+        renditionManifest: input.renditionManifest,
+        frozenAt: new Date().toISOString(),
+        frozenByUserId: '00000000-0000-4000-8000-000000000001',
+        freezeReason: 'match_sheet_locked',
+        auditCorrelationId: randomUUID(),
+      });
+    }
 
     const version = await this.dependencies.photosService.getPhotoVersionById(
       seasonPhoto.effectiveVersionId,
     );
-    if (version === null) return null;
+    if (version === null) {
+      return this.dependencies.photosService.createMatchSheetPhotoSnapshot({
+        matchSheetId: input.matchSheet.id,
+        matchId: input.matchSheet.matchId,
+        registrationId: input.registrationId,
+        seasonRegistrationPhotoId: seasonPhoto.id,
+        photoSubjectId: seasonPhoto.photoSubjectId,
+        globalOfficialPhotoId: seasonPhoto.globalOfficialPhotoId,
+        photoVersionId: null,
+        photoEtag: null,
+        photoStatus: 'unavailable',
+        renditionManifest: input.renditionManifest,
+        frozenAt: new Date().toISOString(),
+        frozenByUserId: '00000000-0000-4000-8000-000000000001',
+        freezeReason: 'match_sheet_locked',
+        auditCorrelationId: randomUUID(),
+      });
+    }
 
     return this.dependencies.photosService.createMatchSheetPhotoSnapshot({
       matchSheetId: input.matchSheet.id,
@@ -269,6 +319,7 @@ export class MatchSheetService {
       globalOfficialPhotoId: seasonPhoto.globalOfficialPhotoId,
       photoVersionId: seasonPhoto.effectiveVersionId,
       photoEtag: version.sha256,
+      photoStatus: 'active',
       renditionManifest: input.renditionManifest,
       frozenAt: new Date().toISOString(),
       frozenByUserId: '00000000-0000-4000-8000-000000000001',

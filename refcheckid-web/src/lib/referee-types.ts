@@ -31,7 +31,13 @@ export interface TeamSheetVerification {
   staffCount: number;
 }
 
-export type ManifestPhotoStatus = "missing" | "pending" | "active" | "rejected" | "suspended";
+export type ManifestPhotoStatus =
+  | "missing"
+  | "pending"
+  | "active"
+  | "rejected"
+  | "suspended"
+  | "unavailable";
 export type ManifestSource = "live_manifest" | "frozen_snapshot";
 
 export interface RecognitionSubject {

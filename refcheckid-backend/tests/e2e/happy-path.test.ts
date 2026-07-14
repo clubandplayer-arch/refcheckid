@@ -33,6 +33,55 @@ describe('e2e happy path: manager, referee, federation', () => {
       updatedAt: '2026-07-01T00:00:00.000Z',
       deletedAt: null,
     });
+    await app.repositories.players.upsert({
+      id: '70000000-0000-4000-8000-000000000107',
+      federationId: ids.federation,
+      firstName: 'Luigi',
+      lastName: 'Bianchi',
+      birthDate: '2001-01-01',
+      birthPlace: null,
+      fiscalCode: null,
+      status: 'active',
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+      deletedAt: null,
+    });
+    await app.repositories.registrations.upsert({
+      id: '70000000-0000-4000-8000-000000000108',
+      playerId: '70000000-0000-4000-8000-000000000107',
+      clubId: ids.homeClub,
+      season: '2026',
+      registrationNumber: 'QA-2',
+      status: 'active',
+      registeredAt: '2026-07-01T00:00:00.000Z',
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+      deletedAt: null,
+    });
+    await app.repositories.registrations.syncStaffMember({
+      id: '70000000-0000-4000-8000-000000000109',
+      federationId: ids.federation,
+      firstName: 'Anna',
+      lastName: 'Verdi',
+      birthDate: null,
+      fiscalCode: null,
+      status: 'active',
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+      deletedAt: null,
+    });
+    await app.repositories.registrations.syncStaffRegistration({
+      id: '70000000-0000-4000-8000-000000000110',
+      staffMemberId: '70000000-0000-4000-8000-000000000109',
+      clubId: ids.homeClub,
+      season: '2026',
+      role: 'Allenatore',
+      registrationNumber: 'QA-S1',
+      status: 'active',
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+      deletedAt: null,
+    });
     await app.repositories.photoSubjects.create({
       id: '70000000-0000-4000-8000-000000000103',
       subjectKind: 'athlete',
@@ -97,10 +146,27 @@ describe('e2e happy path: manager, referee, federation', () => {
           role: 'starter',
           shirtNumber: 9,
         },
+        {
+          playerRegistrationId: '70000000-0000-4000-8000-000000000108',
+          role: 'bench',
+          shirtNumber: 18,
+        },
+      ],
+      staff: [
+        {
+          staffRegistrationId: '70000000-0000-4000-8000-000000000110',
+          role: 'Allenatore',
+        },
       ],
     });
     await app.services.matchSheets.lockMatchSheet(ids.homeSheet);
-    await expect(app.services.photos.listMatchSheetPhotoSnapshots(ids.homeSheet)).resolves.toHaveLength(1);
+    await expect(app.services.photos.listMatchSheetPhotoSnapshots(ids.homeSheet)).resolves.toHaveLength(3);
+    const manifest = await app.services.photos.listMatchSheetPhotoSnapshots(ids.homeSheet);
+    expect(manifest.map((snapshot) => snapshot.photoStatus).sort()).toEqual([
+      'active',
+      'missing',
+      'missing',
+    ]);
     await app.services.matchSheets.lockMatchSheet(ids.awaySheet);
     await expect(app.services.recognitions.startRecognition(ids.match)).resolves.toMatchObject({ status: 'in_progress' });
     await expect(app.services.recognitions.completeRecognition(ids.match)).resolves.toMatchObject({ status: 'locked' });

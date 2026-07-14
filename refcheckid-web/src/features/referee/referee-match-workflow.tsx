@@ -1229,5 +1229,6 @@ function photoStatusLabel(status: NonNullable<RecognitionSubject["photoStatus"]>
     pending: "Pending",
     rejected: "Rejected",
     suspended: "Suspended",
+    unavailable: "Unavailable",
   }[status];
 }

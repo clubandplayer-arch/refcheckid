@@ -46,7 +46,7 @@ export interface ApiReport {
 }
 
 export type ApiManifestPhotoStatus =
-  "missing" | "pending" | "active" | "rejected" | "suspended";
+  "missing" | "pending" | "active" | "rejected" | "suspended" | "unavailable";
 export type ApiManifestSource = "live_manifest" | "frozen_snapshot";
 
 export interface ApiMatchPhotoManifestSubject {

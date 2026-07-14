@@ -570,6 +570,7 @@ export class PhotoService {
         freezeReason: input.freezeReason,
         matchId: input.matchId,
         matchSheetId: input.matchSheetId,
+        photoStatus: input.photoStatus,
         photoEtag: input.photoEtag,
       },
       ipHash: null,

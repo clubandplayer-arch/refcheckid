@@ -148,7 +148,9 @@ export function createApplicationContainer(): ApplicationContainer {
   const completedServices = {
     ...services,
     recognitions: new RecognitionService({
+      matchSheetPlayersRepository: repositories.matchSheetPlayers,
       matchSheetsRepository: repositories.matchSheets,
+      matchSheetStaffRepository: repositories.matchSheetStaff,
       matchSheetPhotoSnapshotsRepository: repositories.matchSheetPhotoSnapshots,
       recognitionsRepository: repositories.recognitions,
       eventPublisher: events,

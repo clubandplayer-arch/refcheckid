@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type {
+  MatchSheetPhotoSnapshot,
   MatchSheet,
   MatchSheetStatus,
   Recognition,
@@ -10,6 +11,11 @@ import type {
 import type {
   MatchSheetRepositoryPort,
   RecognitionRepositoryPort,
+} from '../src/repositories/index.js';
+import {
+  MatchSheetPhotoSnapshotRepository,
+  MatchSheetPlayerRepository,
+  MatchSheetStaffRepository,
 } from '../src/repositories/index.js';
 import {
   CompletedRecognitionError,
@@ -48,6 +54,29 @@ function buildRecognition(): Recognition {
     notes: null,
     createdAt: '2026-06-30T00:00:00.000Z',
     updatedAt: '2026-06-30T00:00:00.000Z',
+    deletedAt: null,
+  };
+}
+
+function buildSnapshot(matchSheetId: UUID, registrationId: UUID): MatchSheetPhotoSnapshot {
+  return {
+    id: `20000000-0000-0000-0000-${registrationId.slice(-12)}`,
+    matchSheetId,
+    matchId,
+    registrationId,
+    seasonRegistrationPhotoId: null,
+    photoSubjectId: null,
+    globalOfficialPhotoId: null,
+    photoVersionId: null,
+    photoEtag: null,
+    photoStatus: 'missing',
+    renditionManifest: { firstName: 'Test', lastName: registrationId, subjectKind: 'player' },
+    frozenAt: '2026-06-30T12:30:00.000Z',
+    frozenByUserId: refereeId,
+    freezeReason: 'match_sheet_locked',
+    auditCorrelationId: '20000000-0000-0000-0000-000000000999',
+    createdAt: '2026-06-30T12:30:00.000Z',
+    updatedAt: '2026-06-30T12:30:00.000Z',
     deletedAt: null,
   };
 }
@@ -160,6 +189,43 @@ describe('RecognitionService', () => {
 
     await expect(service.startRecognition(matchId)).rejects.toBeInstanceOf(
       MatchSheetsNotLockedError,
+    );
+  });
+
+  it('rejects starting recognition when frozen snapshots do not cover every listed subject', async () => {
+    const sheetId = '20000000-0000-0000-0000-000000000101';
+    const coveredRegistrationId = '20000000-0000-0000-0000-000000000201';
+    const missingRegistrationId = '20000000-0000-0000-0000-000000000202';
+    const matchSheetPlayersRepository = new MatchSheetPlayerRepository();
+    await matchSheetPlayersRepository.replaceByMatchSheet(sheetId, [
+      {
+        matchSheetId: sheetId,
+        playerRegistrationId: coveredRegistrationId,
+        role: 'starter',
+        shirtNumber: 9,
+        status: 'listed',
+      },
+      {
+        matchSheetId: sheetId,
+        playerRegistrationId: missingRegistrationId,
+        role: 'bench',
+        shirtNumber: 18,
+        status: 'listed',
+      },
+    ]);
+    const matchSheetPhotoSnapshotsRepository = new MatchSheetPhotoSnapshotRepository([
+      buildSnapshot(sheetId, coveredRegistrationId),
+    ]);
+    const service = new RecognitionService({
+      matchSheetPlayersRepository,
+      matchSheetStaffRepository: new MatchSheetStaffRepository(),
+      matchSheetPhotoSnapshotsRepository,
+      matchSheetsRepository: new FakeMatchSheetRepository([buildMatchSheet(sheetId)]),
+      recognitionsRepository: new FakeRecognitionRepository(),
+    });
+
+    await expect(service.startRecognition(matchId)).rejects.toThrow(
+      'does not have frozen photo snapshots',
     );
   });
 

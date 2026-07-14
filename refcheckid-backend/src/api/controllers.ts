@@ -253,11 +253,14 @@ export function createControllers(container: ApplicationContainer): Record<strin
       const frozen = snapshotRows.length > 0;
       const subjects = await Promise.all(
         snapshotRows.map(async (snapshot) => {
-          const signed = await container.services.photos.createSignedReadUrl(
-            snapshot.photoVersionId,
-            photoContext(request, { matchId }),
-            { rendition: 'normalized', ttlSeconds: 900 },
-          );
+          const signed =
+            snapshot.photoVersionId === null
+              ? null
+              : await container.services.photos.createSignedReadUrl(
+                  snapshot.photoVersionId,
+                  photoContext(request, { matchId }),
+                  { rendition: 'normalized', ttlSeconds: 900 },
+                );
           const manifest = snapshot.renditionManifest;
           return {
             id: snapshot.registrationId,
@@ -268,9 +271,9 @@ export function createControllers(container: ApplicationContainer): Record<strin
             teamName: typeof manifest.teamName === 'string' ? manifest.teamName : 'Distinta gara',
             roleLabel: typeof manifest.roleLabel === 'string' ? manifest.roleLabel : 'Tesserato',
             subjectKind: manifest.subjectKind === 'staff' ? 'staff' : 'player',
-            photoUrl: signed.signedUrl.url,
-            photoStatus: 'active',
-            photoEtag: snapshot.photoEtag,
+            photoUrl: signed?.signedUrl.url ?? null,
+            photoStatus: snapshot.photoStatus,
+            photoEtag: snapshot.photoEtag ?? `snapshot:${snapshot.registrationId}:${snapshot.photoStatus}`,
             manifestSource: 'frozen_snapshot',
             isFrozenSnapshot: true,
             document: {
