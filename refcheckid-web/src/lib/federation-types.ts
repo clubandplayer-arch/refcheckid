@@ -2,7 +2,8 @@ export type FederationMatchStatus =
   "scheduled" | "in_progress" | "completed" | "archived";
 export type FederationReportStatus =
   "missing" | "draft" | "submitted" | "reviewed";
-export type PhotoRequestStatus = "pending" | "approved" | "rejected";
+export type PhotoRequestStatus =
+  "pending" | "approved" | "rejected" | "cancelled" | "expired";
 export type SyncStatus = "ok" | "warning" | "failed";
 
 export interface FederationDashboard {
@@ -61,6 +62,8 @@ export interface PhotoRequest {
   requestedAt: string;
   reasonCode?: string | null;
   notes?: string | null;
+  slaStatus?: string | null;
+  photoEtag?: string | null;
 }
 
 export interface FederationHistoryItem {

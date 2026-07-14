@@ -1,12 +1,10 @@
 import {
   fetchMatchReports,
   fetchMatches,
-  fetchPhotos,
   request,
 } from "./api-client";
-import type { ApiMatch, ApiPhoto, ApiReport } from "./api-client";
+import type { ApiMatch, ApiReport } from "./api-client";
 import { managerTeamConfig } from "./manager-team";
-import { readManagerPhotoApprovalRequests } from "./manager-photo-store";
 import { readSubmittedFederationReports } from "./submitted-report";
 import type { SubmittedFederationReport } from "./submitted-report";
 import type {
@@ -93,17 +91,44 @@ export interface ApiPhotoApproval {
   status: PhotoRequestStatus;
   decisionReasonCode: string | null;
   decisionNotes: string | null;
+  clubId?: string | null;
+  clubName?: string | null;
+  subjectName?: string | null;
+  currentVersionId?: string | null;
+  proposedVersionId?: string | null;
+  currentPhotoUrl?: string | null;
+  proposedPhotoUrl?: string | null;
+  photoEtag?: string | null;
+  slaStatus?: string | null;
 }
 
-export async function fetchPhotoRequests(): Promise<readonly PhotoRequest[]> {
-  const [approvals, localRequests] = await Promise.all([
-    request<readonly ApiPhotoApproval[]>("/photo-approvals").catch(async () => {
-      const photos = await fetchPhotos();
-      return photos.map(toLegacyPhotoApproval);
-    }),
-    Promise.resolve(readManagerPhotoApprovalRequests()),
-  ]);
-  return [...localRequests, ...approvals.map(toPhotoRequest)];
+export interface PhotoRequestFilters {
+  readonly status?: PhotoRequestStatus | "all";
+  readonly clubId?: string;
+  readonly sla?: "all" | "overdue" | "on_track" | "not_set" | "closed";
+}
+
+export const federationRejectReasonCodes = [
+  { code: "face_not_visible", label: "Volto non visibile" },
+  { code: "document_mismatch", label: "Documento non coerente" },
+  { code: "quality_issue", label: "Qualità immagine insufficiente" },
+  { code: "duplicate_or_wrong_subject", label: "Soggetto errato o duplicato" },
+] as const;
+
+export async function fetchPhotoRequests(
+  filters: PhotoRequestFilters = {},
+): Promise<readonly PhotoRequest[]> {
+  const params = new URLSearchParams();
+  if (filters.status && filters.status !== "all") {
+    params.set("status", filters.status);
+  }
+  if (filters.clubId) params.set("clubId", filters.clubId);
+  if (filters.sla && filters.sla !== "all") params.set("sla", filters.sla);
+  const query = params.toString();
+  const approvals = await request<readonly ApiPhotoApproval[]>(
+    `/photo-approvals${query ? `?${query}` : ""}`,
+  );
+  return approvals.map(toPhotoRequest);
 }
 
 export function approvePhotoRequest(
@@ -157,8 +182,35 @@ export async function fetchFederationHistory(): Promise<
   const audit = await request<readonly Record<string, unknown>[]>(
     "/audit/by-action?action=MATCH_ARCHIVED",
   );
+  const photoAudit = await request<readonly Record<string, unknown>[]>(
+    "/photos/audit",
+  ).catch(() => []);
   return [
     ...reportHistory,
+    ...photoAudit
+      .filter((item) =>
+        [
+          "photo.approved",
+          "photo.rejected",
+          "photo.official_changed",
+          "photo.version_viewed_for_approval",
+        ].includes(String(item.eventType ?? item.event_type ?? "")),
+      )
+      .map((item) => {
+        const eventType = String(item.eventType ?? item.event_type ?? "photo.audit");
+        const registrationId = String(item.registrationId ?? item.registration_id ?? "");
+        return {
+          id: String(item.id),
+          auditSummary: [
+            formatPhotoAuditEvent(eventType),
+            `Registrazione: ${registrationId || "n/d"}`,
+          ],
+          clubNames: [],
+          matchLabel: `Workflow foto ${registrationId || String(item.photoVersionId ?? item.photo_version_id ?? "")}`,
+          refereeName: String(item.actorRole ?? item.actor_role ?? "Federazione"),
+          reportId: "",
+        };
+      }),
     ...audit.map((item) => ({
       id: String(item.id),
       auditSummary: [String(item.action ?? "Audit")],
@@ -320,32 +372,30 @@ function parseSubmittedReportSummary(
 function toPhotoRequest(approval: ApiPhotoApproval): PhotoRequest {
   return {
     id: approval.id,
-    clubName: `Federazione ${approval.federationId.slice(0, 8)}`,
-    currentPhotoUrl: null,
-    playerName: approval.registrationId ?? approval.photoVersionId,
-    proposedPhotoUrl: null,
+    clubName: approval.clubName ?? `Federazione ${approval.federationId.slice(0, 8)}`,
+    currentPhotoUrl: approval.currentPhotoUrl ?? (approval.currentVersionId
+      ? `/api/v1/photos/versions/${approval.currentVersionId}/content`
+      : null),
+    playerName: approval.subjectName ?? approval.registrationId ?? approval.photoVersionId,
+    proposedPhotoUrl:
+      approval.proposedPhotoUrl ??
+      `/api/v1/photos/versions/${approval.proposedVersionId ?? approval.photoVersionId}/content`,
     requestedAt: approval.requestedAt,
     status: approval.status,
     reasonCode: approval.decisionReasonCode,
     notes: approval.decisionNotes,
+    slaStatus: approval.slaStatus ?? null,
+    photoEtag: approval.photoEtag ?? null,
   };
 }
 
-function toLegacyPhotoApproval(photo: ApiPhoto): ApiPhotoApproval {
-  return {
-    id: photo.id,
-    photoVersionId: photo.id,
-    federationId: "legacy",
-    seasonId: "",
-    registrationId: photo.playerId ?? photo.id,
-    requestedAt: "",
-    status:
-      photo.status === "approved"
-        ? "approved"
-        : photo.status === "rejected"
-          ? "rejected"
-          : "pending",
-    decisionReasonCode: null,
-    decisionNotes: null,
-  };
+function formatPhotoAuditEvent(eventType: string): string {
+  return (
+    {
+      "photo.approved": "Foto approvata dalla federazione",
+      "photo.rejected": "Foto rifiutata dalla federazione",
+      "photo.official_changed": "Foto ufficiale aggiornata",
+      "photo.version_viewed_for_approval": "Versione foto visualizzata per approvazione",
+    }[eventType] ?? eventType
+  );
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRestApiRouter } from '../src/api/index.js';
+import { createOpenApiDocument } from '../src/api/openapi.js';
 import { createApplicationContainer } from '../src/config/application-container.js';
 import type { PhotoApproval, PhotoVersion } from '../src/domain/index.js';
 
@@ -100,7 +101,9 @@ describe('ARCH-1 Milestone C federation approval workflow', () => {
       query: { federationId: ids.federation, status: 'pending' },
     });
     expect(list.status).toBe(200);
-    expect(list.body).toMatchObject([{ id: pending.id, status: 'pending' }]);
+    expect(list.body).toMatchObject([
+      { id: pending.id, status: 'pending', proposedVersionId: pending.photoVersionId },
+    ]);
     const detail = await router.handle({
       method: 'GET',
       path: `/api/v1/photo-approvals/${pending.id}`,
@@ -109,6 +112,28 @@ describe('ARCH-1 Milestone C federation approval workflow', () => {
       query: {},
     });
     expect(detail.body).toMatchObject({ id: pending.id });
+  });
+
+  it('documents reject as implemented and filters the approval queue by SLA with pagination', async () => {
+    const { container, pending } = await seeded();
+    await container.repositories.photoApprovals.update(pending.id, {
+      slaDueAt: '2026-01-01T00:00:00.000Z',
+    });
+    const router = createRestApiRouter(container);
+    const list = await router.handle({
+      method: 'GET',
+      path: '/api/v1/photo-approvals',
+      headers: { authorization: 'Bearer test' },
+      auth: { actorId: ids.actor, roles: ['federation'], federationIds: [ids.federation] },
+      query: { status: 'pending', sla: 'overdue', limit: '1', offset: '0' },
+    });
+    expect(list.status).toBe(200);
+    expect(list.body).toMatchObject([{ id: pending.id, slaStatus: 'overdue' }]);
+    expect(
+      createOpenApiDocument().paths['/api/v1/photo-approvals/{id}/reject'],
+    ).toMatchObject({
+      post: { 'x-implementation-status': 'implemented' },
+    });
   });
 
   it('approves first photo, updates lifecycle rows, audits and is idempotent', async () => {
@@ -138,6 +163,13 @@ describe('ARCH-1 Milestone C federation approval workflow', () => {
     expect(
       (await container.repositories.photoAuditEvents.list()).some(
         (event) => event.eventType === 'photo.approved',
+      ),
+    ).toBe(true);
+    expect(
+      (await container.repositories.photoAuditEvents.list()).some(
+        (event) =>
+          event.eventType === 'photo.official_changed' &&
+          event.payload.currentVersionId === proposed.id,
       ),
     ).toBe(true);
   });
@@ -213,6 +245,20 @@ describe('ARCH-1 Milestone C federation approval workflow', () => {
         (event) => event.eventType === 'photo.rejected',
       ),
     ).toBe(true);
+  });
+
+  it('rejects non-standard federation rejection reason codes', async () => {
+    const { container, pending } = await seeded();
+    const router = createRestApiRouter(container);
+    const rejected = await router.handle({
+      method: 'POST',
+      path: `/api/v1/photo-approvals/${pending.id}/reject`,
+      headers: { authorization: 'Bearer test' },
+      auth: { actorId: ids.actor, roles: ['federation'], federationIds: [ids.federation] },
+      query: {},
+      body: { reasonCode: 'free_text_reason' },
+    });
+    expect(rejected.status).toBe(409);
   });
 
   it('denies managers and other federations from approval decisions', async () => {

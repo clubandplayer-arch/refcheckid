@@ -84,7 +84,7 @@ export function createOpenApiDocument(): OpenApiDocument {
     '/api/v1/photo-approvals/{id}/reject': contractPath(
       'rejectPhotoApproval',
       'PhotoApproval',
-      'defined',
+      'implemented',
     ),
     '/api/v1/match-sheets/{id}/photo-snapshots': contractPath(
       'listMatchSheetPhotoSnapshots',

@@ -14,6 +14,7 @@ import {
   fetchFederationMatches,
   fetchFederationReports,
   approvePhotoRequest,
+  federationRejectReasonCodes,
   fetchPhotoRequests,
   rejectPhotoRequest,
 } from "@/lib/federation-api-client";
@@ -412,9 +413,19 @@ function ReadOnlyNotes({
 function PhotoRequestsPanel() {
   const queryClient = useQueryClient();
   const { notify } = useToast();
+  const [statusFilter, setStatusFilter] = useState<PhotoRequestStatus | "all">(
+    "pending",
+  );
+  const [slaFilter, setSlaFilter] = useState("all");
+  const [clubFilter, setClubFilter] = useState("");
   const query = useQuery({
-    queryFn: fetchPhotoRequests,
-    queryKey: queryKeys.photos,
+    queryFn: () =>
+      fetchPhotoRequests({
+        clubId: clubFilter.trim() || undefined,
+        sla: slaFilter as "all" | "overdue" | "on_track" | "not_set" | "closed",
+        status: statusFilter,
+      }),
+    queryKey: [...queryKeys.photos, statusFilter, slaFilter, clubFilter],
   });
   const [localStatuses, setLocalStatuses] = useState<
     Record<string, PhotoRequestStatus>
@@ -463,6 +474,48 @@ function PhotoRequestsPanel() {
           Confronta foto attuale e nuova proposta prima della decisione.
         </p>
       </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <label className="space-y-1 text-sm font-medium">
+          Stato
+          <select
+            className="w-full rounded-lg border bg-background px-3 py-2"
+            onChange={(event) =>
+              setStatusFilter(event.target.value as PhotoRequestStatus | "all")
+            }
+            value={statusFilter}
+          >
+            {["all", "pending", "approved", "rejected", "cancelled", "expired"].map(
+              (status) => (
+                <option key={status} value={status}>
+                  {formatStatusLabel(status)}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+        <label className="space-y-1 text-sm font-medium">
+          SLA
+          <select
+            className="w-full rounded-lg border bg-background px-3 py-2"
+            onChange={(event) => setSlaFilter(event.target.value)}
+            value={slaFilter}
+          >
+            {["all", "overdue", "on_track", "not_set", "closed"].map((sla) => (
+              <option key={sla} value={sla}>
+                {formatStatusLabel(sla)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="space-y-1 text-sm font-medium">
+          Società
+          <Input
+            onChange={(event) => setClubFilter(event.target.value)}
+            placeholder="Club ID"
+            value={clubFilter}
+          />
+        </label>
+      </div>
       {requests.length === 0 ? (
         <EmptyState message="Nessuna richiesta foto." />
       ) : null}
@@ -502,6 +555,14 @@ function PhotoRequestCard({
             Tesserato
           </p>
           <p className="text-sm text-slate-500">{request.clubName}</p>
+          {request.slaStatus ? (
+            <p className="mt-1 text-xs text-slate-500">
+              SLA: {formatStatusLabel(request.slaStatus)}
+            </p>
+          ) : null}
+          {request.photoEtag ? (
+            <p className="text-xs text-slate-400">ETag: {request.photoEtag}</p>
+          ) : null}
         </div>
         <StatusBadge label={request.status} />
       </div>
@@ -525,12 +586,18 @@ function PhotoRequestCard({
         </p>
       ) : null}
       <div className="grid gap-2 sm:grid-cols-2">
-        <Input
+        <select
+          className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
           disabled={request.status !== "pending"}
           onChange={(event) => setReasonCode(event.target.value)}
-          placeholder="Reason code"
           value={reasonCode}
-        />
+        >
+          {federationRejectReasonCodes.map((reason) => (
+            <option key={reason.code} value={reason.code}>
+              {reason.label}
+            </option>
+          ))}
+        </select>
         <Input
           disabled={request.status !== "pending"}
           onChange={(event) => setNotes(event.target.value)}
@@ -762,11 +829,17 @@ function formatStatusLabel(status: string): string {
       all: "Tutti",
       archived: "Archiviata",
       approved: "Approvata",
+      cancelled: "Annullata",
       completed: "Completata",
+      closed: "Chiusa",
       draft: "Bozza",
+      expired: "Scaduta",
       failed: "Errore",
       in_progress: "In corso",
       missing: "Mancante",
+      not_set: "Non impostato",
+      on_track: "Nei tempi",
+      overdue: "In ritardo",
       pending: "In attesa",
       rejected: "Rifiutata",
       reviewed: "Revisionato",
@@ -779,7 +852,7 @@ function formatStatusLabel(status: string): string {
 
 function statusBadgeClass(status: string): string {
   if (
-    ["submitted", "reviewed", "completed", "approved", "ok"].includes(status)
+    ["submitted", "reviewed", "completed", "approved", "ok", "on_track", "closed"].includes(status)
   ) {
     return "bg-green-100 text-green-800";
   }
@@ -791,11 +864,13 @@ function statusBadgeClass(status: string): string {
       "draft",
       "in_progress",
       "warning",
+      "not_set",
     ].includes(status)
   ) {
     return "bg-amber-100 text-amber-900";
   }
-  if (["failed", "rejected"].includes(status)) return "bg-red-100 text-red-800";
+  if (["failed", "rejected", "cancelled", "expired", "overdue"].includes(status))
+    return "bg-red-100 text-red-800";
   return "bg-muted text-slate-700";
 }
 

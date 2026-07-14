@@ -53,6 +53,7 @@ export type PhotoAuditEventType =
   | 'photo.validation_failed'
   | 'photo.approval_requested'
   | 'photo.approved'
+  | 'photo.official_changed'
   | 'photo.rejected'
   | 'photo.superseded'
   | 'photo.archived'
