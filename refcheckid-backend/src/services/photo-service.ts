@@ -328,7 +328,8 @@ export class PhotoService {
     }
     const registrationClubId =
       context.registrationClubId ?? (await this.findRegistrationClubId(registrations[0].registrationId));
-    const policyContext = { ...context, registrationClubId };
+    const policyContext: PhotoAccessContext =
+      registrationClubId === undefined ? context : { ...context, registrationClubId };
     let policy;
     try {
       policy = this.policyEngine.readPolicy(policyContext, registrations[0], requested);
