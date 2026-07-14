@@ -95,13 +95,37 @@ describe('ARCH-1 Milestone B photo core', () => {
 
   it('keeps upload intent API backward compatible while accepting subject-based staff payloads', async () => {
     const container = createApplicationContainer();
+    await container.repositories.registrations.syncStaffMember({
+      id: staffMemberId,
+      federationId,
+      firstName: 'Staff',
+      lastName: 'Demo',
+      birthDate: null,
+      fiscalCode: null,
+      status: 'active',
+      createdAt: '2026-07-10T00:00:00.000Z',
+      updatedAt: '2026-07-10T00:00:00.000Z',
+      deletedAt: null,
+    });
+    await container.repositories.registrations.syncStaffRegistration({
+      id: staffRegistrationId,
+      staffMemberId,
+      clubId,
+      season: '2026',
+      role: 'Allenatore',
+      registrationNumber: 'STAFF-1',
+      status: 'active',
+      createdAt: '2026-07-10T00:00:00.000Z',
+      updatedAt: '2026-07-10T00:00:00.000Z',
+      deletedAt: null,
+    });
     const router = createRestApiRouter(container);
     const sha256 = createHash('sha256').update(oneByOnePng).digest('hex');
     const response = await router.handle({
       method: 'POST',
       path: '/api/v1/photos/upload-intent',
       headers: { authorization: 'Bearer test' },
-      auth: { actorId, roles: ['manager'] },
+      auth: { actorId, roles: ['manager'], clubIds: [clubId], federationIds: [federationId] },
       query: {},
       body: {
         subjectKind: 'staff_member',

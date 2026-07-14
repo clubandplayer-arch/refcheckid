@@ -60,6 +60,11 @@ export type PhotoAuditEventType =
   | 'photo.erasure_requested'
   | 'photo.erased'
   | 'photo.signed_url_issued'
+  | 'photo.manifest_generated'
+  | 'photo.manifest_acknowledged'
+  | 'photo.version_viewed_for_approval'
+  | 'photo.snapshot_served'
+  | 'photo.grant_revoked'
   | 'photo.access_denied'
   | 'match_sheet.photo_snapshot_frozen';
 

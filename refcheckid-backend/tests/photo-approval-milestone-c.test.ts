@@ -96,7 +96,7 @@ describe('ARCH-1 Milestone C federation approval workflow', () => {
       method: 'GET',
       path: '/api/v1/photo-approvals',
       headers: { authorization: 'Bearer test' },
-      auth: { actorId: ids.actor, roles: ['federation'] },
+      auth: { actorId: ids.actor, roles: ['federation'], federationIds: [ids.federation] },
       query: { federationId: ids.federation, status: 'pending' },
     });
     expect(list.status).toBe(200);
@@ -105,7 +105,7 @@ describe('ARCH-1 Milestone C federation approval workflow', () => {
       method: 'GET',
       path: `/api/v1/photo-approvals/${pending.id}`,
       headers: { authorization: 'Bearer test' },
-      auth: { actorId: ids.actor, roles: ['federation'] },
+      auth: { actorId: ids.actor, roles: ['federation'], federationIds: [ids.federation] },
       query: {},
     });
     expect(detail.body).toMatchObject({ id: pending.id });

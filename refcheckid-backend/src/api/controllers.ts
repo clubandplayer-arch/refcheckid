@@ -9,6 +9,11 @@ export function createControllers(container: ApplicationContainer): Record<strin
     health: () => json(200, { status: 'ok' }),
     openApi: () => json(200, containerOpenApiPlaceholder),
     swagger: () => ({ status: 200, headers: { 'content-type': 'text/html' }, body: swaggerHtml }),
+    arch1DefinedEndpoint: () =>
+      json(501, {
+        error: 'ARCH1_DEFINED_NOT_IMPLEMENTED',
+        message: 'Endpoint defined by ARCH-1 but not implemented in this Recovery.',
+      }),
 
     listFederations: async () => json(200, await container.repositories.federations.list()),
     getFederation: async (request) =>
@@ -111,7 +116,7 @@ export function createControllers(container: ApplicationContainer): Record<strin
           photo.effectiveVersionId,
           photoContext(request, {
             ...request.query,
-            registrationClubId: request.query.registrationClubId,
+            registrationClubId: await findRegistrationClubId(container, photo.registrationId),
           }),
           {
             rendition: request.query.rendition as never,
@@ -122,6 +127,8 @@ export function createControllers(container: ApplicationContainer): Record<strin
     },
     createPhotoUploadIntent: async (request) => {
       const body = requireBodyObject(request.body);
+      const registrationId = requireUuid(String(body.registrationId), 'registrationId');
+      const registrationClubId = await findRegistrationClubId(container, registrationId);
       const subjectKind = normalizeSubjectKind(body.subjectKind);
       const legacyPlayerId = optionalString(body.playerId, 'playerId');
       const legacyStaffMemberId = optionalString(body.staffMemberId, 'staffMemberId');
@@ -141,13 +148,13 @@ export function createControllers(container: ApplicationContainer): Record<strin
         ...(legacyStaffMemberId === null
           ? {}
           : { staffMemberId: requireUuid(legacyStaffMemberId, 'staffMemberId') }),
-        registrationId: requireUuid(String(body.registrationId), 'registrationId'),
+        registrationId,
         federationId: requireUuid(String(body.federationId), 'federationId'),
         seasonId: requireString(body.seasonId, 'seasonId'),
         mimeType: requireString(body.mimeType, 'mimeType'),
         fileSizeBytes: Number(body.fileSizeBytes ?? 0),
         sha256: requireString(body.sha256, 'sha256'),
-        context: photoContext(request, body),
+        context: photoContext(request, { registrationClubId }),
       });
       return json(202, { intent });
     },
@@ -156,7 +163,7 @@ export function createControllers(container: ApplicationContainer): Record<strin
       const command = {
         uploadId: requireUuid(request.params.id, 'id'),
         objectKey: requireString(body.objectKey, 'objectKey'),
-        context: photoContext(request, body),
+        context: photoContext(request, {}),
       } as import('../services/photo-service.js').CompleteUploadCommand;
       const contentBase64 = optionalString(body.contentBase64, 'contentBase64');
       return json(
@@ -167,12 +174,20 @@ export function createControllers(container: ApplicationContainer): Record<strin
       );
     },
     listPhotoApprovals: async (request) => {
+      const context = photoContext(request, request.query);
+      const federationId =
+        context.actorRole === 'federation'
+          ? context.federationId
+          : request.query.federationId === undefined
+            ? undefined
+            : requireUuid(request.query.federationId, 'federationId');
+      if (context.actorRole === 'manager' || context.actorRole === 'referee') {
+        return json(403, { error: 'FORBIDDEN', message: 'Photo approvals require federation scope.' });
+      }
       const approvals =
-        request.query.federationId === undefined
+        federationId === undefined
           ? await container.repositories.photoApprovals.list()
-          : await container.services.photos.listApprovalsByFederation(
-              requireUuid(request.query.federationId, 'federationId'),
-            );
+          : await container.services.photos.listApprovalsByFederation(federationId);
       return json(
         200,
         approvals
@@ -207,6 +222,14 @@ export function createControllers(container: ApplicationContainer): Record<strin
         requireUuid(request.params.id, 'id'),
       );
       if (approval === null) return json(404, { error: 'PHOTO_APPROVAL_NOT_FOUND' });
+      const context = photoContext(request, {});
+      if (
+        context.actorRole !== 'admin' &&
+        !(context.actorRole === 'federation' && context.federationId === approval.federationId)
+      ) {
+        return json(403, { error: 'FORBIDDEN', message: 'Photo approval is outside scope.' });
+      }
+      await container.services.photos.auditVersionViewedForApproval(context, approval);
       return json(200, approval);
     },
     approvePhotoApproval: async (request) => {
@@ -215,7 +238,7 @@ export function createControllers(container: ApplicationContainer): Record<strin
         200,
         await container.services.photos.approvePhotoApproval({
           approvalId: requireUuid(request.params.id, 'id'),
-          context: photoContext(request, body),
+          context: photoContext(request, {}),
           reasonCode: optionalString(body.reasonCode, 'reasonCode') ?? undefined,
           notes: optionalString(body.notes, 'notes') ?? undefined,
         }),
@@ -227,7 +250,7 @@ export function createControllers(container: ApplicationContainer): Record<strin
         200,
         await container.services.photos.rejectPhotoApproval({
           approvalId: requireUuid(request.params.id, 'id'),
-          context: photoContext(request, body),
+          context: photoContext(request, {}),
           reasonCode: requireString(body.reasonCode, 'reasonCode'),
           notes: optionalString(body.notes, 'notes') ?? undefined,
         }),
@@ -253,14 +276,16 @@ export function createControllers(container: ApplicationContainer): Record<strin
       const frozen = snapshotRows.length > 0;
       const subjects = await Promise.all(
         snapshotRows.map(async (snapshot) => {
+          const context = photoContext(request, { matchId });
           const signed =
             snapshot.photoVersionId === null
               ? null
               : await container.services.photos.createSignedReadUrl(
                   snapshot.photoVersionId,
-                  photoContext(request, { matchId }),
+                  context,
                   { rendition: 'normalized', ttlSeconds: 900 },
                 );
+          await container.services.photos.auditSnapshotServed(context, snapshot);
           const manifest = snapshot.renditionManifest;
           return {
             id: snapshot.registrationId,
@@ -289,6 +314,11 @@ export function createControllers(container: ApplicationContainer): Record<strin
       );
       const photoEtag =
         snapshotRows.map((snapshot) => snapshot.photoEtag).join('|') || `manifest:${matchId}:empty`;
+      await container.services.photos.auditManifestGenerated(
+        photoContext(request, { matchId }),
+        matchId,
+        subjects.length,
+      );
       return json(200, {
         matchId,
         manifestVersion: frozen ? 'frozen-v1' : 'live-v1',
@@ -299,8 +329,36 @@ export function createControllers(container: ApplicationContainer): Record<strin
         subjects,
       });
     },
-    listPhotoAuditEvents: async () =>
-      json(200, await container.repositories.photoAuditEvents.list()),
+    listPhotoAuditEvents: async (request) => {
+      const context = photoContext(request, request.query);
+      const events = await container.repositories.photoAuditEvents.list();
+      const scoped = [];
+      for (const event of events) {
+        if (
+          request.query.subjectId !== undefined &&
+          event.photoSubjectId !== request.query.subjectId
+        )
+          continue;
+        if (
+          request.query.registrationId !== undefined &&
+          event.registrationId !== request.query.registrationId
+        )
+          continue;
+        if (context.actorRole === 'admin') {
+          scoped.push(event);
+          continue;
+        }
+        if (context.actorRole === 'federation' && event.federationId === context.federationId) {
+          scoped.push(event);
+          continue;
+        }
+        if (context.actorRole === 'manager' && event.registrationId !== null) {
+          const clubId = await findRegistrationClubId(container, event.registrationId);
+          if (clubId !== undefined && context.clubIds?.includes(clubId)) scoped.push(event);
+        }
+      }
+      return json(200, scoped);
+    },
     listIdentityDocuments: () => json(200, []),
 
     syncFederation: async (request) =>
@@ -546,22 +604,51 @@ const swaggerHtml =
   '<!doctype html><html><body><redoc spec-url="/api/docs/openapi.json"></redoc></body></html>';
 
 function photoContext(
-  request: { auth?: { actorId: string; roles: readonly string[] } },
+  request: {
+    auth?: {
+      actorId: string;
+      roles: readonly string[];
+      clubIds?: readonly string[];
+      federationIds?: readonly string[];
+      authorizedMatchIds?: readonly string[];
+    };
+  },
   source: Record<string, unknown>,
 ) {
-  const role = optionalString(source.actorRole, 'actorRole') ?? request.auth?.roles[0] ?? 'admin';
+  const role = request.auth?.roles[0];
+  if (role === undefined) {
+    throw new Error('Authentication is required.');
+  }
+  const clubIds = request.auth?.clubIds ?? [];
+  const federationIds = request.auth?.federationIds ?? [];
   const context: Record<string, unknown> = {
     actorRole: role as 'manager' | 'federation' | 'referee' | 'admin',
-    actorId:
-      request.auth?.actorId ??
-      optionalString(source.actorId, 'actorId') ??
-      '00000000-0000-4000-8000-000000000099',
+    actorId: request.auth?.actorId,
+    clubIds,
+    federationIds,
+    authorizedMatchIds: request.auth?.authorizedMatchIds ?? [],
   };
-  const clubId = optionalString(source.clubId, 'clubId');
-  const federationId = optionalString(source.federationId, 'federationId');
+  const clubId = clubIds[0];
+  const federationId = federationIds[0];
   const registrationClubId = optionalString(source.registrationClubId, 'registrationClubId');
-  if (clubId !== null) context.clubId = clubId;
-  if (federationId !== null) context.federationId = federationId;
+  const matchId = optionalString(source.matchId, 'matchId');
+  if (clubId !== undefined) context.clubId = clubId;
+  if (federationId !== undefined) context.federationId = federationId;
   if (registrationClubId !== null) context.registrationClubId = registrationClubId;
+  if (matchId !== null) context.matchId = matchId;
   return context as unknown as import('../services/photo-service.js').PhotoAccessContext;
+}
+
+async function findRegistrationClubId(
+  container: ApplicationContainer,
+  registrationId: string,
+): Promise<string | undefined> {
+  const player = await container.repositories.registrations.findPlayerRegistrationById(
+    registrationId as never,
+  );
+  if (player !== null) return player.clubId;
+  const staff = await container.repositories.registrations.findStaffRegistrationById(
+    registrationId as never,
+  );
+  return staff?.clubId;
 }

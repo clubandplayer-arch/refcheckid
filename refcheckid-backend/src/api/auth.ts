@@ -1,8 +1,9 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { pilotIds } from '../config/pilot-data.js';
 import type { ApiHandler, AuthContext } from './http.js';
 import { json } from './http.js';
 
-type UserRole = 'manager' | 'referee' | 'federation';
+type UserRole = 'manager' | 'referee' | 'federation' | 'admin';
 type AuthErrorCode = 'INVALID_CREDENTIALS' | 'USER_NOT_FOUND' | 'ACCOUNT_DISABLED';
 
 interface AuthUser {
@@ -12,6 +13,10 @@ interface AuthUser {
   readonly role: UserRole;
   readonly displayName: string;
   readonly enabled: boolean;
+  readonly clubIds?: readonly string[];
+  readonly federationIds?: readonly string[];
+  readonly refereeIds?: readonly string[];
+  readonly authorizedMatchIds?: readonly string[];
 }
 
 interface TokenPayload {
@@ -30,6 +35,8 @@ const users: readonly AuthUser[] = [
     role: 'manager',
     displayName: 'Dirigente Demo',
     enabled: true,
+    clubIds: [pilotIds.homeClub],
+    federationIds: [pilotIds.federation],
   },
   {
     id: '90000000-0000-4000-8000-000000000005',
@@ -38,6 +45,8 @@ const users: readonly AuthUser[] = [
     role: 'manager',
     displayName: 'Dirigente Ospite Demo',
     enabled: true,
+    clubIds: [pilotIds.awayClub],
+    federationIds: [pilotIds.federation],
   },
   {
     id: '90000000-0000-4000-8000-000000000002',
@@ -46,6 +55,9 @@ const users: readonly AuthUser[] = [
     role: 'referee',
     displayName: 'Arbitro Demo',
     enabled: true,
+    federationIds: [pilotIds.federation],
+    refereeIds: [pilotIds.referee],
+    authorizedMatchIds: [pilotIds.match],
   },
   {
     id: '90000000-0000-4000-8000-000000000003',
@@ -54,6 +66,7 @@ const users: readonly AuthUser[] = [
     role: 'federation',
     displayName: 'Federazione Demo',
     enabled: true,
+    federationIds: [pilotIds.federation],
   },
   {
     id: '90000000-0000-4000-8000-000000000004',
@@ -62,6 +75,8 @@ const users: readonly AuthUser[] = [
     role: 'manager',
     displayName: 'Account Disabilitato',
     enabled: false,
+    clubIds: [pilotIds.homeClub],
+    federationIds: [pilotIds.federation],
   },
 ];
 
@@ -142,7 +157,10 @@ export function authenticateBearerToken(authorizationHeader: string | undefined)
     return null;
   }
 
-  return { actorId: payload.sub, roles: [payload.role] };
+  const user = users.find((candidate) => candidate.id === payload.sub);
+  if (user === undefined || !user.enabled) return null;
+
+  return toAuthContext(user);
 }
 
 function createSessionResponse(user: AuthUser) {
@@ -163,6 +181,21 @@ function toPublicUser(user: AuthUser) {
     email: user.email,
     role: user.role,
     displayName: user.displayName,
+    clubIds: user.clubIds ?? [],
+    federationIds: user.federationIds ?? [],
+    refereeIds: user.refereeIds ?? [],
+    authorizedMatchIds: user.authorizedMatchIds ?? [],
+  };
+}
+
+function toAuthContext(user: AuthUser): AuthContext {
+  return {
+    actorId: user.id,
+    roles: [user.role],
+    clubIds: user.clubIds ?? [],
+    federationIds: user.federationIds ?? [],
+    refereeIds: user.refereeIds ?? [],
+    authorizedMatchIds: user.authorizedMatchIds ?? [],
   };
 }
 

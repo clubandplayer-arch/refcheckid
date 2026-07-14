@@ -2,6 +2,7 @@ export interface OpenApiDocument {
   readonly openapi: '3.1.0';
   readonly info: { readonly title: string; readonly version: string };
   readonly servers: readonly { readonly url: string }[];
+  readonly security?: readonly Record<string, readonly string[]>[];
   readonly paths: Record<string, unknown>;
   readonly components: Record<string, unknown>;
 }
@@ -40,7 +41,34 @@ export function createOpenApiDocument(): OpenApiDocument {
       'Photo',
       'defined',
     ),
-    '/api/v1/photos/upload-intent': contractPath('createPhotoUploadIntent', 'Photo', 'stub'),
+    '/api/v1/referees/{id}/photo': contractPath('getRefereeOfficialPhoto', 'Photo', 'defined'),
+    '/api/v1/photos/{id}': contractPath('getOfficialPhoto', 'Photo', 'defined'),
+    '/api/v1/photos/{id}/versions': contractPath('listOfficialPhotoVersions', 'Photo', 'defined'),
+    '/api/v1/players/{id}/photo-requests': contractPath(
+      'createPlayerPhotoRequest',
+      'Photo',
+      'defined',
+    ),
+    '/api/v1/staff-members/{id}/photo-requests': contractPath(
+      'createStaffPhotoRequest',
+      'Photo',
+      'defined',
+    ),
+    '/api/v1/photo-requests/{id}': {
+      get: {
+        tags: ['Photo'],
+        operationId: 'getPhotoRequest',
+        'x-implementation-status': 'defined',
+        responses: { '501': { description: 'Defined for a later ARCH-1 milestone.' } },
+      },
+      delete: {
+        tags: ['Photo'],
+        operationId: 'cancelPhotoRequest',
+        'x-implementation-status': 'defined',
+        responses: { '501': { description: 'Defined for a later ARCH-1 milestone.' } },
+      },
+    },
+    '/api/v1/photos/upload-intent': contractPath('createPhotoUploadIntent', 'Photo', 'implemented'),
     '/api/v1/photos/uploads/{id}/complete': contractPath('completePhotoUpload', 'Photo', 'defined'),
     '/api/v1/photo-approvals': contractPath('listPhotoApprovals', 'PhotoApproval', 'implemented'),
     '/api/v1/photo-approvals/{id}': contractPath(
@@ -66,9 +94,35 @@ export function createOpenApiDocument(): OpenApiDocument {
     '/api/v1/matches/{id}/photo-manifest': contractPath(
       'getMatchPhotoManifest',
       'Photo',
+      'implemented',
+    ),
+    '/api/v1/photos/sync-manifest': contractPath('getPhotoSyncManifest', 'PhotoSync', 'defined'),
+    '/api/v1/photos/sync-ack': contractPath('acknowledgePhotoSync', 'PhotoSync', 'defined'),
+    '/api/v1/photos/changes': contractPath('listPhotoChanges', 'PhotoSync', 'defined'),
+    '/api/v1/photos/audit': contractPath('listPhotoAuditEvents', 'PhotoAudit', 'implemented'),
+    '/api/v1/photos/versions/{id}/quarantine': contractPath(
+      'quarantinePhotoVersion',
+      'PhotoAdmin',
       'defined',
     ),
-    '/api/v1/photos/audit': contractPath('listPhotoAuditEvents', 'PhotoAudit', 'implemented'),
+    '/api/v1/photos/versions/{id}/restore': contractPath(
+      'restorePhotoVersion',
+      'PhotoAdmin',
+      'defined',
+    ),
+    '/api/v1/photos/versions/{id}/archive': contractPath(
+      'archivePhotoVersion',
+      'PhotoAdmin',
+      'defined',
+    ),
+    '/api/v1/photos/versions/{id}': {
+      delete: {
+        tags: ['PhotoAdmin'],
+        operationId: 'deletePhotoVersion',
+        'x-implementation-status': 'defined',
+        responses: { '501': { description: 'Defined for a later ARCH-1 milestone.' } },
+      },
+    },
     '/api/v1/federation-sync': {
       post: {
         tags: ['FederationSync'],
@@ -114,6 +168,7 @@ export function createOpenApiDocument(): OpenApiDocument {
     openapi: '3.1.0',
     info: { title: 'RefCheckID REST API', version: '1.0.0' },
     servers: [{ url: '/api/v1' }],
+    security: [{ bearerAuth: [] }],
     paths,
     components: {
       securitySchemes: {

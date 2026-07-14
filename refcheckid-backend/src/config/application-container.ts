@@ -113,6 +113,7 @@ export function createApplicationContainer(): ApplicationContainer {
     matchSheetPhotoSnapshots: repositories.matchSheetPhotoSnapshots,
     photoAccessGrants: repositories.photoAccessGrants,
     photoAuditEvents: repositories.photoAuditEvents,
+    registrations: repositories.registrations,
   });
 
   const services = {
