@@ -9,7 +9,6 @@ import {
 vi.mock("../../src/lib/api-client", () => ({
   fetchMatchReports: vi.fn(),
   fetchMatches: vi.fn(),
-  fetchPhotos: vi.fn(),
   request: vi.fn(),
 }));
 
@@ -20,7 +19,6 @@ vi.mock("../../src/lib/submitted-report", () => ({
 import {
   fetchMatchReports,
   fetchMatches,
-  fetchPhotos,
   request,
 } from "../../src/lib/api-client";
 import { readSubmittedFederationReports } from "../../src/lib/submitted-report";
@@ -70,7 +68,6 @@ const submittedReport = {
 describe("regression: federation report reception", () => {
   beforeEach(() => {
     vi.mocked(fetchMatches).mockResolvedValue([match]);
-    vi.mocked(fetchPhotos).mockResolvedValue([]);
     vi.mocked(fetchMatchReports).mockResolvedValue({
       id: "backend-report-1",
       matchId: "match-1",
@@ -168,6 +165,38 @@ describe("regression: federation report reception", () => {
       matchLabel: "Casa Demo - Ospite Demo",
       reportId: "report-1",
     });
+  });
+
+  it("maps backend photo approvals as the federation photo source", async () => {
+    vi.mocked(request).mockImplementation(async (path: string) => {
+      if (path === "/photo-approvals") {
+        return [
+          {
+            id: "approval-1",
+            photoVersionId: "version-new",
+            proposedVersionId: "version-new",
+            currentVersionId: "version-old",
+            federationId: "fed-1",
+            seasonId: "2026",
+            registrationId: "registration-1",
+            requestedAt: "2026-07-14T12:00:00.000Z",
+            status: "pending",
+            decisionReasonCode: null,
+            decisionNotes: null,
+            clubName: "Atletico Aurora",
+            subjectName: "Mario Rossi",
+            slaStatus: "overdue",
+            photoEtag: "photo:version-new:etag",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const dashboard = await fetchFederationDashboard();
+
+    expect(dashboard.pendingPhotoRequests).toBe(1);
+    expect(request).toHaveBeenCalledWith("/photo-approvals");
   });
 
   it("shows a backend-submitted report when local browser storage is empty", async () => {

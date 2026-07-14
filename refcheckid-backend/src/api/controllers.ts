@@ -1,5 +1,5 @@
 import type { ApplicationContainer } from '../config/application-container.js';
-import type { MatchStatus } from '../domain/index.js';
+import type { MatchStatus, PhotoApproval } from '../domain/index.js';
 import type { ApiHandler } from './http.js';
 import { json } from './http.js';
 import { optionalString, requireBodyObject, requireString, requireUuid } from './validation.js';
@@ -188,9 +188,13 @@ export function createControllers(container: ApplicationContainer): Record<strin
         federationId === undefined
           ? await container.repositories.photoApprovals.list()
           : await container.services.photos.listApprovalsByFederation(federationId);
+      const enrichedApprovals = await Promise.all(
+        approvals.map((approval) => enrichPhotoApproval(container, approval)),
+      );
       return json(
         200,
-        approvals
+        paginate(
+          enrichedApprovals
           .filter((approval) =>
             request.query.status === undefined ? true : approval.status === request.query.status,
           )
@@ -214,7 +218,19 @@ export function createControllers(container: ApplicationContainer): Record<strin
               ? true
               : approval.requestedAt <= request.query.requestedTo,
           )
+          .filter((approval) =>
+            request.query.clubId === undefined ? true : approval.clubId === request.query.clubId,
+          )
+          .filter((approval) =>
+            request.query.sla === undefined
+              ? true
+              : request.query.sla === 'overdue'
+                ? approval.slaStatus === 'overdue'
+                : approval.slaStatus === request.query.sla,
+          )
           .sort((left, right) => left.requestedAt.localeCompare(right.requestedAt)),
+          request.query,
+        ),
       );
     },
     getPhotoApproval: async (request) => {
@@ -230,7 +246,7 @@ export function createControllers(container: ApplicationContainer): Record<strin
         return json(403, { error: 'FORBIDDEN', message: 'Photo approval is outside scope.' });
       }
       await container.services.photos.auditVersionViewedForApproval(context, approval);
-      return json(200, approval);
+      return json(200, await enrichPhotoApproval(container, approval));
     },
     approvePhotoApproval: async (request) => {
       const body = request.body === undefined ? {} : requireBodyObject(request.body);
@@ -251,7 +267,7 @@ export function createControllers(container: ApplicationContainer): Record<strin
         await container.services.photos.rejectPhotoApproval({
           approvalId: requireUuid(request.params.id, 'id'),
           context: photoContext(request, {}),
-          reasonCode: requireString(body.reasonCode, 'reasonCode'),
+          reasonCode: requireFederationRejectReasonCode(body.reasonCode),
           notes: optionalString(body.notes, 'notes') ?? undefined,
         }),
       );
@@ -651,4 +667,103 @@ async function findRegistrationClubId(
     registrationId as never,
   );
   return staff?.clubId;
+}
+
+async function enrichPhotoApproval(
+  container: ApplicationContainer,
+  approval: PhotoApproval,
+) {
+  const registration =
+    approval.registrationId === null
+      ? null
+      : await container.repositories.registrations.findPlayerRegistrationById(
+          approval.registrationId as never,
+        );
+  const staffRegistration =
+    approval.registrationId === null || registration !== null
+      ? null
+      : await container.repositories.registrations.findStaffRegistrationById(
+          approval.registrationId as never,
+        );
+  const clubId = registration?.clubId ?? staffRegistration?.clubId ?? null;
+  const club = clubId === null ? null : await container.repositories.clubs.findById(clubId);
+  const player =
+    registration === null
+      ? null
+      : await container.repositories.players.findById(registration.playerId);
+  const staff =
+    staffRegistration === null
+      ? null
+      : await container.repositories.registrations.findStaffMemberById(
+          staffRegistration.staffMemberId,
+        );
+  const version = await container.repositories.photoVersions.findById(approval.photoVersionId);
+  const global =
+    version === null
+      ? null
+      : await container.repositories.globalOfficialPhotos.findById(version.globalOfficialPhotoId);
+  const currentVersionId =
+    global?.currentVersionId === approval.photoVersionId ? null : (global?.currentVersionId ?? null);
+  const now = new Date().toISOString();
+  const slaStatus =
+    approval.status !== 'pending'
+      ? 'closed'
+      : approval.slaDueAt === null
+        ? 'not_set'
+        : approval.slaDueAt < now
+          ? 'overdue'
+          : 'on_track';
+  return {
+    ...approval,
+    clubId,
+    clubName: club?.name ?? null,
+    subjectName:
+      player !== null
+        ? `${player.firstName} ${player.lastName}`
+        : staff !== null
+          ? `${staff.firstName} ${staff.lastName}`
+          : null,
+    subjectKind: player !== null ? 'athlete' : staff !== null ? 'staff_member' : null,
+    currentVersionId,
+    proposedVersionId: approval.photoVersionId,
+    currentPhotoUrl:
+      currentVersionId === null ? null : await createApprovalPreviewUrl(container, currentVersionId),
+    proposedPhotoUrl: await createApprovalPreviewUrl(container, approval.photoVersionId),
+    photoEtag: `photo:${approval.photoVersionId}:${approval.updatedAt}`,
+    slaStatus,
+  };
+}
+
+async function createApprovalPreviewUrl(container: ApplicationContainer, versionId: string) {
+  const version = await container.repositories.photoVersions.findById(versionId as never);
+  if (version === null) return null;
+  const objectKey = version.storageNormalizedKey ?? version.storageOriginalKey;
+  const signed = await container.objectStores.photos.createSignedReadUrl({
+    objectKey,
+    rendition: 'normalized',
+    ttlSeconds: 900,
+    disposition: 'inline',
+    correlationId: crypto.randomUUID(),
+  });
+  return signed.url;
+}
+
+function requireFederationRejectReasonCode(value: unknown) {
+  const reasonCode = requireString(value, 'reasonCode');
+  const allowed = [
+    'face_not_visible',
+    'document_mismatch',
+    'quality_issue',
+    'duplicate_or_wrong_subject',
+  ];
+  if (!allowed.includes(reasonCode)) {
+    throw new Error(`Invalid federation reject reasonCode: ${reasonCode}`);
+  }
+  return reasonCode;
+}
+
+function paginate<T>(items: readonly T[], query: Record<string, unknown>): readonly T[] {
+  const offset = query.offset === undefined ? 0 : Math.max(0, Number(query.offset));
+  const limit = query.limit === undefined ? items.length : Math.max(0, Number(query.limit));
+  return items.slice(offset, offset + limit);
 }

@@ -32,6 +32,10 @@ describe("regression: federation history actions", () => {
     expect(source).toContain('"Cruscotto"');
     expect(source).toContain('scheduled: "Programmata"');
     expect(source).toContain('submitted: "Inviato"');
+    expect(source).toContain('cancelled: "Annullata"');
+    expect(source).toContain('overdue: "In ritardo"');
+    expect(source).toContain("federationRejectReasonCodes");
+    expect(source).toContain("photoEtag");
     expect(source).toContain(
       "formatReportTeamName(event.teamName, homeTeam, awayTeam)",
     );

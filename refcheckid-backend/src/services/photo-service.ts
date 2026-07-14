@@ -404,6 +404,7 @@ export class PhotoService {
     }
     const version = await this.requirePhotoVersion(approval.photoVersionId);
     const global = await this.requireGlobalOfficialPhoto(version.globalOfficialPhotoId);
+    const previousVersionId = global.currentVersionId;
     const now = new Date().toISOString();
 
     const decided = await this.dependencies.photoApprovals.update(approval.id, {
@@ -487,6 +488,24 @@ export class PhotoService {
       photoVersionId: version.id,
       eventType: 'photo.approved',
       payload: { reasonCode: decided.decisionReasonCode, notes: decided.decisionNotes },
+      ipHash: null,
+      userAgentHash: null,
+    });
+    await this.dependencies.photoAuditEvents.create({
+      correlationId: approval.id,
+      actorUserId: command.context.actorId,
+      actorRole: command.context.actorRole,
+      federationId: approval.federationId,
+      seasonId: approval.seasonId,
+      registrationId: approval.registrationId,
+      photoSubjectId: global.photoSubjectId,
+      photoVersionId: version.id,
+      eventType: 'photo.official_changed',
+      payload: {
+        previousVersionId,
+        currentVersionId: version.id,
+        photoEtag: `photo:${version.id}:${now}`,
+      },
       ipHash: null,
       userAgentHash: null,
     });
