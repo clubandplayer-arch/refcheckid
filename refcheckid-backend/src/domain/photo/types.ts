@@ -60,6 +60,11 @@ export type PhotoAuditEventType =
   | 'photo.erasure_requested'
   | 'photo.erased'
   | 'photo.signed_url_issued'
+  | 'photo.manifest_generated'
+  | 'photo.manifest_acknowledged'
+  | 'photo.version_viewed_for_approval'
+  | 'photo.snapshot_served'
+  | 'photo.grant_revoked'
   | 'photo.access_denied'
   | 'match_sheet.photo_snapshot_frozen';
 
@@ -140,11 +145,12 @@ export interface MatchSheetPhotoSnapshot extends BaseEntity {
   matchSheetId: UUID;
   matchId: UUID;
   registrationId: UUID;
-  seasonRegistrationPhotoId: UUID;
-  photoSubjectId: UUID;
-  globalOfficialPhotoId: UUID;
-  photoVersionId: UUID;
-  photoEtag: string;
+  seasonRegistrationPhotoId: UUID | null;
+  photoSubjectId: UUID | null;
+  globalOfficialPhotoId: UUID | null;
+  photoVersionId: UUID | null;
+  photoEtag: string | null;
+  photoStatus: 'active' | 'missing' | 'suspended' | 'unavailable';
   renditionManifest: Record<string, unknown>;
   frozenAt: ISODateTime;
   frozenByUserId: UUID;

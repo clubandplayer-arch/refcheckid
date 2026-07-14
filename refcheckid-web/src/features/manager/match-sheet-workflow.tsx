@@ -27,7 +27,10 @@ import { managerTeamConfig, getCurrentManagerTeam } from "@/lib/manager-team";
 import { saveManagerSubjectPhoto } from "@/lib/manager-photo-store";
 import { uploadOfficialSubjectPhoto } from "@/lib/manager-photo-backend";
 import { getPhotoFeatureFlags } from "@/lib/photo-feature-flags";
-import { clearSubmittedMatchSheetSnapshot, saveSubmittedMatchSheetSnapshot } from "@/lib/submitted-match-sheet";
+import {
+  clearSubmittedMatchSheetSnapshot,
+  saveSubmittedMatchSheetSnapshot,
+} from "@/lib/submitted-match-sheet";
 import {
   fetchMatchSheets,
   fetchPlayers,
@@ -44,15 +47,28 @@ import type {
 
 const EMPTY_PLAYERS: readonly PlayerListItem[] = [];
 const EMPTY_STAFF: readonly StaffListItem[] = [];
+type PhotoErrorState = {
+  subjectKind: "athlete" | "staff_member";
+  subjectId: string;
+  message: string;
+};
 
 export function MatchSheetWorkflow() {
   const [step, setStep] = useState(0);
   const [query, setQuery] = useState("");
-  const [photoDraft, setPhotoDraft] = useState<{ id: string; previewUrl: string; zoom: number; offsetX: number; offsetY: number } | null>(null);
-  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoDraft, setPhotoDraft] = useState<{
+    id: string;
+    previewUrl: string;
+    zoom: number;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
+  const [photoError, setPhotoError] = useState<PhotoErrorState | null>(null);
   const managerTeam = getCurrentManagerTeam();
   const managerTeamLabel = managerTeamConfig[managerTeam].label;
   const managerClubId = managerTeamConfig[managerTeam].clubId;
+  const officialPhotoUploadEnabled =
+    getPhotoFeatureFlags().officialBackendUpload;
   const queryClient = useQueryClient();
   const { notify } = useToast();
   const playersQuery = useQuery({
@@ -64,7 +80,8 @@ export function MatchSheetWorkflow() {
     queryKey: [...queryKeys.staff, managerTeam],
   });
   const sheetsQuery = useQuery({
-    queryFn: () => fetchMatchSheets(`?clubId=${encodeURIComponent(managerClubId)}`),
+    queryFn: () =>
+      fetchMatchSheets(`?clubId=${encodeURIComponent(managerClubId)}`),
     queryKey: [...queryKeys.matchSheets, managerClubId],
   });
   const [selectedPlayers, setSelectedPlayers] = useState<
@@ -77,13 +94,30 @@ export function MatchSheetWorkflow() {
     mutationFn: () => {
       const firstSheet = sheetsQuery.data?.[0];
       if (!firstSheet) throw new Error("Nessuna distinta disponibile.");
-      if (firstSheet.status !== "draft") throw new Error("Distinta già inviata. Usa il ripristino della distinta di prova per crearne una nuova.");
+      if (firstSheet.status !== "draft")
+        throw new Error(
+          "Distinta già inviata. Usa il ripristino della distinta di prova per crearne una nuova.",
+        );
       saveSubmittedMatchSheetSnapshot({
         players: calledPlayers,
         staff: calledStaff,
         team: managerTeam,
       });
-      return submitMatchSheet(firstSheet.id);
+      return submitMatchSheet(firstSheet.id, {
+        players: calledPlayers
+          .filter((player) => player.registrationId)
+          .map((player) => ({
+            playerRegistrationId: player.registrationId as string,
+            role: player.role,
+            shirtNumber: player.shirtNumber,
+          })),
+        staff: calledStaff
+          .filter((staffMember) => staffMember.registrationId)
+          .map((staffMember) => ({
+            staffRegistrationId: staffMember.registrationId as string,
+            role: staffMember.role,
+          })),
+      });
     },
     onSuccess() {
       notify("Distinta inviata", "success");
@@ -155,7 +189,9 @@ export function MatchSheetWorkflow() {
     const flags = getPhotoFeatureFlags();
     if (flags.officialBackendUpload) {
       if (!player?.registrationId || !player.season) {
-        throw new Error("Tesseramento stagionale non disponibile: impossibile caricare la foto ufficiale.");
+        throw new Error(
+          "Tesseramento stagionale non disponibile: impossibile caricare la foto ufficiale.",
+        );
       }
       const state = await uploadOfficialSubjectPhoto({
         subjectKind: "athlete",
@@ -168,11 +204,24 @@ export function MatchSheetWorkflow() {
       });
       setPlayerList((current) =>
         current.map((item) =>
-          item.id === playerId ? { ...item, photo: state, photoUrl: state.currentPhotoUrl ?? item.photoUrl } : item,
+          item.id === playerId
+            ? {
+                ...item,
+                photo: state,
+                photoUrl: state.currentPhotoUrl ?? item.photoUrl,
+              }
+            : item,
         ),
       );
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.players, managerTeam] });
-      notify(state.status === "pending" ? "Foto inviata al backend: richiesta in attesa di approvazione federale" : "Foto tesserato aggiornata dal backend", "success");
+      void queryClient.invalidateQueries({
+        queryKey: [...queryKeys.players, managerTeam],
+      });
+      notify(
+        state.status === "pending"
+          ? "Foto inviata al backend: richiesta in attesa di approvazione federale"
+          : "Foto tesserato aggiornata dal backend",
+        "success",
+      );
       return;
     }
     const status = saveManagerSubjectPhoto(
@@ -191,14 +240,19 @@ export function MatchSheetWorkflow() {
       notify("Foto tesserato aggiornata", "success");
       return;
     }
-    notify("Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto ufficiale corrente", "success");
+    notify(
+      "Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto ufficiale corrente",
+      "success",
+    );
   }
   async function updateStaffPhoto(staffId: string, photoUrl: string) {
     const staffMember = staff.find((item) => item.id === staffId);
     const flags = getPhotoFeatureFlags();
     if (flags.officialBackendUpload) {
       if (!staffMember?.registrationId || !staffMember.season) {
-        throw new Error("Tesseramento stagionale staff non disponibile: impossibile caricare la foto ufficiale.");
+        throw new Error(
+          "Tesseramento stagionale staff non disponibile: impossibile caricare la foto ufficiale.",
+        );
       }
       const state = await uploadOfficialSubjectPhoto({
         subjectKind: "staff_member",
@@ -211,11 +265,24 @@ export function MatchSheetWorkflow() {
       });
       setStaffList((current) =>
         current.map((item) =>
-          item.id === staffId ? { ...item, photo: state, photoUrl: state.currentPhotoUrl ?? item.photoUrl } : item,
+          item.id === staffId
+            ? {
+                ...item,
+                photo: state,
+                photoUrl: state.currentPhotoUrl ?? item.photoUrl,
+              }
+            : item,
         ),
       );
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.staff, managerTeam] });
-      notify(state.status === "pending" ? "Foto staff inviata al backend: richiesta in attesa di approvazione federale" : "Foto staff aggiornata dal backend", "success");
+      void queryClient.invalidateQueries({
+        queryKey: [...queryKeys.staff, managerTeam],
+      });
+      notify(
+        state.status === "pending"
+          ? "Foto staff inviata al backend: richiesta in attesa di approvazione federale"
+          : "Foto staff aggiornata dal backend",
+        "success",
+      );
       return;
     }
     const status = saveManagerSubjectPhoto(
@@ -234,31 +301,64 @@ export function MatchSheetWorkflow() {
       notify("Foto tesserato aggiornata", "success");
       return;
     }
-    notify("Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto attuale a tuo rischio durante il riconoscimento", "success");
+    notify(
+      "Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto attuale a tuo rischio durante il riconoscimento",
+      "success",
+    );
   }
-  function handlePhotoSelected(subjectId: string, file: File | null) {
+  function handlePhotoSelected(
+    subjectKind: PhotoErrorState["subjectKind"],
+    subjectId: string,
+    file: File | null,
+  ) {
     if (isReadOnly) return;
-    setPhotoError(null);
+    setPhotoError((current) =>
+      current?.subjectKind === subjectKind && current.subjectId === subjectId
+        ? null
+        : current,
+    );
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      setPhotoError("Carica solo file immagine.");
+      setPhotoError({
+        subjectKind,
+        subjectId,
+        message: "Carica solo file immagine.",
+      });
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setPhotoError("La foto supera la dimensione massima di 5 MB.");
+      setPhotoError({
+        subjectKind,
+        subjectId,
+        message: "La foto supera la dimensione massima di 5 MB.",
+      });
       return;
     }
     const reader = new FileReader();
     reader.addEventListener("load", () => {
       if (typeof reader.result === "string") {
-        setPhotoDraft({ id: subjectId, offsetX: 0, offsetY: 0, previewUrl: reader.result, zoom: 1 });
+        setPhotoDraft({
+          id: subjectId,
+          offsetX: 0,
+          offsetY: 0,
+          previewUrl: reader.result,
+          zoom: 1,
+        });
       }
     });
     reader.readAsDataURL(file);
   }
-  async function confirmPhoto(subjectId: string, applyPhoto: (photoUrl: string) => void | Promise<void>) {
+  async function confirmPhoto(
+    subjectKind: PhotoErrorState["subjectKind"],
+    subjectId: string,
+    applyPhoto: (photoUrl: string) => void | Promise<void>,
+  ) {
     if (!photoDraft || photoDraft.id !== subjectId) {
-      setPhotoError("Conferma una preview prima del salvataggio.");
+      setPhotoError({
+        subjectKind,
+        subjectId,
+        message: "Conferma una preview prima del salvataggio.",
+      });
       return;
     }
     try {
@@ -266,12 +366,18 @@ export function MatchSheetWorkflow() {
       setPhotoDraft(null);
       setPhotoError(null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Upload foto non riuscito.";
-      setPhotoError(message);
+      const message =
+        error instanceof Error ? error.message : "Upload foto non riuscito.";
+      setPhotoError({ subjectKind, subjectId, message });
       notify(message, "error");
     }
   }
-  function updatePhotoDraftTransform(subjectId: string, transform: Partial<Pick<NonNullable<typeof photoDraft>, "zoom" | "offsetX" | "offsetY">>) {
+  function updatePhotoDraftTransform(
+    subjectId: string,
+    transform: Partial<
+      Pick<NonNullable<typeof photoDraft>, "zoom" | "offsetX" | "offsetY">
+    >,
+  ) {
     setPhotoDraft((current) =>
       current?.id === subjectId ? { ...current, ...transform } : current,
     );
@@ -386,9 +492,17 @@ export function MatchSheetWorkflow() {
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
       <div className="lg:col-span-2 rounded-xl border bg-muted/40 p-4 text-sm">
         <p className="font-semibold">Distinta {managerTeamLabel}</p>
-        <p>Stato: <span className="font-semibold">{getMatchSheetStatusLabel(matchSheetStatus)}</span></p>
+        <p>
+          Stato:{" "}
+          <span className="font-semibold">
+            {getMatchSheetStatusLabel(matchSheetStatus)}
+          </span>
+        </p>
         {isReadOnly ? (
-          <p className="mt-1 text-slate-600">Distinta inviata: non puoi più modificarla. Se serve correggere qualcosa, avvisa l’arbitro o la segreteria.</p>
+          <p className="mt-1 text-slate-600">
+            Distinta inviata: non puoi più modificarla. Se serve correggere
+            qualcosa, avvisa l’arbitro o la segreteria.
+          </p>
         ) : null}
         {isSmokeResetAvailable() ? (
           <Button
@@ -418,12 +532,17 @@ export function MatchSheetWorkflow() {
       {step === 0 ? (
         <PlayersStep
           onConfirmPhoto={(playerId) =>
-            confirmPhoto(playerId, (photoUrl) => updatePlayerPhoto(playerId, photoUrl))
+            confirmPhoto("athlete", playerId, (photoUrl) =>
+              updatePlayerPhoto(playerId, photoUrl),
+            )
           }
-          onPhotoSelected={handlePhotoSelected}
+          onPhotoSelected={(playerId, file) =>
+            handlePhotoSelected("athlete", playerId, file)
+          }
           photoDraft={photoDraft}
           onPhotoTransform={updatePhotoDraftTransform}
           photoError={photoError}
+          officialPhotoUploadEnabled={officialPhotoUploadEnabled}
           players={filteredPlayers}
           query={query}
           setQuery={setQuery}
@@ -445,12 +564,17 @@ export function MatchSheetWorkflow() {
       {step === 2 ? (
         <StaffStep
           onConfirmPhoto={(staffId) =>
-            confirmPhoto(staffId, (photoUrl) => updateStaffPhoto(staffId, photoUrl))
+            confirmPhoto("staff_member", staffId, (photoUrl) =>
+              updateStaffPhoto(staffId, photoUrl),
+            )
           }
-          onPhotoSelected={handlePhotoSelected}
+          onPhotoSelected={(staffId, file) =>
+            handlePhotoSelected("staff_member", staffId, file)
+          }
           onPhotoTransform={updatePhotoDraftTransform}
           photoDraft={photoDraft}
           photoError={photoError}
+          officialPhotoUploadEnabled={officialPhotoUploadEnabled}
           staff={staff}
           toggleStaff={toggleStaff}
         />
@@ -474,6 +598,7 @@ function PlayersStep({
   onPhotoTransform,
   photoDraft,
   photoError,
+  officialPhotoUploadEnabled,
   players,
   query,
   setQuery,
@@ -481,9 +606,19 @@ function PlayersStep({
 }: Readonly<{
   onConfirmPhoto: (id: string) => void;
   onPhotoSelected: (id: string, file: File | null) => void;
-  onPhotoTransform: (id: string, transform: Partial<{ zoom: number; offsetX: number; offsetY: number }>) => void;
-  photoDraft: { id: string; previewUrl: string; zoom: number; offsetX: number; offsetY: number } | null;
-  photoError: string | null;
+  onPhotoTransform: (
+    id: string,
+    transform: Partial<{ zoom: number; offsetX: number; offsetY: number }>,
+  ) => void;
+  photoDraft: {
+    id: string;
+    previewUrl: string;
+    zoom: number;
+    offsetX: number;
+    offsetY: number;
+  } | null;
+  photoError: PhotoErrorState | null;
+  officialPhotoUploadEnabled: boolean;
   players: readonly PlayerListItem[];
   query: string;
   setQuery: (value: string) => void;
@@ -510,63 +645,85 @@ function PlayersStep({
         ) : null}
         {players.map((player) => {
           const statusTone = getPlayerStatusTone(player);
+          const uploadUnavailableReason =
+            getOfficialPhotoUploadUnavailableReason(
+              officialPhotoUploadEnabled,
+              player.registrationId,
+              player.season,
+              "atleta",
+            );
           return (
-          <div
-            className={`grid gap-3 p-4 md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px] md:items-start ${
-              statusTone === "warning"
-                ? "bg-yellow-50"
-                : statusTone === "suspended"
-                  ? "bg-red-50 opacity-80"
-                  : ""
-            }`}
-            key={player.id}
-          >
-            <div className="flex items-start gap-3 md:block">
-              {player.photoUrl ? (
-                <Image
-                  alt={`Foto ${player.lastName} ${player.firstName}`}
-                  className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
-                  height={96}
-                  src={player.photoUrl}
-                  width={80}
-                />
-              ) : (
-                <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
-                  Foto
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 space-y-1">
-              <p className="break-words text-base font-semibold leading-tight text-slate-900">
-                {player.lastName} {player.firstName}
-              </p>
-              <p className="text-xs leading-relaxed text-slate-500">
-                {player.warning ? "Diffida" : "Nessuna diffida"} ·{" "}
-                {player.suspended ? "Squalificato" : "Disponibile"}
-              </p>
-              <BackendPhotoStatus photo={player.photo} />
-            </div>
-            <PhotoComparison currentPhotoUrl={player.photo?.currentPhotoUrl ?? player.photoUrl} proposedPhotoUrl={player.photo?.proposedPhotoUrl ?? null} />
-            <PhotoCaptureControls
-              currentPhotoUrl={player.photo?.currentPhotoUrl ?? player.photoUrl}
-              onConfirm={() => onConfirmPhoto(player.id)}
-              onPhotoSelected={(file) => onPhotoSelected(player.id, file)}
-              onPhotoTransform={(transform) => onPhotoTransform(player.id, transform)}
-              photoDraft={photoDraft?.id === player.id ? photoDraft : null}
-              photoError={photoError}
-              subjectLabel={`${player.lastName} ${player.firstName}`}
-            />
-            <label className="flex items-center gap-2 text-sm md:justify-end">
-              <span className="md:sr-only">Convoca</span>
-              <input
-                aria-label={`Convoca ${player.lastName} ${player.firstName}`}
-                checked={player.selected}
-                disabled={player.suspended}
-                onChange={() => togglePlayer(player.id)}
-                type="checkbox"
+            <div
+              className={`grid gap-3 p-4 md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px] md:items-start ${
+                statusTone === "warning"
+                  ? "bg-yellow-50"
+                  : statusTone === "suspended"
+                    ? "bg-red-50 opacity-80"
+                    : ""
+              }`}
+              key={player.id}
+            >
+              <div className="flex items-start gap-3 md:block">
+                {player.photoUrl ? (
+                  <Image
+                    alt={`Foto ${player.lastName} ${player.firstName}`}
+                    className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
+                    height={96}
+                    src={player.photoUrl}
+                    width={80}
+                  />
+                ) : (
+                  <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
+                    Foto
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 space-y-1">
+                <p className="break-words text-base font-semibold leading-tight text-slate-900">
+                  {player.lastName} {player.firstName}
+                </p>
+                <p className="text-xs leading-relaxed text-slate-500">
+                  {player.warning ? "Diffida" : "Nessuna diffida"} ·{" "}
+                  {player.suspended ? "Squalificato" : "Disponibile"}
+                </p>
+                <BackendPhotoStatus photo={player.photo} />
+              </div>
+              <PhotoComparison
+                currentPhotoUrl={
+                  player.photo?.currentPhotoUrl ?? player.photoUrl
+                }
+                proposedPhotoUrl={player.photo?.proposedPhotoUrl ?? null}
               />
-            </label>
-          </div>
+              <PhotoCaptureControls
+                currentPhotoUrl={
+                  player.photo?.currentPhotoUrl ?? player.photoUrl
+                }
+                onConfirm={() => onConfirmPhoto(player.id)}
+                onPhotoSelected={(file) => onPhotoSelected(player.id, file)}
+                onPhotoTransform={(transform) =>
+                  onPhotoTransform(player.id, transform)
+                }
+                photoDraft={photoDraft?.id === player.id ? photoDraft : null}
+                photoError={
+                  photoError?.subjectKind === "athlete" &&
+                  photoError.subjectId === player.id
+                    ? photoError.message
+                    : null
+                }
+                subjectLabel={`${player.lastName} ${player.firstName}`}
+                uploadUnavailableReason={uploadUnavailableReason}
+              />
+              <label className="flex items-center gap-2 text-sm md:justify-end">
+                <span className="md:sr-only">Convoca</span>
+                <input
+                  aria-label={`Convoca ${player.lastName} ${player.firstName}`}
+                  checked={player.selected}
+                  disabled={player.suspended}
+                  onChange={() => togglePlayer(player.id)}
+                  type="checkbox"
+                />
+              </label>
+            </div>
           );
         })}
       </div>
@@ -574,7 +731,9 @@ function PlayersStep({
   );
 }
 
-function BackendPhotoStatus({ photo }: Readonly<{ photo: PlayerListItem["photo"] | StaffListItem["photo"] }>) {
+function BackendPhotoStatus({
+  photo,
+}: Readonly<{ photo: PlayerListItem["photo"] | StaffListItem["photo"] }>) {
   const status = photo?.status ?? "missing";
   const label = {
     active: "Active",
@@ -590,17 +749,45 @@ function BackendPhotoStatus({ photo }: Readonly<{ photo: PlayerListItem["photo"]
     rejected: "bg-red-100 text-red-800",
     suspended: "bg-orange-100 text-orange-800",
   }[status];
-  return <span className={`inline-flex w-fit rounded-full px-2 py-1 text-[11px] font-semibold ${tone}`}>{label}</span>;
+  return (
+    <span
+      className={`inline-flex w-fit rounded-full px-2 py-1 text-[11px] font-semibold ${tone}`}
+    >
+      {label}
+    </span>
+  );
 }
 
-function PhotoComparison({ currentPhotoUrl, proposedPhotoUrl }: Readonly<{ currentPhotoUrl: string | null; proposedPhotoUrl: string | null }>) {
+function PhotoComparison({
+  currentPhotoUrl,
+  proposedPhotoUrl,
+}: Readonly<{
+  currentPhotoUrl: string | null;
+  proposedPhotoUrl: string | null;
+}>) {
   if (!proposedPhotoUrl) return null;
   return (
     <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] font-semibold text-amber-900">
       <span>Foto ufficiale corrente</span>
-      {currentPhotoUrl ? <Image alt="Foto ufficiale corrente" className="h-12 w-9 rounded border object-cover" height={48} src={currentPhotoUrl} width={36} /> : <span>Missing</span>}
+      {currentPhotoUrl ? (
+        <Image
+          alt="Foto ufficiale corrente"
+          className="h-12 w-9 rounded border object-cover"
+          height={48}
+          src={currentPhotoUrl}
+          width={36}
+        />
+      ) : (
+        <span>Missing</span>
+      )}
       <span>↓</span>
-      <Image alt="Nuova foto proposta" className="h-12 w-9 rounded border object-cover" height={48} src={proposedPhotoUrl} width={36} />
+      <Image
+        alt="Nuova foto proposta"
+        className="h-12 w-9 rounded border object-cover"
+        height={48}
+        src={proposedPhotoUrl}
+        width={36}
+      />
       <span>Nuova foto proposta</span>
     </div>
   );
@@ -613,10 +800,11 @@ function PhotoApprovalNotice() {
         <p className="font-semibold">Nota foto tesserati</p>
         <p>
           Smartphone consigliato: inquadra tutto il volto. Da desktop puoi
-          caricare un file immagine. L’upload usa Upload Intent e Upload Complete
-          del backend ARCH-1: il backend è la Source of Truth delle foto ufficiali.
-          Se sostituisci una foto attiva, la foto ufficiale corrente resta visibile
-          fino all’approvazione federale e la nuova foto compare come proposta pending.
+          caricare un file immagine. L’upload usa Upload Intent e Upload
+          Complete del backend ARCH-1: il backend è la Source of Truth delle
+          foto ufficiali. Se sostituisci una foto attiva, la foto ufficiale
+          corrente resta visibile fino all’approvazione federale e la nuova foto
+          compare come proposta pending.
         </p>
       </div>
       <PhotoExampleIllustration />
@@ -634,21 +822,47 @@ function PhotoExampleIllustration() {
         viewBox="0 0 120 160"
         xmlns="http://www.w3.org/2000/svg"
       >
-        <rect fill="#f8fafc" height="158" rx="10" stroke="#cbd5e1" strokeWidth="2" width="118" x="1" y="1" />
+        <rect
+          fill="#f8fafc"
+          height="158"
+          rx="10"
+          stroke="#cbd5e1"
+          strokeWidth="2"
+          width="118"
+          x="1"
+          y="1"
+        />
         <path d="M30 142c4-27 56-27 60 0" fill="#2563eb" />
         <path d="M40 142c2-18 38-18 40 0" fill="#1e40af" opacity="0.6" />
         <circle cx="60" cy="62" fill="#f2c7a5" r="29" />
         <path d="M34 55c4-25 47-33 58-6-12-8-31-9-53 0z" fill="#7c2d12" />
         <circle cx="49" cy="64" fill="#0f172a" r="2.4" />
         <circle cx="71" cy="64" fill="#0f172a" r="2.4" />
-        <path d="M54 78c4 3 8 3 12 0" fill="none" stroke="#9a3412" strokeLinecap="round" strokeWidth="2" />
-        <path d="M26 26h18M26 26v18M94 26H76M94 26v18M26 118v-18M26 118h18M94 118h-18M94 118v-18" fill="none" stroke="#16a34a" strokeLinecap="round" strokeWidth="4" />
+        <path
+          d="M54 78c4 3 8 3 12 0"
+          fill="none"
+          stroke="#9a3412"
+          strokeLinecap="round"
+          strokeWidth="2"
+        />
+        <path
+          d="M26 26h18M26 26v18M94 26H76M94 26v18M26 118v-18M26 118h18M94 118h-18M94 118v-18"
+          fill="none"
+          stroke="#16a34a"
+          strokeLinecap="round"
+          strokeWidth="4"
+        />
         <circle cx="92" cy="134" fill="#16a34a" r="12" />
-        <path d="m86 134 4 4 8-9" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+        <path
+          d="m86 134 4 4 8-9"
+          fill="none"
+          stroke="#fff"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="3"
+        />
       </svg>
-      <figcaption>
-        Esempio: volto centrato, frontale e ben visibile
-      </figcaption>
+      <figcaption>Esempio: volto centrato, frontale e ben visibile</figcaption>
     </figure>
   );
 }
@@ -661,31 +875,53 @@ function PhotoCaptureControls({
   photoDraft,
   photoError,
   subjectLabel,
+  uploadUnavailableReason,
 }: Readonly<{
   currentPhotoUrl: string | null;
   onConfirm: () => void;
   onPhotoSelected: (file: File | null) => void;
-  onPhotoTransform: (transform: Partial<{ zoom: number; offsetX: number; offsetY: number }>) => void;
-  photoDraft: { id: string; previewUrl: string; zoom: number; offsetX: number; offsetY: number } | null;
+  onPhotoTransform: (
+    transform: Partial<{ zoom: number; offsetX: number; offsetY: number }>,
+  ) => void;
+  photoDraft: {
+    id: string;
+    previewUrl: string;
+    zoom: number;
+    offsetX: number;
+    offsetY: number;
+  } | null;
   photoError: string | null;
   subjectLabel: string;
+  uploadUnavailableReason: string | null;
 }>) {
   return (
     <div className="w-full space-y-2 text-xs md:max-w-[340px]">
       <p className="font-semibold text-slate-600">
         {currentPhotoUrl ? "Modifica foto" : "Aggiungi foto"}
       </p>
-      <label className="block rounded-lg border border-dashed bg-white p-2 text-center transition hover:border-primary">
+      <label
+        className={`block rounded-lg border border-dashed bg-white p-2 text-center transition ${
+          uploadUnavailableReason
+            ? "cursor-not-allowed opacity-60"
+            : "hover:border-primary"
+        }`}
+      >
         <span>Scatta/carica foto</span>
         <input
           accept="image/*"
           aria-label={`${currentPhotoUrl ? "Modifica" : "Aggiungi"} foto ${subjectLabel}`}
           capture="environment"
           className="sr-only"
+          disabled={Boolean(uploadUnavailableReason)}
           onChange={(event) => onPhotoSelected(event.target.files?.[0] ?? null)}
           type="file"
         />
       </label>
+      {uploadUnavailableReason ? (
+        <p className="rounded-md bg-amber-50 p-2 text-amber-800">
+          {uploadUnavailableReason}
+        </p>
+      ) : null}
       {photoDraft ? (
         <div className="space-y-2 rounded-lg bg-muted p-2">
           <div className="relative mx-auto flex aspect-[3/4] h-36 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
@@ -694,7 +930,9 @@ function PhotoCaptureControls({
               className="h-full w-full object-contain"
               height={144}
               src={photoDraft.previewUrl}
-              style={{ transform: `translate(${photoDraft.offsetX}px, ${photoDraft.offsetY}px) scale(${photoDraft.zoom})` }}
+              style={{
+                transform: `translate(${photoDraft.offsetX}px, ${photoDraft.offsetY}px) scale(${photoDraft.zoom})`,
+              }}
               width={108}
             />
             <div className="pointer-events-none absolute inset-1 rounded-md border-2 border-white/80 shadow-[0_0_0_999px_rgba(15,23,42,0.14)]" />
@@ -706,7 +944,9 @@ function PhotoCaptureControls({
               className="w-full"
               max={3}
               min={0.4}
-              onChange={(event) => onPhotoTransform({ zoom: Number(event.target.value) })}
+              onChange={(event) =>
+                onPhotoTransform({ zoom: Number(event.target.value) })
+              }
               step={0.05}
               type="range"
               value={photoDraft.zoom}
@@ -719,7 +959,9 @@ function PhotoCaptureControls({
               className="w-full"
               max={24}
               min={-24}
-              onChange={(event) => onPhotoTransform({ offsetX: Number(event.target.value) })}
+              onChange={(event) =>
+                onPhotoTransform({ offsetX: Number(event.target.value) })
+              }
               type="range"
               value={photoDraft.offsetX}
             />
@@ -731,12 +973,19 @@ function PhotoCaptureControls({
               className="w-full"
               max={24}
               min={-24}
-              onChange={(event) => onPhotoTransform({ offsetY: Number(event.target.value) })}
+              onChange={(event) =>
+                onPhotoTransform({ offsetY: Number(event.target.value) })
+              }
               type="range"
               value={photoDraft.offsetY}
             />
           </label>
-          <Button className="w-full py-1 text-xs" onClick={onConfirm} type="button">
+          <Button
+            className="w-full py-1 text-xs"
+            disabled={Boolean(uploadUnavailableReason)}
+            onClick={onConfirm}
+            type="button"
+          >
             Conferma caricamento
           </Button>
         </div>
@@ -744,6 +993,19 @@ function PhotoCaptureControls({
       {photoError ? <p className="text-red-600">{photoError}</p> : null}
     </div>
   );
+}
+
+function getOfficialPhotoUploadUnavailableReason(
+  officialPhotoUploadEnabled: boolean,
+  registrationId: string | null,
+  season: string | null,
+  subjectLabel: "atleta" | "staff",
+): string | null {
+  if (!officialPhotoUploadEnabled) return null;
+  if (registrationId && season) return null;
+  return subjectLabel === "atleta"
+    ? "Upload ufficiale non disponibile: manca il tesseramento stagionale atleta."
+    : "Upload ufficiale non disponibile: manca il tesseramento stagionale staff.";
 }
 
 function OrderStep({
@@ -950,14 +1212,25 @@ function StaffStep({
   onPhotoTransform,
   photoDraft,
   photoError,
+  officialPhotoUploadEnabled,
   staff,
   toggleStaff,
 }: Readonly<{
   onConfirmPhoto: (id: string) => void;
   onPhotoSelected: (id: string, file: File | null) => void;
-  onPhotoTransform: (id: string, transform: Partial<{ zoom: number; offsetX: number; offsetY: number }>) => void;
-  photoDraft: { id: string; previewUrl: string; zoom: number; offsetX: number; offsetY: number } | null;
-  photoError: string | null;
+  onPhotoTransform: (
+    id: string,
+    transform: Partial<{ zoom: number; offsetX: number; offsetY: number }>,
+  ) => void;
+  photoDraft: {
+    id: string;
+    previewUrl: string;
+    zoom: number;
+    offsetX: number;
+    offsetY: number;
+  } | null;
+  photoError: PhotoErrorState | null;
+  officialPhotoUploadEnabled: boolean;
   staff: readonly StaffListItem[];
   toggleStaff: (id: string) => void;
 }>) {
@@ -968,51 +1241,86 @@ function StaffStep({
       {staff.length === 0 ? (
         <EmptyState message="Nessuno staff disponibile." />
       ) : null}
-      {staff.map((staffMember) => (
-        <div
-          className="grid gap-3 rounded-xl border p-4 md:grid-cols-[32px_96px_minmax(0,1fr)_minmax(220px,340px)_minmax(220px,340px)] md:items-start"
-          key={staffMember.id}
-        >
-          <label className="flex items-center gap-2 text-sm md:justify-start">
-            <input
-              checked={staffMember.selected}
-              onChange={() => toggleStaff(staffMember.id)}
-              type="checkbox"
-            />
-            <span className="md:sr-only">Seleziona</span>
-          </label>
-          {staffMember.photoUrl ? (
-            <Image
-              alt={`Foto ${staffMember.fullName}`}
-              className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
-              height={96}
-              src={staffMember.photoUrl}
-              width={80}
-            />
-          ) : (
-            <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
-              Foto
+      <div className="divide-y rounded-xl border">
+        {staff.map((staffMember) => {
+          const uploadUnavailableReason =
+            getOfficialPhotoUploadUnavailableReason(
+              officialPhotoUploadEnabled,
+              staffMember.registrationId,
+              staffMember.season,
+              "staff",
+            );
+          return (
+            <div
+              className="grid gap-3 p-4 md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px] md:items-start"
+              key={staffMember.id}
+            >
+              <div className="flex items-start gap-3 md:block">
+                {staffMember.photoUrl ? (
+                  <Image
+                    alt={`Foto ${staffMember.fullName}`}
+                    className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
+                    height={96}
+                    src={staffMember.photoUrl}
+                    width={80}
+                  />
+                ) : (
+                  <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
+                    Foto
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 space-y-1">
+                <p className="break-words text-base font-semibold leading-tight text-slate-900">
+                  {staffMember.fullName}
+                </p>
+                <p className="text-xs leading-relaxed text-slate-500">
+                  {staffMember.role}
+                </p>
+                <BackendPhotoStatus photo={staffMember.photo} />
+              </div>
+              <PhotoComparison
+                currentPhotoUrl={
+                  staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl
+                }
+                proposedPhotoUrl={staffMember.photo?.proposedPhotoUrl ?? null}
+              />
+              <PhotoCaptureControls
+                currentPhotoUrl={
+                  staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl
+                }
+                onConfirm={() => onConfirmPhoto(staffMember.id)}
+                onPhotoSelected={(file) =>
+                  onPhotoSelected(staffMember.id, file)
+                }
+                onPhotoTransform={(transform) =>
+                  onPhotoTransform(staffMember.id, transform)
+                }
+                photoDraft={
+                  photoDraft?.id === staffMember.id ? photoDraft : null
+                }
+                photoError={
+                  photoError?.subjectKind === "staff_member" &&
+                  photoError.subjectId === staffMember.id
+                    ? photoError.message
+                    : null
+                }
+                subjectLabel={staffMember.fullName}
+                uploadUnavailableReason={uploadUnavailableReason}
+              />
+              <label className="flex items-center gap-2 text-sm md:justify-end">
+                <span className="md:sr-only">Seleziona</span>
+                <input
+                  aria-label={`Seleziona ${staffMember.fullName}`}
+                  checked={staffMember.selected}
+                  onChange={() => toggleStaff(staffMember.id)}
+                  type="checkbox"
+                />
+              </label>
             </div>
-          )}
-          <div className="min-w-0 space-y-1">
-            <p className="break-words text-base font-semibold leading-tight text-slate-900">
-              {staffMember.fullName}
-            </p>
-            <p className="text-xs leading-relaxed text-slate-500">{staffMember.role}</p>
-            <BackendPhotoStatus photo={staffMember.photo} />
-          </div>
-          <PhotoComparison currentPhotoUrl={staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl} proposedPhotoUrl={staffMember.photo?.proposedPhotoUrl ?? null} />
-          <PhotoCaptureControls
-            currentPhotoUrl={staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl}
-            onConfirm={() => onConfirmPhoto(staffMember.id)}
-            onPhotoSelected={(file) => onPhotoSelected(staffMember.id, file)}
-            onPhotoTransform={(transform) => onPhotoTransform(staffMember.id, transform)}
-            photoDraft={photoDraft?.id === staffMember.id ? photoDraft : null}
-            photoError={photoError}
-            subjectLabel={staffMember.fullName}
-          />
-        </div>
-      ))}
+          );
+        })}
+      </div>
     </Card>
   );
 }
@@ -1090,20 +1398,29 @@ function SummaryStep({
   );
 }
 
-
 function getMatchSheetStatusLabel(status: string): string {
-  return {
-    draft: "Bozza — da completare e inviare",
-    locked: "Bloccata dall’arbitro — riconoscimento in corso",
-    submitted: "Inviata — in attesa dell’arbitro",
-  }[status] ?? status;
+  return (
+    {
+      draft: "Bozza — da completare e inviare",
+      locked: "Bloccata dall’arbitro — riconoscimento in corso",
+      submitted: "Inviata — in attesa dell’arbitro",
+    }[status] ?? status
+  );
 }
 
 function isSmokeResetAvailable(): boolean {
-  return process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_REFCHECKID_SMOKE_RESET === "true";
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.NEXT_PUBLIC_REFCHECKID_SMOKE_RESET === "true"
+  );
 }
 
-async function cropPhotoDraft(photoDraft: { previewUrl: string; zoom: number; offsetX: number; offsetY: number }): Promise<string> {
+async function cropPhotoDraft(photoDraft: {
+  previewUrl: string;
+  zoom: number;
+  offsetX: number;
+  offsetY: number;
+}): Promise<string> {
   const image = await loadImage(photoDraft.previewUrl);
   const canvas = document.createElement("canvas");
   const widthSize = 300;
@@ -1114,7 +1431,9 @@ async function cropPhotoDraft(photoDraft: { previewUrl: string; zoom: number; of
   if (!context) return photoDraft.previewUrl;
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, widthSize, heightSize);
-  const scale = Math.min(widthSize / image.width, heightSize / image.height) * photoDraft.zoom;
+  const scale =
+    Math.min(widthSize / image.width, heightSize / image.height) *
+    photoDraft.zoom;
   const width = image.width * scale;
   const height = image.height * scale;
   const x = (widthSize - width) / 2 + photoDraft.offsetX * (widthSize / 96);
@@ -1127,7 +1446,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new window.Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Impossibile preparare il ritaglio foto."));
+    image.onerror = () =>
+      reject(new Error("Impossibile preparare il ritaglio foto."));
     image.src = src;
   });
 }

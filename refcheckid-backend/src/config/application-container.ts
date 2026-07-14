@@ -4,8 +4,10 @@ import {
   ClubRepository,
   FederationRepository,
   MatchReportRepository,
+  MatchSheetPlayerRepository,
   MatchRepository,
   MatchSheetRepository,
+  MatchSheetStaffRepository,
   GlobalOfficialPhotoRepository,
   MatchSheetPhotoSnapshotRepository,
   PhotoAccessGrantRepository,
@@ -42,6 +44,8 @@ export interface ApplicationContainer {
     readonly matches: MatchRepository;
     readonly matchReports: MatchReportRepository;
     readonly matchSheets: MatchSheetRepository;
+    readonly matchSheetPlayers: MatchSheetPlayerRepository;
+    readonly matchSheetStaff: MatchSheetStaffRepository;
     readonly photos: PhotoRepository;
     readonly photoSubjects: PhotoSubjectRepository;
     readonly globalOfficialPhotos: GlobalOfficialPhotoRepository;
@@ -80,6 +84,8 @@ export function createApplicationContainer(): ApplicationContainer {
     matches: new MatchRepository(pilotMatches),
     matchReports: new MatchReportRepository(pilotMatchReports),
     matchSheets: new MatchSheetRepository(pilotMatchSheets),
+    matchSheetPlayers: new MatchSheetPlayerRepository(),
+    matchSheetStaff: new MatchSheetStaffRepository(),
     photos: new PhotoRepository(),
     photoSubjects: new PhotoSubjectRepository(),
     globalOfficialPhotos: new GlobalOfficialPhotoRepository(),
@@ -95,6 +101,20 @@ export function createApplicationContainer(): ApplicationContainer {
     referees: new RefereeRepository(),
     registrations: new RegistrationRepository(),
   };
+
+  const objectStores = { photos: new LocalPhotoObjectStore() };
+  const photosService = new PhotoService({
+    objectStore: objectStores.photos,
+    photoSubjects: repositories.photoSubjects,
+    globalOfficialPhotos: repositories.globalOfficialPhotos,
+    seasonRegistrationPhotos: repositories.seasonRegistrationPhotos,
+    photoVersions: repositories.photoVersions,
+    photoApprovals: repositories.photoApprovals,
+    matchSheetPhotoSnapshots: repositories.matchSheetPhotoSnapshots,
+    photoAccessGrants: repositories.photoAccessGrants,
+    photoAuditEvents: repositories.photoAuditEvents,
+    registrations: repositories.registrations,
+  });
 
   const services = {
     audit: new AuditService({ auditRepository: repositories.audit, eventPublisher: events }),
@@ -115,29 +135,24 @@ export function createApplicationContainer(): ApplicationContainer {
     }),
     matchSheets: new MatchSheetService({
       matchSheetsRepository: repositories.matchSheets,
+      matchSheetPlayersRepository: repositories.matchSheetPlayers,
+      matchSheetStaffRepository: repositories.matchSheetStaff,
+      photosService,
+      playersRepository: repositories.players,
+      registrationsRepository: repositories.registrations,
       eventPublisher: events,
     }),
-    photos: undefined as never,
+    photos: photosService,
     recognitions: undefined as never,
   };
 
-  const objectStores = { photos: new LocalPhotoObjectStore() };
-
   const completedServices = {
     ...services,
-    photos: new PhotoService({
-      objectStore: objectStores.photos,
-      photoSubjects: repositories.photoSubjects,
-      globalOfficialPhotos: repositories.globalOfficialPhotos,
-      seasonRegistrationPhotos: repositories.seasonRegistrationPhotos,
-      photoVersions: repositories.photoVersions,
-      photoApprovals: repositories.photoApprovals,
-      matchSheetPhotoSnapshots: repositories.matchSheetPhotoSnapshots,
-      photoAccessGrants: repositories.photoAccessGrants,
-      photoAuditEvents: repositories.photoAuditEvents,
-    }),
     recognitions: new RecognitionService({
+      matchSheetPlayersRepository: repositories.matchSheetPlayers,
       matchSheetsRepository: repositories.matchSheets,
+      matchSheetStaffRepository: repositories.matchSheetStaff,
+      matchSheetPhotoSnapshotsRepository: repositories.matchSheetPhotoSnapshots,
       recognitionsRepository: repositories.recognitions,
       eventPublisher: events,
     }),

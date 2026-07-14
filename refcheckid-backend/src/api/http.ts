@@ -20,6 +20,10 @@ export interface ApiRequest<
 export interface AuthContext {
   readonly actorId: UUID;
   readonly roles: readonly string[];
+  readonly clubIds?: readonly UUID[];
+  readonly federationIds?: readonly UUID[];
+  readonly refereeIds?: readonly UUID[];
+  readonly authorizedMatchIds?: readonly UUID[];
 }
 
 export interface ApiResponse<TBody = unknown> {

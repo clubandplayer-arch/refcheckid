@@ -23,6 +23,9 @@ export class PhotoPolicyEngine {
       context.actorRole === 'admin' ||
       context.federationId === photo.federationId ||
       context.clubId === context.registrationClubId ||
+      (context.actorRole === 'referee' &&
+        context.matchId !== undefined &&
+        context.authorizedMatchIds?.includes(context.matchId)) ||
       context.grant
     ) {
       return {

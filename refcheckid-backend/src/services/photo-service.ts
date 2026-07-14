@@ -16,6 +16,7 @@ import type {
   PhotoAuditEventRepository,
   PhotoSubjectRepository,
   PhotoVersionRepository,
+  RegistrationRepository,
   SeasonRegistrationPhotoRepository,
 } from '../repositories/index.js';
 import {
@@ -49,6 +50,7 @@ export interface PhotoServiceDependencies {
   readonly matchSheetPhotoSnapshots: MatchSheetPhotoSnapshotRepository;
   readonly photoAccessGrants: PhotoAccessGrantRepository;
   readonly photoAuditEvents: PhotoAuditEventRepository;
+  readonly registrations?: RegistrationRepository;
   readonly objectStore?: PhotoObjectStore;
   readonly policyEngine?: PhotoPolicyEngine;
   readonly validationPipeline?: PhotoValidationPipeline;
@@ -58,7 +60,9 @@ export interface PhotoAccessContext {
   readonly actorRole: 'manager' | 'federation' | 'referee' | 'admin';
   readonly actorId: UUID;
   readonly clubId?: UUID;
+  readonly clubIds?: readonly UUID[];
   readonly federationId?: UUID;
+  readonly federationIds?: readonly UUID[];
   readonly matchId?: UUID;
   readonly registrationClubId?: UUID;
   readonly authorizedMatchIds?: readonly UUID[];
@@ -277,13 +281,62 @@ export class PhotoService {
     const registrations = await this.dependencies.seasonRegistrationPhotos.listByVersion(
       version.id,
     );
-    const policy = registrations[0]
-      ? this.policyEngine.readPolicy(context, registrations[0], requested)
-      : {
+    if (registrations[0] === undefined) {
+      if (context.actorRole === 'admin') {
+        const adminPolicy = {
           rendition: requested.rendition ?? 'normalized',
           ttlSeconds: Math.min(requested.ttlSeconds ?? 300, 900),
           disposition: requested.disposition ?? 'inline',
         };
+        if (this.dependencies.objectStore === undefined)
+          throw new PhotoInvariantViolationError('Photo object store is not configured.');
+        const objectKey =
+          adminPolicy.rendition === 'original'
+            ? version.storageOriginalKey
+            : (version.storageNormalizedKey ?? version.storageOriginalKey);
+        const signed = await this.dependencies.objectStore.createSignedReadUrl({
+          objectKey,
+          rendition: adminPolicy.rendition,
+          ttlSeconds: adminPolicy.ttlSeconds,
+          disposition: adminPolicy.disposition,
+          correlationId: crypto.randomUUID(),
+        });
+        await this.dependencies.photoAuditEvents.create({
+          correlationId: crypto.randomUUID(),
+          actorUserId: context.actorId,
+          actorRole: context.actorRole,
+          federationId: context.federationId ?? null,
+          seasonId: null,
+          registrationId: null,
+          photoSubjectId: null,
+          photoVersionId: version.id,
+          eventType: 'photo.signed_url_issued',
+          payload: {
+            rendition: adminPolicy.rendition,
+            ttlSeconds: adminPolicy.ttlSeconds,
+            reason: 'admin_orphan_version_access',
+          },
+          ipHash: null,
+          userAgentHash: null,
+        });
+        return { version, signedUrl: signed, rendition: adminPolicy.rendition };
+      }
+      await this.auditAccessDenied(context, version.id, 'missing_season_registration_photo');
+      throw new PhotoAuthorizationError(
+        'Photo access requires a verifiable seasonal registration relation.',
+      );
+    }
+    const registrationClubId =
+      context.registrationClubId ?? (await this.findRegistrationClubId(registrations[0].registrationId));
+    const policyContext: PhotoAccessContext =
+      registrationClubId === undefined ? context : { ...context, registrationClubId };
+    let policy;
+    try {
+      policy = this.policyEngine.readPolicy(policyContext, registrations[0], requested);
+    } catch {
+      await this.auditAccessDenied(policyContext, version.id, 'scope_mismatch', registrations[0]);
+      throw new PhotoAuthorizationError('Photo access is outside the authorized scope.');
+    }
     if (this.dependencies.objectStore === undefined)
       throw new PhotoInvariantViolationError('Photo object store is not configured.');
     const objectKey =
@@ -555,7 +608,43 @@ export class PhotoService {
         'Match sheet photo snapshots are immutable per match sheet registration.',
       );
     }
-    return this.dependencies.matchSheetPhotoSnapshots.create(input);
+    const snapshot = await this.dependencies.matchSheetPhotoSnapshots.create(input);
+    await this.dependencies.photoAuditEvents.create({
+      correlationId: input.auditCorrelationId,
+      actorUserId: input.frozenByUserId,
+      actorRole: 'system',
+      federationId: null,
+      seasonId: null,
+      registrationId: input.registrationId,
+      photoSubjectId: input.photoSubjectId,
+      photoVersionId: input.photoVersionId,
+      eventType: 'match_sheet.photo_snapshot_frozen',
+      payload: {
+        freezeReason: input.freezeReason,
+        matchId: input.matchId,
+        matchSheetId: input.matchSheetId,
+        photoStatus: input.photoStatus,
+        photoEtag: input.photoEtag,
+      },
+      ipHash: null,
+      userAgentHash: null,
+    });
+    return snapshot;
+  }
+
+  listMatchSheetPhotoSnapshots(matchSheetId: UUID): Promise<readonly MatchSheetPhotoSnapshot[]> {
+    return this.dependencies.matchSheetPhotoSnapshots.listByMatchSheet(matchSheetId);
+  }
+
+  getSeasonRegistrationPhotoByRegistrationSeason(
+    registrationId: UUID,
+    seasonId: string,
+  ): Promise<SeasonRegistrationPhoto | null> {
+    return this.dependencies.seasonRegistrationPhotos.findByRegistrationSeason(registrationId, seasonId);
+  }
+
+  getPhotoVersionById(photoVersionId: UUID): Promise<PhotoVersion | null> {
+    return this.dependencies.photoVersions.findById(photoVersionId);
   }
 
   async assertCanAccessSeasonRegistrationPhoto(
@@ -609,11 +698,91 @@ export class PhotoService {
     return this.dependencies.photoApprovals.listByFederation(federationId);
   }
 
+  async auditVersionViewedForApproval(context: PhotoAccessContext, approval: PhotoApproval): Promise<void> {
+    await this.dependencies.photoAuditEvents.create({
+      correlationId: approval.id,
+      actorUserId: context.actorId,
+      actorRole: context.actorRole,
+      federationId: approval.federationId,
+      seasonId: approval.seasonId,
+      registrationId: approval.registrationId,
+      photoSubjectId: null,
+      photoVersionId: approval.photoVersionId,
+      eventType: 'photo.version_viewed_for_approval',
+      payload: { approvalId: approval.id },
+      ipHash: null,
+      userAgentHash: null,
+    });
+  }
+
+  async auditManifestGenerated(context: PhotoAccessContext, matchId: UUID, subjectCount: number): Promise<void> {
+    await this.dependencies.photoAuditEvents.create({
+      correlationId: matchId,
+      actorUserId: context.actorId,
+      actorRole: context.actorRole,
+      federationId: context.federationId ?? null,
+      seasonId: null,
+      registrationId: null,
+      photoSubjectId: null,
+      photoVersionId: null,
+      eventType: 'photo.manifest_generated',
+      payload: { matchId, subjectCount },
+      ipHash: null,
+      userAgentHash: null,
+    });
+  }
+
+  async auditSnapshotServed(context: PhotoAccessContext, snapshot: MatchSheetPhotoSnapshot): Promise<void> {
+    await this.dependencies.photoAuditEvents.create({
+      correlationId: snapshot.auditCorrelationId,
+      actorUserId: context.actorId,
+      actorRole: context.actorRole,
+      federationId: context.federationId ?? null,
+      seasonId: null,
+      registrationId: snapshot.registrationId,
+      photoSubjectId: snapshot.photoSubjectId,
+      photoVersionId: snapshot.photoVersionId,
+      eventType: 'photo.snapshot_served',
+      payload: { matchId: snapshot.matchId, matchSheetId: snapshot.matchSheetId },
+      ipHash: null,
+      userAgentHash: null,
+    });
+  }
+
   private assertCanDecideApproval(context: PhotoAccessContext, approval: PhotoApproval): void {
     if (context.actorRole === 'admin') return;
     if (context.actorRole === 'federation' && context.federationId === approval.federationId)
       return;
     throw new PhotoAuthorizationError('Actor cannot decide photo approvals for this federation.');
+  }
+
+  private async findRegistrationClubId(registrationId: UUID): Promise<UUID | undefined> {
+    const player = await this.dependencies.registrations?.findPlayerRegistrationById(registrationId);
+    if (player !== undefined && player !== null) return player.clubId;
+    const staff = await this.dependencies.registrations?.findStaffRegistrationById(registrationId);
+    return staff?.clubId;
+  }
+
+  private async auditAccessDenied(
+    context: PhotoAccessContext,
+    photoVersionId: UUID | null,
+    reason: string,
+    photo?: SeasonRegistrationPhoto,
+  ): Promise<void> {
+    await this.dependencies.photoAuditEvents.create({
+      correlationId: crypto.randomUUID(),
+      actorUserId: context.actorId,
+      actorRole: context.actorRole,
+      federationId: context.federationId ?? photo?.federationId ?? null,
+      seasonId: photo?.seasonId ?? null,
+      registrationId: photo?.registrationId ?? null,
+      photoSubjectId: photo?.photoSubjectId ?? null,
+      photoVersionId,
+      eventType: 'photo.access_denied',
+      payload: { reason },
+      ipHash: null,
+      userAgentHash: null,
+    });
   }
 
   private async requireGlobalOfficialPhoto(

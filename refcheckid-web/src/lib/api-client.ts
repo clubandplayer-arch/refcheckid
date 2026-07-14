@@ -1,7 +1,15 @@
 import { getApiBaseUrl } from "./api-base-url";
 import { managerTeamConfig, getCurrentManagerTeam } from "./manager-team";
-import { enrichPlayersWithBackendPhotos, enrichStaffWithBackendStatus } from "./manager-photo-backend";
-import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
+import {
+  enrichPlayersWithBackendPhotos,
+  enrichStaffWithBackendStatus,
+} from "./manager-photo-backend";
+import {
+  pilotAwayPlayers,
+  pilotAwayStaff,
+  pilotPlayers,
+  pilotStaff,
+} from "./pilot-data";
 import {
   isSessionExpired,
   readStoredSession,
@@ -37,8 +45,8 @@ export interface ApiReport {
   summary: string | null;
 }
 
-
-export type ApiManifestPhotoStatus = "missing" | "pending" | "active" | "rejected" | "suspended";
+export type ApiManifestPhotoStatus =
+  "missing" | "pending" | "active" | "rejected" | "suspended" | "unavailable";
 export type ApiManifestSource = "live_manifest" | "frozen_snapshot";
 
 export interface ApiMatchPhotoManifestSubject {
@@ -116,7 +124,9 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboard> {
         }
       : null,
     matchSheetStatus: firstSheet?.status ?? "draft",
-    notifications: firstSheet ? [toManagerStatusNotification(firstSheet.status)] : [],
+    notifications: firstSheet
+      ? [toManagerStatusNotification(firstSheet.status)]
+      : [],
   };
 }
 
@@ -133,27 +143,37 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
   const managerTeam = getCurrentManagerTeam();
   const pilotRoster = managerTeam === "away" ? pilotAwayPlayers : pilotPlayers;
   const managerClubId = managerTeamConfig[managerTeam].clubId;
-  const registrations = await fetchPlayerRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`);
-  const registrationByPlayerId = new Map(registrations.map((registration) => [registration.playerId, registration]));
-  const mappedPlayers: readonly PlayerListItem[] = players.length === 0 ? pilotRoster : players.map((player) => {
-    const registration = registrationByPlayerId.get(String(player.id));
-    return {
-    id: String(player.id),
-    firstName: String(player.firstName ?? player.first_name ?? ""),
-    lastName: String(player.lastName ?? player.last_name ?? ""),
-    photoUrl: normalizePhotoUrl(player.photoUrl ?? player.photo_url),
-    registrationId: registration?.id ?? null,
-    season: registration?.season ?? null,
-	    warning: Boolean(player.warning ?? false),
-	    suspended: Boolean(player.suspended ?? false),
-	    selected: false,
-	    shirtNumber: null,
-	    role: "starter" as const,
-	    isGoalkeeper: false,
-	    isCaptain: false,
-	    isViceCaptain: false,
-	  };
-  });
+  const registrations = await fetchPlayerRegistrations(
+    `?clubId=${encodeURIComponent(managerClubId)}`,
+  );
+  const registrationByPlayerId = new Map(
+    registrations.map((registration) => [registration.playerId, registration]),
+  );
+  const mappedPlayers: readonly PlayerListItem[] =
+    players.length === 0
+      ? pilotRoster
+      : players.flatMap((player) => {
+          const registration = registrationByPlayerId.get(String(player.id));
+          if (!registration) return [];
+          return [
+            {
+              id: String(player.id),
+              firstName: String(player.firstName ?? player.first_name ?? ""),
+              lastName: String(player.lastName ?? player.last_name ?? ""),
+              photoUrl: normalizePhotoUrl(player.photoUrl ?? player.photo_url),
+              registrationId: registration.id,
+              season: registration.season,
+              warning: Boolean(player.warning ?? false),
+              suspended: Boolean(player.suspended ?? false),
+              selected: false,
+              shirtNumber: null,
+              role: "starter" as const,
+              isGoalkeeper: false,
+              isCaptain: false,
+              isViceCaptain: false,
+            },
+          ];
+        });
   return enrichPlayersWithBackendPhotos(managerTeam, mappedPlayers);
 }
 
@@ -162,23 +182,40 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
     await request<readonly Record<string, unknown>[]>("/staff-members");
   const managerTeam = getCurrentManagerTeam();
   const managerClubId = managerTeamConfig[managerTeam].clubId;
-  const registrations = await fetchStaffRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`);
-  const registrationByStaffId = new Map(registrations.map((registration) => [registration.staffMemberId, registration]));
+  const registrations = await fetchStaffRegistrations(
+    `?clubId=${encodeURIComponent(managerClubId)}`,
+  );
+  const registrationByStaffId = new Map(
+    registrations.map((registration) => [
+      registration.staffMemberId,
+      registration,
+    ]),
+  );
   const pilotRoster = managerTeam === "away" ? pilotAwayStaff : pilotStaff;
-  const mappedStaff: readonly StaffListItem[] = staff.length === 0 ? pilotRoster : staff.map((staffMember) => {
-    const registration = registrationByStaffId.get(String(staffMember.id));
-    return {
-      id: String(staffMember.id),
-      fullName: String(
-        staffMember.fullName ?? staffMember.full_name ?? staffMember.id,
-      ),
-      role: String(registration?.role ?? staffMember.role ?? "staff"),
-      photoUrl: staffMember.photoUrl ? String(staffMember.photoUrl) : null,
-      registrationId: registration?.id ?? null,
-      season: registration?.season ?? null,
-      selected: false,
-    };
-  });
+  const mappedStaff: readonly StaffListItem[] =
+    staff.length === 0
+      ? pilotRoster
+      : staff.flatMap((staffMember) => {
+          const registration = registrationByStaffId.get(
+            String(staffMember.id),
+          );
+          if (!registration) return [];
+          return [
+            {
+              id: String(staffMember.id),
+              fullName: String(
+                staffMember.fullName ?? staffMember.full_name ?? staffMember.id,
+              ),
+              role: String(registration.role ?? staffMember.role ?? "staff"),
+              photoUrl: staffMember.photoUrl
+                ? String(staffMember.photoUrl)
+                : null,
+              registrationId: registration.id,
+              season: registration.season,
+              selected: false,
+            },
+          ];
+        });
   return enrichStaffWithBackendStatus(managerTeam, mappedStaff);
 }
 
@@ -190,8 +227,12 @@ export interface ApiPlayerRegistration {
   status: string;
 }
 
-export function fetchPlayerRegistrations(query = ""): Promise<readonly ApiPlayerRegistration[]> {
-  return request<readonly ApiPlayerRegistration[]>(`/player-registrations${query}`);
+export function fetchPlayerRegistrations(
+  query = "",
+): Promise<readonly ApiPlayerRegistration[]> {
+  return request<readonly ApiPlayerRegistration[]>(
+    `/player-registrations${query}`,
+  );
 }
 
 export interface ApiStaffRegistration {
@@ -203,8 +244,12 @@ export interface ApiStaffRegistration {
   status: string;
 }
 
-export function fetchStaffRegistrations(query = ""): Promise<readonly ApiStaffRegistration[]> {
-  return request<readonly ApiStaffRegistration[]>(`/staff-registrations${query}`);
+export function fetchStaffRegistrations(
+  query = "",
+): Promise<readonly ApiStaffRegistration[]> {
+  return request<readonly ApiStaffRegistration[]>(
+    `/staff-registrations${query}`,
+  );
 }
 
 function normalizePhotoUrl(value: unknown): string | null {
@@ -222,7 +267,9 @@ export function fetchMatchSheets(
   return request<readonly ApiMatchSheet[]>(`/match-sheets${query}`);
 }
 
-export function resetSmokeMatchSheet(matchSheetId: string): Promise<ApiMatchSheet> {
+export function resetSmokeMatchSheet(
+  matchSheetId: string,
+): Promise<ApiMatchSheet> {
   return request<ApiMatchSheet>(
     `/match-sheets/${encodeURIComponent(matchSheetId)}/reset-smoke`,
     { method: "POST" },
@@ -241,15 +288,35 @@ export function fetchPhotos(): Promise<readonly ApiPhoto[]> {
   return request<readonly ApiPhoto[]>("/photos");
 }
 
-export function fetchMatchPhotoManifest(matchId: string): Promise<ApiMatchPhotoManifest> {
-  return request<ApiMatchPhotoManifest>(`/matches/${encodeURIComponent(matchId)}/photo-manifest`);
+export function fetchMatchPhotoManifest(
+  matchId: string,
+): Promise<ApiMatchPhotoManifest> {
+  return request<ApiMatchPhotoManifest>(
+    `/matches/${encodeURIComponent(matchId)}/photo-manifest`,
+  );
 }
 
-export function submitMatchSheet(matchSheetId: string): Promise<ApiMatchSheet> {
+export interface SubmitMatchSheetPayload {
+  readonly players?: readonly {
+    readonly playerRegistrationId: string;
+    readonly shirtNumber: number | null;
+    readonly role: string;
+  }[];
+  readonly staff?: readonly {
+    readonly staffRegistrationId: string;
+    readonly role: string;
+  }[];
+}
+
+export function submitMatchSheet(
+  matchSheetId: string,
+  payload: SubmitMatchSheetPayload = {},
+): Promise<ApiMatchSheet> {
   return request<ApiMatchSheet>(
     `/match-sheets/${encodeURIComponent(matchSheetId)}/submit`,
     {
       method: "POST",
+      body: JSON.stringify(payload),
     },
   );
 }
@@ -303,7 +370,9 @@ export async function request<TResponse>(
     ...init,
     headers: {
       "content-type": "application/json",
-      ...(activeSession ? { authorization: `Bearer ${activeSession.accessToken}` } : {}),
+      ...(activeSession
+        ? { authorization: `Bearer ${activeSession.accessToken}` }
+        : {}),
       ...(init?.headers ?? {}),
     },
   });

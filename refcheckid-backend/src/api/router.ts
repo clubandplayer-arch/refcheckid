@@ -80,7 +80,14 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/photos', controllers.listPhotos);
   router.register('GET', '/api/v1/photos/subjects', controllers.listPhotoSubjects);
   router.register('GET', '/api/v1/players/:id/photo', controllers.getPlayerPhoto);
+  router.register('GET', '/api/v1/referees/:id/photo', controllers.arch1DefinedEndpoint);
   router.register('GET', '/api/v1/staff-members/:id/photo', controllers.getStaffMemberPhoto);
+  router.register('GET', '/api/v1/photos/:id', controllers.arch1DefinedEndpoint);
+  router.register('GET', '/api/v1/photos/:id/versions', controllers.arch1DefinedEndpoint);
+  router.register('POST', '/api/v1/players/:id/photo-requests', controllers.arch1DefinedEndpoint);
+  router.register('POST', '/api/v1/staff-members/:id/photo-requests', controllers.arch1DefinedEndpoint);
+  router.register('GET', '/api/v1/photo-requests/:id', controllers.arch1DefinedEndpoint);
+  router.register('DELETE', '/api/v1/photo-requests/:id', controllers.arch1DefinedEndpoint);
   router.register(
     'GET',
     '/api/v1/registrations/:id/season-photo',
@@ -98,7 +105,16 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
     headers: { 'content-type': 'application/json' },
     body: await container.services.photos.createSignedReadUrl(
       request.params.id as never,
-      { actorRole: 'admin', actorId: '00000000-0000-4000-8000-000000000099' },
+      {
+        actorRole: request.auth?.roles[0] as never,
+        actorId: request.auth?.actorId as never,
+        clubId: request.auth?.clubIds?.[0] as never,
+        clubIds: request.auth?.clubIds as never,
+        federationId: request.auth?.federationIds?.[0] as never,
+        federationIds: request.auth?.federationIds as never,
+        authorizedMatchIds: request.auth?.authorizedMatchIds as never,
+        matchId: request.query.matchId as never,
+      },
       {
         rendition: request.query.rendition as never,
         ttlSeconds: Number(request.query.ttlSeconds ?? 300),
@@ -115,7 +131,14 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
     controllers.listMatchSheetPhotoSnapshots,
   );
   router.register('GET', '/api/v1/matches/:id/photo-manifest', controllers.getMatchPhotoManifest);
+  router.register('GET', '/api/v1/photos/sync-manifest', controllers.arch1DefinedEndpoint);
+  router.register('POST', '/api/v1/photos/sync-ack', controllers.arch1DefinedEndpoint);
+  router.register('GET', '/api/v1/photos/changes', controllers.arch1DefinedEndpoint);
   router.register('GET', '/api/v1/photos/audit', controllers.listPhotoAuditEvents);
+  router.register('POST', '/api/v1/photos/versions/:id/quarantine', controllers.arch1DefinedEndpoint);
+  router.register('POST', '/api/v1/photos/versions/:id/restore', controllers.arch1DefinedEndpoint);
+  router.register('POST', '/api/v1/photos/versions/:id/archive', controllers.arch1DefinedEndpoint);
+  router.register('DELETE', '/api/v1/photos/versions/:id', controllers.arch1DefinedEndpoint);
   router.register('GET', '/api/v1/identity-documents', controllers.listIdentityDocuments);
 
   return router;

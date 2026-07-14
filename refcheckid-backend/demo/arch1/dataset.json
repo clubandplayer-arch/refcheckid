@@ -1,0 +1,350 @@
+{
+  "schemaVersion": "arch1-demo-bootstrap-v1",
+  "description": "Text-only ARCH-1 demo dataset. It is intended to be consumed by the official Demo Bootstrap through public application workflows only.",
+  "seasonId": "2026",
+  "timestamp": "2026-07-01T00:00:00.000Z",
+  "ids": {
+    "federation": "70000000-0000-4000-8000-000000000002",
+    "homeClub": "70000000-0000-4000-8000-000000000003",
+    "awayClub": "70000000-0000-4000-8000-000000000004",
+    "referee": "70000000-0000-4000-8000-000000000005",
+    "match": "70000000-0000-4000-8000-000000000006",
+    "homeSheet": "70000000-0000-4000-8000-000000000007",
+    "awaySheet": "70000000-0000-4000-8000-000000000008",
+    "homeManagerActor": "90000000-0000-4000-8000-000000000001",
+    "awayManagerActor": "90000000-0000-4000-8000-000000000005",
+    "refereeActor": "90000000-0000-4000-8000-000000000002",
+    "federationActor": "90000000-0000-4000-8000-000000000003"
+  },
+  "auth": {
+    "homeManager": {
+      "email": "dirigente@refcheckid.local",
+      "password": "Password123!"
+    },
+    "awayManager": {
+      "email": "dirigenteospite@refcheckid.local",
+      "password": "Password123!"
+    },
+    "referee": {
+      "email": "arbitro@refcheckid.local",
+      "password": "Password123!"
+    },
+    "federation": {
+      "email": "federazione@refcheckid.local",
+      "password": "Password123!"
+    }
+  },
+  "federationSyncPayload": {
+    "federations": [
+      {
+        "id": "70000000-0000-4000-8000-000000000002",
+        "name": "Federazione Demo ARCH-1",
+        "fiscalCode": "ARCH1FED2026",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      }
+    ],
+    "clubs": [
+      {
+        "id": "70000000-0000-4000-8000-000000000003",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "name": "ASD RefCheck Home",
+        "fiscalCode": "ARCH1HOME26",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "70000000-0000-4000-8000-000000000004",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "name": "ASD RefCheck Away",
+        "fiscalCode": "ARCH1AWAY26",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      }
+    ],
+    "referees": [
+      {
+        "id": "70000000-0000-4000-8000-000000000005",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Arbitro",
+        "lastName": "Demo",
+        "fiscalCode": "ARCH1REF26",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      }
+    ],
+    "players": [
+      {
+        "id": "71000000-0000-4000-8000-000000000001",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Uno",
+        "birthDate": "2001-01-10",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOME01",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000002",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Due",
+        "birthDate": "2002-02-20",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOME02",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000001",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Uno",
+        "birthDate": "2001-03-15",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAY01",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000002",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Due",
+        "birthDate": "2002-04-25",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAY02",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      }
+    ],
+    "playerRegistrations": [
+      {
+        "id": "73000000-0000-4000-8000-000000000001",
+        "playerId": "71000000-0000-4000-8000-000000000001",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-01",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000002",
+        "playerId": "71000000-0000-4000-8000-000000000002",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-02",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000001",
+        "playerId": "72000000-0000-4000-8000-000000000001",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-01",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000002",
+        "playerId": "72000000-0000-4000-8000-000000000002",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-02",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      }
+    ],
+    "staffMembers": [
+      {
+        "id": "75000000-0000-4000-8000-000000000001",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Tecnico",
+        "lastName": "Home",
+        "birthDate": "1980-05-10",
+        "fiscalCode": "ARCH1STAFFH",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "76000000-0000-4000-8000-000000000001",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Tecnico",
+        "lastName": "Away",
+        "birthDate": "1981-06-20",
+        "fiscalCode": "ARCH1STAFFA",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      }
+    ],
+    "staffRegistrations": [
+      {
+        "id": "77000000-0000-4000-8000-000000000001",
+        "staffMemberId": "75000000-0000-4000-8000-000000000001",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "role": "Allenatore",
+        "registrationNumber": "HOME-STAFF-2026-01",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "78000000-0000-4000-8000-000000000001",
+        "staffMemberId": "76000000-0000-4000-8000-000000000001",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "role": "Allenatore",
+        "registrationNumber": "AWAY-STAFF-2026-01",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      }
+    ],
+    "matches": [
+      {
+        "id": "70000000-0000-4000-8000-000000000006",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "homeClubId": "70000000-0000-4000-8000-000000000003",
+        "awayClubId": "70000000-0000-4000-8000-000000000004",
+        "refereeId": "70000000-0000-4000-8000-000000000005",
+        "season": "2026",
+        "scheduledAt": "2026-07-01T18:00:00.000Z",
+        "venue": "ARCH-1 Demo Stadium",
+        "status": "scheduled",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      }
+    ]
+  },
+  "photoPlan": [
+    {
+      "label": "home-player-01",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000001",
+      "registrationId": "73000000-0000-4000-8000-000000000001",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "HU",
+        "shirtNumber": 10,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-02",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000002",
+      "registrationId": "73000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "HD",
+        "shirtNumber": 11,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-01",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000001",
+      "registrationId": "74000000-0000-4000-8000-000000000001",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "AU",
+        "shirtNumber": 7,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-02",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000002",
+      "registrationId": "74000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "AD",
+        "shirtNumber": 8,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-staff-coach",
+      "subjectKind": "staff_member",
+      "subjectId": "75000000-0000-4000-8000-000000000001",
+      "registrationId": "77000000-0000-4000-8000-000000000001",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "TH",
+        "shirtNumber": null,
+        "primaryColor": "#0f172a",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-staff-coach",
+      "subjectKind": "staff_member",
+      "subjectId": "76000000-0000-4000-8000-000000000001",
+      "registrationId": "78000000-0000-4000-8000-000000000001",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "TA",
+        "shirtNumber": null,
+        "primaryColor": "#0f172a",
+        "secondaryColor": "#ffffff"
+      }
+    }
+  ],
+  "workflowPlan": {
+    "matchId": "70000000-0000-4000-8000-000000000006",
+    "homeSheetId": "70000000-0000-4000-8000-000000000007",
+    "awaySheetId": "70000000-0000-4000-8000-000000000008",
+    "refereeId": "70000000-0000-4000-8000-000000000005",
+    "reportSummary": "Gara demo ARCH-1 completata regolarmente tramite workflow ufficiali."
+  }
+}

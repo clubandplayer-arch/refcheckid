@@ -3,7 +3,10 @@ import { createApplicationContainer } from '../src/config/application-container.
 import type { Match } from '../src/domain/index.js';
 import { createOpenApiDocument, createRestApiRouter } from '../src/api/index.js';
 
-const authHeaders = { authorization: 'Bearer eyJzdWIiOiI5MDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJlbWFpbCI6ImRpcmlnZW50ZUByZWZjaGVja2lkLmxvY2FsIiwicm9sZSI6Im1hbmFnZXIiLCJleHAiOjQxMDI0NDQ4MDAsInR5cCI6ImFjY2VzcyJ9.4HgrL-P9ZoeX9RL900wAjtIBQLv-MkMV9jVz_t5ceaE' };
+const authHeaders = {
+  authorization:
+    'Bearer eyJzdWIiOiI5MDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJlbWFpbCI6ImRpcmlnZW50ZUByZWZjaGVja2lkLmxvY2FsIiwicm9sZSI6Im1hbmFnZXIiLCJleHAiOjQxMDI0NDQ4MDAsInR5cCI6ImFjY2VzcyJ9.4HgrL-P9ZoeX9RL900wAjtIBQLv-MkMV9jVz_t5ceaE',
+};
 const match: Match = {
   id: '60000000-0000-4000-8000-000000000002',
   federationId: '60000000-0000-4000-8000-000000000003',
@@ -50,6 +53,47 @@ describe('REST API layer', () => {
         body: { status: 'in_progress' },
       }),
     ).resolves.toMatchObject({ status: 200, body: { id: match.id, status: 'in_progress' } });
+  });
+
+  it('filters player registrations by club id for manager rosters', async () => {
+    const container = createApplicationContainer();
+    await container.repositories.registrations.upsert({
+      id: '61000000-0000-4000-8000-000000000001',
+      playerId: '61000000-0000-4000-8000-000000000011',
+      clubId: '61000000-0000-4000-8000-000000000021',
+      season: '2026',
+      registrationNumber: 'HOME-1',
+      status: 'active',
+      registeredAt: '2026-07-01T00:00:00.000Z',
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+      deletedAt: null,
+    });
+    await container.repositories.registrations.upsert({
+      id: '61000000-0000-4000-8000-000000000002',
+      playerId: '61000000-0000-4000-8000-000000000012',
+      clubId: '61000000-0000-4000-8000-000000000022',
+      season: '2026',
+      registrationNumber: 'AWAY-1',
+      status: 'active',
+      registeredAt: '2026-07-01T00:00:00.000Z',
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+      deletedAt: null,
+    });
+    const router = createRestApiRouter(container);
+
+    await expect(
+      router.handle({
+        method: 'GET',
+        path: '/api/v1/player-registrations',
+        headers: authHeaders,
+        query: { clubId: '61000000-0000-4000-8000-000000000021' },
+      }),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: [expect.objectContaining({ id: '61000000-0000-4000-8000-000000000001' })],
+    });
   });
 
   it('returns validation errors from controllers', async () => {

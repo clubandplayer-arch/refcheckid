@@ -230,6 +230,7 @@ describe('ARCH-1 photo backend foundations', () => {
       globalOfficialPhotoId: ids.globalPhoto,
       photoVersionId: ids.versionA,
       photoEtag: 'sha256:version-a',
+      photoStatus: 'active',
       renditionManifest: { thumb320: 'subjects/s/v/a/thumb_320.webp' },
       frozenAt: now,
       frozenByUserId: ids.user,
