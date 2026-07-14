@@ -41,6 +41,10 @@ Questa apertura non avvia ancora modifiche applicative.
 | Web mapping richiesta | Le approval backend non includono ancora dati arricchiti per nome tesserato, club e URL di foto corrente/proposta; la UI mostra identificativi tecnici o placeholder. | R3-GAP |
 | Storico federazione | Lo storico corrente è focalizzato sui referti/audit generici, non sulla timeline decisionale foto federale. | R3-GAP |
 | Stati extra | Il tipo Web `PhotoRequestStatus` non include `cancelled`/`expired`, presenti nel dominio approval backend. | R3-GAP |
+| Filtri coda federazione | ARCH-1 richiede filtri per società, competizione, rischio e SLA; l'implementazione osservata copre status/stagione/registration/date ma non tutto il set operativo. | R3-GAP |
+| Reason code federali | ARCH-1 richiede reason code standardizzati; UI e API accettano stringhe libere. | R3-GAP |
+| Audit cambio ufficiale | ARCH-1 richiede audit `photo.approved` e `photo.official_changed`; il service registra `photo.approved` e `photo.superseded`, ma non risulta evento dedicato `photo.official_changed`. | R3-GAP |
+| Invalidation/cache dopo decisione | ARCH-1 prevede cambio `photoEtag`, invalidazione cache e manifest incrementale dopo approve; il perimetro osservato non dimostra ancora la propagazione end-to-end nel workflow federazione. | R3-RISK |
 | Mobile | Nessuna azione richiesta. | R3-OOS |
 | Eliminazione fallback legacy | Da non anticipare; appartiene a Recovery-4. | R3-OOS |
 
@@ -53,6 +57,10 @@ Questa apertura non avvia ancora modifiche applicative.
 | R3-03 | DTO Web delle approval non espone dettaglio utile a confronto corrente/proposta. | Operatore federale vede ID tecnici e placeholder invece di informazioni operative. | Arricchire mapping/API nel perimetro minimo senza cambiare dominio. |
 | R3-04 | Stati `cancelled` ed `expired` non sono rappresentati nel tipo Web. | Possibile perdita di stato per approval non pending/approved/rejected. | Estendere tipo UI e badge, senza implementare nuovi comandi non richiesti. |
 | R3-05 | Storico federazione non integra eventi foto `photo.approved`, `photo.rejected`, `photo.version_viewed_for_approval`. | Audit federale meno leggibile in UI. | Integrare lettura sintetica audit foto già disponibile. |
+| R3-06 | Filtri coda incompleti rispetto ad ARCH-1: società, competizione, rischio, SLA e paginazione operativa non sono coperti in modo esplicito. | La coda federale può non scalare o non consentire priorità operative. | Estendere query/UI ai filtri disponibili o marcare esplicitamente quelli non implementabili senza nuovo dominio. |
+| R3-07 | Reason code di rigetto non standardizzati. | Decisioni federali non confrontabili e audit meno governabile. | Introdurre elenco controllato minimo di reason code lato UI/API. |
+| R3-08 | Evento audit `photo.official_changed` non tracciato come evento distinto all'approvazione. | Delta rispetto al lifecycle ARCH-1 e minore tracciabilità del cambio ufficiale. | Aggiungere audit dedicato quando cambia `current_version_id`/versione efficace. |
+| R3-09 | Invalidation cache, cambio `photoEtag` e feed/manifest incrementale post-approve non risultano verificati end-to-end nel workflow federazione. | Rischio di client con foto non aggiornata dopo decisione federale. | Verificare copertura esistente e, se nel perimetro minimo, aggiungere test/integrazione; altrimenti registrare come dipendenza Recovery successiva. |
 
 ## 5. Piano di implementazione proposto
 
@@ -63,8 +71,17 @@ L'implementazione Recovery-3, se approvata, deve restare limitata ai seguenti st
 3. Arricchire la rappresentazione UI delle approval con dati minimi di contesto disponibili senza introdurre nuovo dominio.
 4. Estendere gli stati UI a quelli già presenti nel dominio backend.
 5. Collegare lo storico federazione agli eventi audit foto già esposti dal backend.
-6. Eseguire test mirati backend, frontend e lint.
-7. Produrre audit conclusivo e aggiornare handover Recovery-3.
+6. Aggiungere o classificare esplicitamente filtri coda, reason code standardizzati, audit `photo.official_changed` e verifica di invalidazione/cache post-decisione.
+7. Eseguire test mirati backend, frontend e lint.
+8. Produrre audit conclusivo e aggiornare handover Recovery-3.
+
+## 5.1 Verifica aggiuntiva dopo rilettura integrale ARCH-1
+
+La rilettura integrale delle sezioni ARCH-1 su approvazione federazione, lifecycle, impatti client federazione, audit e scalabilità conferma che le prime cinque non conformità non rappresentavano tutto il delta tra dominio e implementazione.
+
+Recovery-3 resta prevalentemente una recovery di UI/API perché il modello dati, i comandi principali approve/reject, le policy federazione e la base audit esistono già; tuttavia il delta architetturale non è limitato alla presentazione UI. Restano divergenze puntuali su filtri/SLA della coda, reason code standardizzati, audit del cambio ufficiale e verifica della propagazione post-approvazione tramite `photoEtag`/manifest/cache.
+
+Questi elementi devono essere risolti o esplicitamente classificati fuori perimetro prima di iniziare l'implementazione.
 
 ## 6. Fuori perimetro confermati
 
