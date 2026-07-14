@@ -1,7 +1,7 @@
 # ARCH-1 Recovery-2 — RBAC, API pubbliche e Audit
 
-**Stato:** Completata  
-**Data chiusura:** 2026-07-14  
+**Stato:** Completata, validata e chiusa
+**Data chiusura:** 2026-07-14
 **Commit di chiusura:** `a8c3216 Complete Recovery-2 RBAC API audit hardening`
 
 ## Metodo applicato
@@ -109,7 +109,9 @@ Note:
 
 ## Stato finale
 
-Recovery-2 è ufficialmente **completata**.
+Recovery-2 è ufficialmente **completata, validata e chiusa**.
+
+Le verifiche finali del 2026-07-14 confermano merge su `main`, build verde, test verdi, lint verde e Quality Gate GitHub completamente verdi.
 
 Non risultano attività ancora indispensabili per dichiarare chiuso l'ambito RBAC, API pubbliche core e audit.
 
@@ -119,9 +121,12 @@ La prossima attività architetturale può partire da:
 
 **Recovery-3 — Workflow federazione**
 
+Prima di qualsiasi modifica codice, Recovery-3 deve produrre audit preliminare e piano di lavoro da approvare. Il kickoff amministrativo è tracciato in `ARCH-1_Recovery-3_Kickoff.md`.
+
 Seguendo lo stesso metodo:
 
-1. audit puntuale domain-first;
-2. verifica oggettiva del codice;
-3. implementazione mirata;
-4. audit conclusivo.
+1. audit domain-first;
+2. classificazione delle attività;
+3. implementazione limitata al perimetro Recovery-3;
+4. audit conclusivo;
+5. chiusura Recovery.
