@@ -1,14 +1,14 @@
 # ARCH-1 Recovery-3 — Kickoff workflow federazione
 
-**Stato:** In attesa di approvazione audit preliminare e piano di lavoro
+**Stato:** Recovery-3 aperta; audit preliminare completato e piano di lavoro da approvare
 **Data preparazione:** 2026-07-14
 **Ambito:** workflow federazione ARCH-1, senza modifiche codice prima dell'approvazione.
 
 ## Premessa operativa
 
-Recovery-3 non è ancora iniziata a livello implementativo. Questo documento prepara il kickoff e fissa il metodo di lavoro da approvare prima di qualsiasi modifica al codice.
+Recovery-3 è aperta in audit preliminare, ma non è ancora iniziata a livello implementativo. Questo documento prepara il kickoff e fissa il metodo di lavoro da approvare prima di qualsiasi modifica al codice.
 
-Recovery-1 e Recovery-2 sono considerate chiuse. Recovery-3 parte solo dopo approvazione esplicita dell'audit preliminare e del piano operativo.
+Recovery-1 e Recovery-2 sono considerate chiuse. L'implementazione Recovery-3 parte solo dopo approvazione esplicita dell'audit preliminare e del piano operativo.
 
 ## Metodo consolidato
 
@@ -76,4 +76,4 @@ Prima di modificare il codice Recovery-3 dovranno essere prodotti e approvati:
 
 ## Stato kickoff
 
-Kickoff preparato. Implementazione Recovery-3 non avviata.
+Kickoff preparato e Recovery-3 aperta in audit preliminare. L'audit e il piano sono tracciati in `ARCH-1_Recovery-3_Preliminary_Audit.md`. Implementazione Recovery-3 non avviata.
