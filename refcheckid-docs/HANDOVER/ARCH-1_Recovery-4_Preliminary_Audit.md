@@ -40,7 +40,7 @@ Questa apertura non avvia ancora modifiche applicative.
 | Manifest arbitro | Quando il manifest è abilitato e non disponibile, il client non attiva fallback legacy. | R4-CONF |
 | Referti federazione | `federation-api-client.ts` legge ancora referti locali da `submitted-report` e li integra in dashboard/storico. | R4-GAP |
 | Sessione browser | `session.tsx` usa localStorage per sessione utente client-side. | R4-OOS |
-| Dati pilot/demo | `pilot-data.ts` e script demo backend sono fixture/demo dichiarati, non fallback legacy da rimuovere in questa recovery salvo uso come source runtime alternativa. | R4-RISK |
+| Dati pilot/demo | `pilot-data.ts` e script demo backend devono restare utilizzabili esclusivamente come fixture di test o bootstrap dimostrativo; ogni uso come fallback operativo del runtime è vietato nel target Recovery-4. | R4-GAP |
 | Test frontend | Diversi test unitari verificano fallback localStorage e flag legacy. | R4-GAP |
 
 ## 4. Inventario preliminare fallback legacy residui
@@ -53,6 +53,7 @@ Questa apertura non avvia ancora modifiche applicative.
 | R4-04 | Fallback arbitro a snapshot/pilot data/override Manager. | `referee-api-client.ts` | Può mascherare assenza di manifest o snapshot backend. |
 | R4-05 | Referti locali federazione. | `submitted-report.ts`, `federation-api-client.ts`, `referee-match-workflow.tsx` | La federazione può vedere referti non provenienti dal backend ufficiale. |
 | R4-06 | Test che proteggono comportamenti legacy. | `refcheckid-web/tests/unit/*` | La suite va aggiornata per proteggere il nuovo stato source-of-truth. |
+| R4-07 | Dati demo/pilot usati come fallback runtime. | `pilot-data.ts`, client Web e script demo | I dati demo devono rimanere solo fixture di test o bootstrap dimostrativo, mai sostituti operativi dei dati backend/manifest. |
 
 ## 5. Piano di implementazione proposto
 
@@ -62,13 +63,14 @@ L'implementazione Recovery-4, se approvata, deve restare limitata ai seguenti st
 2. Rimuovere gli override `manager-photo-store` dal flusso Manager backend e aggiornare i messaggi UI/test relativi.
 3. Eliminare l'uso di snapshot localStorage come fonte operativa per l'arbitro quando backend/manifest/snapshot ufficiali sono disponibili o richiesti.
 4. Rimuovere il merge dei referti federazione locali dal client federazione se il backend espone i referti ufficiali.
-5. Aggiornare o cancellare i test che codificano fallback legacy, sostituendoli con test di assenza fallback e failure esplicita.
-6. Aggiornare handover e roadmap con audit conclusivo, rischi residui e fuori perimetro.
+5. Isolare i dati demo/pilot come fixture di test o bootstrap dimostrativo e impedire che vengano usati come fallback operativo del runtime.
+6. Aggiornare o cancellare i test che codificano fallback legacy, sostituendoli con test di assenza fallback e failure esplicita.
+7. Aggiornare handover e roadmap con audit conclusivo, rischi residui e fuori perimetro.
 
 ## 6. Fuori perimetro confermati
 
 - Sessione browser in localStorage, perché riguarda autenticazione client-side e non fallback dati ARCH-1.
-- Script demo backend e dataset demo ufficiali, se usati tramite API pubbliche e non come fallback UI nascosto.
+- Script demo backend e dataset demo ufficiali, solo se confinati a fixture di test o bootstrap dimostrativo e mai usati come fallback operativo del runtime.
 - Mobile/offline sync e porting Mobile.
 - Nuovi endpoint o migrazioni non necessari per disabilitare i fallback residui.
 - Riprogettazione visuale delle dashboard.
@@ -81,5 +83,5 @@ Recovery-4 potrà essere chiusa solo quando:
 - il flusso arbitro non userà snapshot locali, pilot data o override Manager per sostituire manifest/snapshot ufficiali nel percorso ARCH-1;
 - il flusso federazione non userà referti locali come source alternativa ai dati backend ufficiali;
 - i test frontend/backend rilevanti saranno aggiornati e verdi o motivati;
-- la documentazione dichiarerà chiaramente quali helper demo/smoke restano e perché non sono source of truth;
+- la documentazione dichiarerà chiaramente quali helper demo/smoke restano e certificherà che sono solo fixture di test o bootstrap dimostrativo, non fallback runtime né source of truth;
 - l'handover Recovery-4 conterrà audit conclusivo, commit e stato finale.

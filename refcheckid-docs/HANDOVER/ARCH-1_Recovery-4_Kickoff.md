@@ -58,7 +58,7 @@ Non rientrano nel kickoff Recovery-4, salvo decisione esplicita successiva:
 - nuove feature Mobile o porting Mobile;
 - nuove migrazioni dati non necessarie alla rimozione fallback;
 - riprogettazione UX estesa;
-- rimozione di dati demo ufficiali o script demo backend già descritti come bootstrap ARCH-1;
+- rimozione di dati demo ufficiali o script demo backend già descritti come bootstrap ARCH-1, purché restino confinati a fixture di test o bootstrap dimostrativo e non diventino fallback runtime;
 - modifiche di dominio non presenti in ARCH-1.
 
 ## Deliverable prima dell'implementazione
@@ -70,7 +70,8 @@ Prima di modificare il codice Recovery-4 devono essere prodotti e approvati:
 3. tabella attività classificata;
 4. piano di implementazione limitato al perimetro;
 5. piano test previsto;
-6. elenco esplicito dei fuori perimetro.
+6. elenco esplicito dei fuori perimetro;
+7. verifica esplicita che dati demo/pilot restino solo fixture di test o bootstrap dimostrativo, mai fallback operativo del runtime.
 
 ## Stato kickoff
 
