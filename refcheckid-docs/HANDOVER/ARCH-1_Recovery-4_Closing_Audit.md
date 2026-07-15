@@ -1,6 +1,6 @@
 # ARCH-1 Recovery-4 — Audit conclusivo eliminazione fallback legacy
 
-**Stato:** Implementazione completata; audit conclusivo pronto per review
+**Stato:** Implementazione completata; audit conclusivo approvato; Ready for Merge
 **Data chiusura implementativa:** 2026-07-15
 **Perimetro:** rimozione dei fallback legacy runtime Web approvati nell'audit preliminare Recovery-4.
 
@@ -59,4 +59,6 @@ Il runtime Manager, Arbitro e Federazione ora resta vincolato alla Source of Tru
 
 ## 7. Stato finale
 
-Recovery-4 ha implementazione completata e audit conclusivo pronto per review. La chiusura definitiva avverrà dopo review, merge e conferma dei quality gate GitHub.
+Recovery-4 ha implementazione completata, audit conclusivo approvato ed è **Ready for Merge**.
+
+La chiusura definitiva della Recovery-4 avverrà dopo il merge su `main` e la conferma dei Quality Gate GitHub.
