@@ -1,6 +1,13 @@
 import { spawn } from "node:child_process";
+import {
+  checkDemoInitialization,
+  getConfiguredDemoApiBaseUrl,
+  localDemoApiBaseUrl,
+  runDemoInit,
+} from "./demo-environment.mjs";
 
 const backendHealthUrl = "http://127.0.0.1:4000/api/health";
+const demoApiBaseUrl = getConfiguredDemoApiBaseUrl(localDemoApiBaseUrl);
 const startupTimeoutMs = 60_000;
 const pollIntervalMs = 1_000;
 
@@ -44,6 +51,42 @@ async function waitForBackend() {
   );
 }
 
+async function ensureDemoInitialized() {
+  let status;
+  try {
+    status = await checkDemoInitialization(demoApiBaseUrl);
+  } catch (error) {
+    console.warn(
+      "[RefCheckID][dev] Verifica inizializzazione demo non riuscita.",
+      error,
+    );
+    return;
+  }
+
+  if (status.initialized) {
+    console.log(
+      "[RefCheckID][dev] Ambiente demo già inizializzato.",
+      status.counts,
+    );
+    return;
+  }
+
+  console.warn(
+    "[RefCheckID][dev] Ambiente demo non inizializzato.",
+    status.counts,
+  );
+  const command = `REFCHECKID_API_BASE_URL=${demoApiBaseUrl} pnpm demo:init`;
+  if (process.env.REFCHECKID_DEMO_AUTO_BOOTSTRAP !== "true") {
+    console.warn(`[RefCheckID][dev] Esegui '${command}' per popolare il demo.`);
+    return;
+  }
+
+  console.log(
+    "[RefCheckID][dev] REFCHECKID_DEMO_AUTO_BOOTSTRAP=true: avvio demo:init prima del Web...",
+  );
+  await runDemoInit(demoApiBaseUrl);
+}
+
 function shutdown(exitCode = 0) {
   shuttingDown = true;
   for (const child of childProcesses) {
@@ -62,6 +105,8 @@ if (await isBackendHealthy()) {
   spawnPnpm("backend", ["dev:backend"]);
   await waitForBackend();
 }
+
+await ensureDemoInitialized();
 
 console.log("[RefCheckID][dev] Backend pronto. Avvio frontend sulla porta 3000...");
 spawnPnpm("web", ["dev:web"]);

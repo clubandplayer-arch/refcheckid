@@ -96,6 +96,19 @@ describe('REST API layer', () => {
     });
   });
 
+  it('routes photo audit collection before generic photo id routes', async () => {
+    const router = createRestApiRouter(createApplicationContainer());
+
+    await expect(
+      router.handle({
+        method: 'GET',
+        path: '/api/v1/photos/audit',
+        headers: authHeaders,
+        query: {},
+      }),
+    ).resolves.toMatchObject({ status: 200, body: [] });
+  });
+
   it('returns validation errors from controllers', async () => {
     const router = createRestApiRouter(createApplicationContainer());
 
