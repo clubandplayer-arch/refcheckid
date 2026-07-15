@@ -32,8 +32,8 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("5 * 1024 * 1024");
     expect(source).toContain("Conferma una preview prima del salvataggio");
     expect(source).toContain("Conferma caricamento");
-    expect(source).toContain("foto ufficiale corrente");
-    expect(source).toContain("resta visibile");
+    expect(source).toContain("fallback locale legacy è stato disabilitato dalla Recovery-4");
+    expect(source).toContain("Foto ufficiale corrente");
     expect(source).toContain("Missing");
     expect(source).toContain("backend è la Source of Truth");
     expect(source).toContain("Upload Intent");

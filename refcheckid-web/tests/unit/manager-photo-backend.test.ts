@@ -10,7 +10,7 @@ describe("ARCH-1 manager web photo migration", () => {
   it("centralizes ARCH-1 feature flags without introducing extra photo flags", () => {
     expect(flagSource).toContain("photos.officialBackendRead");
     expect(flagSource).toContain("photos.officialBackendUpload");
-    expect(flagSource).toContain("photos.legacyLocalFallback");
+    expect(flagSource).not.toContain("photos.legacyLocalFallback");
     expect(flagSource).toContain("photos.dualWriteLegacy");
     expect(flagSource).not.toContain("managerPhoto");
   });
@@ -28,12 +28,12 @@ describe("ARCH-1 manager web photo migration", () => {
     expect(workflowSource).toContain("Foto inviata al backend");
   });
 
-  it("reads backend state, supports dual read fallback and displays replacement state", () => {
+  it("reads backend state without local legacy fallback and displays replacement state", () => {
     expect(backendSource).toContain('"players"');
     expect(backendSource).toContain("staff-members");
     expect(backendSource).toContain("/photo-approvals");
-    expect(backendSource).toContain("legacyLocalFallback");
-    expect(backendSource).toContain("applyManagerPhotoOverrides(team, players)");
+    expect(backendSource).not.toContain("legacyLocalFallback");
+    expect(backendSource).not.toContain("applyManagerPhotoOverrides");
     expect(backendSource).toContain(".sort((left, right)");
     expect(workflowSource).toContain("Pending Approval");
     expect(workflowSource).toContain("Foto ufficiale corrente");
