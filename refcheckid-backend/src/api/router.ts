@@ -79,6 +79,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/audit/by-action', controllers.listAuditByAction);
   router.register('GET', '/api/v1/photos', controllers.listPhotos);
   router.register('GET', '/api/v1/photos/subjects', controllers.listPhotoSubjects);
+  router.register('GET', '/api/v1/photos/audit', controllers.listPhotoAuditEvents);
   router.register('GET', '/api/v1/players/:id/photo', controllers.getPlayerPhoto);
   router.register('GET', '/api/v1/referees/:id/photo', controllers.arch1DefinedEndpoint);
   router.register('GET', '/api/v1/staff-members/:id/photo', controllers.getStaffMemberPhoto);
@@ -134,7 +135,6 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/photos/sync-manifest', controllers.arch1DefinedEndpoint);
   router.register('POST', '/api/v1/photos/sync-ack', controllers.arch1DefinedEndpoint);
   router.register('GET', '/api/v1/photos/changes', controllers.arch1DefinedEndpoint);
-  router.register('GET', '/api/v1/photos/audit', controllers.listPhotoAuditEvents);
   router.register('POST', '/api/v1/photos/versions/:id/quarantine', controllers.arch1DefinedEndpoint);
   router.register('POST', '/api/v1/photos/versions/:id/restore', controllers.arch1DefinedEndpoint);
   router.register('POST', '/api/v1/photos/versions/:id/archive', controllers.arch1DefinedEndpoint);
