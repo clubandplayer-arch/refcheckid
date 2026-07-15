@@ -5,12 +5,6 @@ import {
   enrichStaffWithBackendStatus,
 } from "./manager-photo-backend";
 import {
-  pilotAwayPlayers,
-  pilotAwayStaff,
-  pilotPlayers,
-  pilotStaff,
-} from "./pilot-data";
-import {
   isSessionExpired,
   readStoredSession,
   refreshStoredSession,
@@ -141,7 +135,6 @@ function toManagerStatusNotification(status: ApiMatchSheet["status"]): string {
 export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
   const players = await request<readonly Record<string, unknown>[]>("/players");
   const managerTeam = getCurrentManagerTeam();
-  const pilotRoster = managerTeam === "away" ? pilotAwayPlayers : pilotPlayers;
   const managerClubId = managerTeamConfig[managerTeam].clubId;
   const registrations = await fetchPlayerRegistrations(
     `?clubId=${encodeURIComponent(managerClubId)}`,
@@ -150,9 +143,7 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
     registrations.map((registration) => [registration.playerId, registration]),
   );
   const mappedPlayers: readonly PlayerListItem[] =
-    players.length === 0
-      ? pilotRoster
-      : players.flatMap((player) => {
+    players.flatMap((player) => {
           const registration = registrationByPlayerId.get(String(player.id));
           if (!registration) return [];
           return [
@@ -191,11 +182,8 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
       registration,
     ]),
   );
-  const pilotRoster = managerTeam === "away" ? pilotAwayStaff : pilotStaff;
   const mappedStaff: readonly StaffListItem[] =
-    staff.length === 0
-      ? pilotRoster
-      : staff.flatMap((staffMember) => {
+    staff.flatMap((staffMember) => {
           const registration = registrationByStaffId.get(
             String(staffMember.id),
           );

@@ -24,13 +24,8 @@ import {
   validateMatchSheet,
 } from "@/lib/match-sheet-validation";
 import { managerTeamConfig, getCurrentManagerTeam } from "@/lib/manager-team";
-import { saveManagerSubjectPhoto } from "@/lib/manager-photo-store";
 import { uploadOfficialSubjectPhoto } from "@/lib/manager-photo-backend";
 import { getPhotoFeatureFlags } from "@/lib/photo-feature-flags";
-import {
-  clearSubmittedMatchSheetSnapshot,
-  saveSubmittedMatchSheetSnapshot,
-} from "@/lib/submitted-match-sheet";
 import {
   fetchMatchSheets,
   fetchPlayers,
@@ -98,11 +93,6 @@ export function MatchSheetWorkflow() {
         throw new Error(
           "Distinta già inviata. Usa il ripristino della distinta di prova per crearne una nuova.",
         );
-      saveSubmittedMatchSheetSnapshot({
-        players: calledPlayers,
-        staff: calledStaff,
-        team: managerTeam,
-      });
       return submitMatchSheet(firstSheet.id, {
         players: calledPlayers
           .filter((player) => player.registrationId)
@@ -131,7 +121,6 @@ export function MatchSheetWorkflow() {
     mutationFn: async () => {
       const firstSheet = sheetsQuery.data?.[0];
       if (!firstSheet) throw new Error("Nessuna distinta disponibile.");
-      clearSubmittedMatchSheetSnapshot(managerTeam);
       setSelectedPlayers([]);
       setSelectedStaff([]);
       return resetSmokeMatchSheet(firstSheet.id);
@@ -224,26 +213,7 @@ export function MatchSheetWorkflow() {
       );
       return;
     }
-    const status = saveManagerSubjectPhoto(
-      managerTeam,
-      playerId,
-      photoUrl,
-      player?.photoUrl ?? null,
-      player ? `${player.lastName} ${player.firstName}` : playerId,
-    );
-    if (status === "approved") {
-      setPlayerList((current) =>
-        current.map((item) =>
-          item.id === playerId ? { ...item, photoUrl } : item,
-        ),
-      );
-      notify("Foto tesserato aggiornata", "success");
-      return;
-    }
-    notify(
-      "Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto ufficiale corrente",
-      "success",
-    );
+    throw new Error("Upload foto ufficiale non disponibile: il fallback locale legacy è stato disabilitato dalla Recovery-4.");
   }
   async function updateStaffPhoto(staffId: string, photoUrl: string) {
     const staffMember = staff.find((item) => item.id === staffId);
@@ -285,26 +255,7 @@ export function MatchSheetWorkflow() {
       );
       return;
     }
-    const status = saveManagerSubjectPhoto(
-      managerTeam,
-      staffId,
-      photoUrl,
-      staffMember?.photoUrl ?? null,
-      staffMember?.fullName ?? staffId,
-    );
-    if (status === "approved") {
-      setStaffList((current) =>
-        current.map((item) =>
-          item.id === staffId ? { ...item, photoUrl } : item,
-        ),
-      );
-      notify("Foto tesserato aggiornata", "success");
-      return;
-    }
-    notify(
-      "Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto attuale a tuo rischio durante il riconoscimento",
-      "success",
-    );
+    throw new Error("Upload foto ufficiale staff non disponibile: il fallback locale legacy è stato disabilitato dalla Recovery-4.");
   }
   function handlePhotoSelected(
     subjectKind: PhotoErrorState["subjectKind"],

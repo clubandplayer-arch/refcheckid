@@ -12,16 +12,11 @@ vi.mock("../../src/lib/api-client", () => ({
   request: vi.fn(),
 }));
 
-vi.mock("../../src/lib/submitted-report", () => ({
-  readSubmittedFederationReports: vi.fn(),
-}));
-
 import {
   fetchMatchReports,
   fetchMatches,
   request,
 } from "../../src/lib/api-client";
-import { readSubmittedFederationReports } from "../../src/lib/submitted-report";
 
 const match = {
   awayClubId: "Ospite Demo",
@@ -72,14 +67,11 @@ describe("regression: federation report reception", () => {
       id: "backend-report-1",
       matchId: "match-1",
       refereeId: "Arbitro Demo",
-      status: "draft",
-      submittedAt: null,
-      summary: null,
+      status: "submitted",
+      submittedAt: "2026-07-01T20:00:00.000Z",
+      summary: JSON.stringify(submittedReport),
     });
     vi.mocked(request).mockResolvedValue([]);
-    vi.mocked(readSubmittedFederationReports).mockReturnValue([
-      submittedReport,
-    ]);
   });
 
   it("does not call the match-reports collection without matchId", async () => {
@@ -89,7 +81,7 @@ describe("regression: federation report reception", () => {
     expect(fetchMatchReports).not.toHaveBeenCalledWith();
   });
 
-  it("marks the calendar report as submitted after referee submission", async () => {
+  it("marks the calendar report as submitted from backend source of truth", async () => {
     const matches = await fetchFederationMatches();
 
     expect(matches[0]).toMatchObject({
@@ -123,47 +115,27 @@ describe("regression: federation report reception", () => {
         homeClubId: "70000000-0000-4000-8000-000000000003",
       },
     ]);
-    vi.mocked(readSubmittedFederationReports).mockReturnValue([
-      {
-        ...submittedReport,
-        awayTeam: "Ospite",
-        homeTeam: "Casa",
-      },
-    ]);
-
-    const [reports, history] = await Promise.all([
-      fetchFederationReports(),
-      fetchFederationHistory(),
-    ]);
+    const reports = await fetchFederationReports();
 
     expect(reports[0]).toMatchObject({
       awayTeam: "Sporting Litorale",
       homeTeam: "Atletico Aurora",
     });
-    expect(history[0]).toMatchObject({
-      clubNames: ["Atletico Aurora", "Sporting Litorale"],
-      matchLabel: "Atletico Aurora - Sporting Litorale",
-    });
   });
 
-  it("shows the submitted report in dashboard, reports and history", async () => {
-    const [dashboard, reports, history] = await Promise.all([
+  it("shows the backend submitted report in dashboard and reports", async () => {
+    const [dashboard, reports] = await Promise.all([
       fetchFederationDashboard(),
       fetchFederationReports(),
-      fetchFederationHistory(),
     ]);
 
     expect(dashboard.reportsReceived).toBe(1);
     expect(dashboard.matchesPending).toBe(0);
     expect(reports[0]).toMatchObject({
-      id: "report-1",
+      id: "backend-report-1",
       result: { homeGoals: 1, awayGoals: 0 },
       goals: [{ playerName: "Rossi" }],
       cautions: [{ playerName: "Bianchi" }],
-    });
-    expect(history[0]).toMatchObject({
-      matchLabel: "Casa Demo - Ospite Demo",
-      reportId: "report-1",
     });
   });
 
@@ -199,8 +171,7 @@ describe("regression: federation report reception", () => {
     expect(request).toHaveBeenCalledWith("/photo-approvals");
   });
 
-  it("shows a backend-submitted report when local browser storage is empty", async () => {
-    vi.mocked(readSubmittedFederationReports).mockReturnValue([]);
+  it("shows a backend-submitted report without reading local browser storage", async () => {
     vi.mocked(fetchMatchReports).mockResolvedValue({
       id: "backend-report-1",
       matchId: "match-1",

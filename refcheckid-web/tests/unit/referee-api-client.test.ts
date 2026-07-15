@@ -96,67 +96,12 @@ describe("unit: referee workflow API client", () => {
   });
 
 
-  it("recognizes submitted home sheet subjects plus away sheet players and staff", async () => {
-    const snapshot = {
-      players: Array.from({ length: 14 }, (_, index) => ({
-        firstName: `Nome${index + 1}`,
-        id: `player-${index + 1}`,
-        lastName: `Giocatore${index + 1}`,
-        photoUrl: "/placeholder-player.svg",
-        roleLabel: index === 0 ? "Titolare · Portiere" : "Titolare",
-        shirtNumber: index + 1,
-        subjectKind: "player",
-        teamName: "Atletico Aurora",
-      })),
-      staff: Array.from({ length: 3 }, (_, index) => ({
-        firstName: `Staff${index + 1}`,
-        id: `staff-${index + 1}`,
-        lastName: "Demo",
-        photoUrl: "/placeholder-player.svg",
-        roleLabel: "Allenatore",
-        shirtNumber: null,
-        subjectKind: "staff",
-        teamName: "Atletico Aurora",
-      })),
-    };
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => [
-        {
-          clubId: "70000000-0000-4000-8000-000000000003",
-          id: "sheet-home",
-          status: "submitted",
-        },
-        {
-          clubId: "70000000-0000-4000-8000-000000000004",
-          id: "sheet-away",
-          status: "submitted",
-        },
-      ],
-    }));
+  it("does not synthesize recognition subjects from local snapshots or pilot data", async () => {
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("window", {
-      localStorage: {
-        getItem: (key: string) =>
-          key === "refcheckid.submittedMatchSheet.home"
-            ? JSON.stringify(snapshot)
-            : null,
-      },
-    });
 
-    const subjects = await fetchRecognitionSubjects();
-
-    expect(subjects).toHaveLength(30);
-    expect(subjects.filter((subject) => subject.teamName === "Atletico Aurora")).toHaveLength(17);
-    expect(subjects.filter((subject) => subject.teamName === "Sporting Litorale")).toHaveLength(13);
-    expect(subjects.filter((subject) => subject.subjectKind === "player")).toHaveLength(25);
-    expect(subjects.filter((subject) => subject.subjectKind === "staff")).toHaveLength(5);
-    expect(subjects[14]).toMatchObject({
-      roleLabel: "Allenatore",
-      shirtNumber: null,
-      subjectKind: "staff",
-    });
+    await expect(fetchRecognitionSubjects()).resolves.toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("keeps the report id so report submission uses the report resource", async () => {

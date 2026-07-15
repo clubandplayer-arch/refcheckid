@@ -5,8 +5,6 @@ import {
 } from "./api-client";
 import type { ApiMatch, ApiReport } from "./api-client";
 import { managerTeamConfig } from "./manager-team";
-import { readSubmittedFederationReports } from "./submitted-report";
-import type { SubmittedFederationReport } from "./submitted-report";
 import type {
   FederationDashboard,
   FederationHistoryItem,
@@ -43,19 +41,9 @@ export async function fetchFederationDashboard(): Promise<FederationDashboard> {
 export async function fetchFederationMatches(): Promise<
   readonly FederationMatchListItem[]
 > {
-  const [matches, submittedReports] = await Promise.all([
-    fetchMatches(),
-    Promise.resolve(readSubmittedFederationReports()),
-  ]);
-  const reportByMatchId = new Map(
-    submittedReports.map((report) => [report.matchId, report]),
-  );
+  const matches = await fetchMatches();
   return Promise.all(
     matches.map(async (match) => {
-      const submittedReport = reportByMatchId.get(match.id);
-      if (submittedReport) {
-        return toFederationMatch(match, submittedReport.status);
-      }
       const backendReport = await fetchReportForMatch(match.id);
       return toFederationMatch(match, backendReport?.status);
     }),
@@ -67,18 +55,12 @@ export async function fetchFederationReports(): Promise<
 > {
   const matches = await fetchMatches();
   const matchById = new Map(matches.map((match) => [match.id, match]));
-  const localReports = readSubmittedFederationReports().map((report) =>
-    toFederationReport(report, matchById.get(report.matchId)),
-  );
   const backendReports = await Promise.all(
     matches.map((match) => fetchReportForMatch(match.id)),
   );
-  const localIds = new Set(localReports.map((report) => report.id));
-  const backendSubmittedReports = backendReports
+  return backendReports
     .filter(isSubmittedApiReport)
-    .filter((report) => !localIds.has(report.id))
     .map((report) => toFederationReport(report, matchById.get(report.matchId)));
-  return [...localReports, ...backendSubmittedReports];
 }
 
 export interface ApiPhotoApproval {
@@ -161,24 +143,6 @@ export function rejectPhotoRequest(
 export async function fetchFederationHistory(): Promise<
   readonly FederationHistoryItem[]
 > {
-  const matches = await fetchMatches();
-  const matchById = new Map(matches.map((match) => [match.id, match]));
-  const reportHistory = readSubmittedFederationReports().map((report) => {
-    const teams = resolveReportTeams(report, matchById.get(report.matchId));
-    return {
-      id: `history-${report.id}`,
-      auditSummary: [
-        "Referto ricevuto dalla Federazione",
-        `Risultato ${report.result.homeGoals}-${report.result.awayGoals}`,
-        `Eventi: ${report.goals.length} gol, ${report.cautions.length} ammonizioni, ${report.expulsions.length} espulsioni, ${report.substitutions.length} sostituzioni`,
-      ],
-      clubNames: [teams.homeTeam, teams.awayTeam],
-      matchLabel: `${teams.homeTeam} - ${teams.awayTeam}`,
-      refereeName: report.refereeName,
-      reportId: report.id,
-    };
-  });
-
   const audit = await request<readonly Record<string, unknown>[]>(
     "/audit/by-action?action=MATCH_ARCHIVED",
   );
@@ -186,7 +150,6 @@ export async function fetchFederationHistory(): Promise<
     "/photos/audit",
   ).catch(() => []);
   return [
-    ...reportHistory,
     ...photoAudit
       .filter((item) =>
         [
@@ -273,27 +236,9 @@ function normalizeReportStatus(status?: string) {
 }
 
 function toFederationReport(
-  report: ApiReport | SubmittedFederationReport,
+  report: ApiReport,
   match?: ApiMatch,
 ): FederationReport {
-  if ("result" in report) {
-    const teams = resolveReportTeams(report, match);
-    return {
-      id: report.id,
-      awayTeam: teams.awayTeam,
-      cautions: report.cautions,
-      commissionerNotes: null,
-      expulsions: report.expulsions,
-      goals: report.goals,
-      homeTeam: teams.homeTeam,
-      matchId: report.matchId,
-      refereeName: report.refereeName,
-      refereeNotes: report.refereeNotes,
-      result: report.result,
-      substitutions: report.substitutions,
-      submittedAt: report.submittedAt,
-    };
-  }
   const summary = parseSubmittedReportSummary(report.summary);
   if (summary) {
     const teams = resolveReportTeams(summary, match);
@@ -339,9 +284,9 @@ function toFederationReport(
 }
 
 function resolveReportTeams(
-  report: Pick<SubmittedFederationReport, "homeTeam" | "awayTeam">,
+  report: { homeTeam: string; awayTeam: string },
   match?: ApiMatch,
-): Pick<SubmittedFederationReport, "homeTeam" | "awayTeam"> {
+): { homeTeam: string; awayTeam: string } {
   if (match) {
     return {
       awayTeam: formatClubName(match.awayClubId),
@@ -357,10 +302,20 @@ function resolveReportTeams(
 
 function parseSubmittedReportSummary(
   summary: string | null,
-): SubmittedFederationReport | null {
+): {
+  awayTeam: string;
+  cautions: FederationReport["cautions"];
+  expulsions: FederationReport["expulsions"];
+  goals: FederationReport["goals"];
+  homeTeam: string;
+  refereeName: string;
+  refereeNotes: string;
+  result: FederationReport["result"];
+  substitutions: FederationReport["substitutions"];
+} | null {
   if (!summary) return null;
   try {
-    const parsed = JSON.parse(summary) as SubmittedFederationReport;
+    const parsed = JSON.parse(summary) as ReturnType<typeof parseSubmittedReportSummary>;
     return parsed && typeof parsed === "object" && "result" in parsed
       ? parsed
       : null;

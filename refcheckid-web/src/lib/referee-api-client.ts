@@ -10,14 +10,6 @@ import {
   updateMatchReport,
 } from "./api-client";
 import { managerTeamConfig } from "./manager-team";
-import { applyManagerPhotoOverrides } from "./manager-photo-store";
-import { getPhotoFeatureFlags } from "./photo-feature-flags";
-import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
-import {
-  buildPilotAwaySubmittedMatchSheetSnapshot,
-  buildPilotSubmittedMatchSheetSnapshot,
-  readSubmittedMatchSheetSnapshot,
-} from "./submitted-match-sheet";
 import type { ApiMatch, ApiMatchSheet, ApiReport } from "./api-client";
 import type {
   MatchReportDraft,
@@ -58,59 +50,10 @@ export async function fetchRefereeMatchSheets(
 export async function fetchRecognitionSubjects(matchId?: string): Promise<
   readonly RecognitionSubject[]
 > {
-  const flags = getPhotoFeatureFlags();
-  if (flags.refereeManifest && matchId) {
-    const manifest = await fetchMatchPhotoManifest(matchId);
-    if (manifest.status !== "available") return [];
-    return manifest.subjects.map((subject) => ({ ...subject, decision: "pending" }));
-  }
-  if (!flags.legacyLocalFallback) return [];
-  const sheets = await fetchMatchSheets();
-  const homeSubmitted = sheets.some(
-    (sheet) => sheet.clubId === managerTeamConfig.home.clubId && sheet.status !== "draft",
-  );
-  const awaySubmitted = sheets.some(
-    (sheet) => sheet.clubId === managerTeamConfig.away.clubId && sheet.status !== "draft",
-  );
-  const homeSnapshot = homeSubmitted
-    ? readSubmittedMatchSheetSnapshot("home") ??
-      buildPilotSubmittedMatchSheetSnapshot({
-        players: applyManagerPhotoOverrides("home", pilotPlayers),
-        staff: applyManagerPhotoOverrides("home", pilotStaff),
-      })
-    : null;
-  const awaySnapshot = awaySubmitted
-    ? readSubmittedMatchSheetSnapshot("away") ??
-      buildPilotAwaySubmittedMatchSheetSnapshot({
-        players: applyManagerPhotoOverrides("away", pilotAwayPlayers),
-        staff: applyManagerPhotoOverrides("away", pilotAwayStaff),
-      })
-    : null;
-  return [
-    ...(homeSnapshot?.players ?? []),
-    ...(homeSnapshot?.staff ?? []),
-    ...(awaySnapshot?.players ?? []),
-    ...(awaySnapshot?.staff ?? []),
-  ].map((subject) => ({
-    id: subject.id,
-    firstName: subject.firstName,
-    lastName: subject.lastName,
-    shirtNumber: subject.shirtNumber,
-    teamName: subject.teamName,
-    roleLabel: subject.roleLabel,
-    subjectKind: subject.subjectKind,
-    photoUrl: subject.photoUrl,
-    photoStatus: subject.photoUrl ? "active" : "missing",
-    photoEtag: null,
-    manifestSource: "live_manifest",
-    isFrozenSnapshot: false,
-    document: {
-      type: subject.subjectKind === "player" ? "Documento atleta" : "Documento staff",
-      number: subject.id,
-      expiresAt: new Date().toISOString(),
-    },
-    decision: "pending",
-  }));
+  if (!matchId) return [];
+  const manifest = await fetchMatchPhotoManifest(matchId);
+  if (manifest.status !== "available") return [];
+  return manifest.subjects.map((subject) => ({ ...subject, decision: "pending" }));
 }
 
 export async function fetchRefereeReport(
@@ -193,25 +136,14 @@ function toTeamSheetVerification(
   _index: number,
 ): TeamSheetVerification {
   const team = sheet.clubId === managerTeamConfig.away.clubId ? "away" : "home";
-  const snapshot = readSubmittedMatchSheetSnapshot(team);
-  const fallbackSnapshot = team === "home"
-    ? buildPilotSubmittedMatchSheetSnapshot({
-        players: applyManagerPhotoOverrides("home", pilotPlayers),
-        staff: applyManagerPhotoOverrides("home", pilotStaff),
-      })
-    : buildPilotAwaySubmittedMatchSheetSnapshot({
-        players: applyManagerPhotoOverrides("away", pilotAwayPlayers),
-        staff: applyManagerPhotoOverrides("away", pilotAwayStaff),
-      });
-  const submittedSnapshot = sheet.status === "draft" ? null : snapshot ?? fallbackSnapshot;
   return {
     id: sheet.id,
     clubName:
       team === "home"
         ? `${managerTeamConfig.home.label} · ${sheet.clubId}`
         : `${managerTeamConfig.away.label} · ${sheet.clubId}`,
-    playerCount: submittedSnapshot?.players.length ?? 0,
-    staffCount: submittedSnapshot?.staff.length ?? 0,
+    playerCount: 0,
+    staffCount: 0,
     status:
       sheet.status === "locked"
         ? "locked"

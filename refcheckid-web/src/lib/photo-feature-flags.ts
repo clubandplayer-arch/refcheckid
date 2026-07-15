@@ -3,7 +3,6 @@ export interface PhotoFeatureFlags {
   readonly officialBackendUpload: boolean;
   readonly refereeManifest: boolean;
   readonly frozenMatchSnapshot: boolean;
-  readonly legacyLocalFallback: boolean;
   readonly dualWriteLegacy: boolean;
 }
 
@@ -19,7 +18,6 @@ export function getPhotoFeatureFlags(): PhotoFeatureFlags {
     officialBackendUpload: readBooleanFlag("photos.officialBackendUpload", true),
     refereeManifest: readBooleanFlag("photos.refereeManifest", true),
     frozenMatchSnapshot: readBooleanFlag("photos.frozenMatchSnapshot", true),
-    legacyLocalFallback: readBooleanFlag("photos.legacyLocalFallback", true),
     dualWriteLegacy: readBooleanFlag("photos.dualWriteLegacy", false),
   };
 }

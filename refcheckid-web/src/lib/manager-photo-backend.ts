@@ -1,5 +1,4 @@
 import { request } from "./api-client";
-import { applyManagerPhotoOverrides } from "./manager-photo-store";
 import type { ManagerTeam } from "./manager-team";
 import { getPhotoFeatureFlags } from "./photo-feature-flags";
 import type { PlayerListItem, StaffListItem } from "./types";
@@ -22,35 +21,28 @@ export async function enrichPlayersWithBackendPhotos(
   players: readonly PlayerListItem[],
 ): Promise<readonly PlayerListItem[]> {
   const flags = getPhotoFeatureFlags();
-  const legacyPlayers = flags.legacyLocalFallback ? applyManagerPhotoOverrides(team, players) : players;
-  if (!flags.officialBackendRead) return legacyPlayers;
-  const legacyPlayerById = new Map(legacyPlayers.map((player) => [player.id, player]));
+  if (!flags.officialBackendRead) return players;
   return Promise.all(players.map(async (player) => {
-    const legacyPlayer = legacyPlayerById.get(player.id) ?? player;
-    const photo = await readBackendPhotoState("athlete", player.id, player.registrationId, legacyPlayer.photoUrl);
+    const photo = await readBackendPhotoState("athlete", player.id, player.registrationId);
     return { ...player, photo, photoUrl: photo.currentPhotoUrl };
   }));
 }
 
 export async function enrichStaffWithBackendStatus(team: ManagerTeam, staff: readonly StaffListItem[]): Promise<readonly StaffListItem[]> {
   const flags = getPhotoFeatureFlags();
-  const legacyStaff = flags.legacyLocalFallback ? applyManagerPhotoOverrides(team, staff) : staff;
   if (!flags.officialBackendRead) {
-    return legacyStaff.map((member) => ({
+    return staff.map((member) => ({
       ...member,
       photo: { status: member.photoUrl ? "active" : "missing", currentPhotoUrl: member.photoUrl, proposedPhotoUrl: null, approvalId: null },
     }));
   }
-  const legacyStaffById = new Map(legacyStaff.map((member) => [member.id, member]));
   return Promise.all(staff.map(async (member) => {
-    const legacyMember = legacyStaffById.get(member.id) ?? member;
-    const photo = await readBackendPhotoState("staff_member", member.id, member.registrationId, legacyMember.photoUrl);
+    const photo = await readBackendPhotoState("staff_member", member.id, member.registrationId);
     return { ...member, photo, photoUrl: photo.currentPhotoUrl };
   }));
 }
 
-export async function readBackendPhotoState(subjectKind: "athlete" | "staff_member", subjectId: string, registrationId: string | null, legacyPhotoUrl: string | null): Promise<ManagerPhotoState> {
-  const flags = getPhotoFeatureFlags();
+export async function readBackendPhotoState(subjectKind: "athlete" | "staff_member", subjectId: string, registrationId: string | null): Promise<ManagerPhotoState> {
   let currentPhotoUrl: string | null = null;
   let currentStatus: OfficialPhotoStatus = "missing";
   try {
@@ -59,8 +51,8 @@ export async function readBackendPhotoState(subjectKind: "athlete" | "staff_memb
     currentPhotoUrl = signed.signedUrl?.url ?? null;
     currentStatus = signed.version?.status === "suspended" ? "suspended" : currentPhotoUrl ? "active" : "missing";
   } catch {
-    if (flags.legacyLocalFallback) currentPhotoUrl = legacyPhotoUrl;
-    currentStatus = currentPhotoUrl ? "active" : "missing";
+    currentPhotoUrl = null;
+    currentStatus = "missing";
   }
   const approval = registrationId ? await readLatestApproval(registrationId) : null;
   if (!approval) return { approvalId: null, currentPhotoUrl, proposedPhotoUrl: null, status: currentStatus };
@@ -110,7 +102,7 @@ export async function uploadOfficialSubjectPhoto(input: { subjectKind: "athlete"
       federationId: input.federationId,
     }),
   });
-  return readBackendPhotoState(input.subjectKind, input.subjectId, input.registrationId, null);
+  return readBackendPhotoState(input.subjectKind, input.subjectId, input.registrationId);
 }
 
 export function uploadOfficialPlayerPhoto(input: { playerId: string; registrationId: string; clubId: string; federationId: string; seasonId: string; dataUrl: string; mimeType?: string }): Promise<ManagerPhotoState> {
