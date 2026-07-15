@@ -1,13 +1,13 @@
 import { spawn } from "node:child_process";
+import {
+  checkDemoInitialization,
+  getConfiguredDemoApiBaseUrl,
+  localDemoApiBaseUrl,
+  runDemoInit,
+} from "./demo-environment.mjs";
 
 const backendHealthUrl = "http://127.0.0.1:4000/api/health";
-const demoApiBaseUrl =
-  process.env.REFCHECKID_API_BASE_URL ?? "http://127.0.0.1:4000/api/v1";
-const demoManagerClubId = "70000000-0000-4000-8000-000000000003";
-const demoManagerCredentials = {
-  email: "dirigente@refcheckid.local",
-  password: "Password123!",
-};
+const demoApiBaseUrl = getConfiguredDemoApiBaseUrl(localDemoApiBaseUrl);
 const startupTimeoutMs = 60_000;
 const pollIntervalMs = 1_000;
 
@@ -27,26 +27,6 @@ function spawnPnpm(label, args) {
     shutdown(code ?? 1);
   });
   return child;
-}
-
-function runPnpm(label, args) {
-  return new Promise((resolve, reject) => {
-    const child = spawn("pnpm", args, {
-      shell: process.platform === "win32",
-      stdio: "inherit",
-    });
-    child.on("exit", (code, signal) => {
-      if (signal) {
-        reject(new Error(`${label} terminated with signal ${signal}.`));
-        return;
-      }
-      if (code === 0) {
-        resolve();
-        return;
-      }
-      reject(new Error(`${label} exited with code ${code}.`));
-    });
-  });
 }
 
 async function isBackendHealthy() {
@@ -71,58 +51,10 @@ async function waitForBackend() {
   );
 }
 
-async function checkDemoInitialization() {
-  const session = await postJson(
-    `${demoApiBaseUrl}/auth/login`,
-    demoManagerCredentials,
-  );
-  const authHeaders = { authorization: `Bearer ${session.accessToken}` };
-  const [players, staff, playerRegistrations, staffRegistrations, matches, matchSheets] =
-    await Promise.all([
-      getJson(`${demoApiBaseUrl}/players`, authHeaders),
-      getJson(`${demoApiBaseUrl}/staff-members`, authHeaders),
-      getJson(
-        `${demoApiBaseUrl}/player-registrations?clubId=${encodeURIComponent(demoManagerClubId)}`,
-        authHeaders,
-      ),
-      getJson(
-        `${demoApiBaseUrl}/staff-registrations?clubId=${encodeURIComponent(demoManagerClubId)}`,
-        authHeaders,
-      ),
-      getJson(
-        `${demoApiBaseUrl}/matches?clubId=${encodeURIComponent(demoManagerClubId)}`,
-        authHeaders,
-      ),
-      getJson(
-        `${demoApiBaseUrl}/match-sheets?clubId=${encodeURIComponent(demoManagerClubId)}`,
-        authHeaders,
-      ),
-    ]);
-
-  const counts = {
-    matchSheets: countItems(matchSheets),
-    matches: countItems(matches),
-    playerRegistrations: countItems(playerRegistrations),
-    players: countItems(players),
-    staff: countItems(staff),
-    staffRegistrations: countItems(staffRegistrations),
-  };
-  return {
-    counts,
-    initialized:
-      counts.players > 0 &&
-      counts.staff > 0 &&
-      counts.playerRegistrations > 0 &&
-      counts.staffRegistrations > 0 &&
-      counts.matches > 0 &&
-      counts.matchSheets > 0,
-  };
-}
-
 async function ensureDemoInitialized() {
   let status;
   try {
-    status = await checkDemoInitialization();
+    status = await checkDemoInitialization(demoApiBaseUrl);
   } catch (error) {
     console.warn(
       "[RefCheckID][dev] Verifica inizializzazione demo non riuscita.",
@@ -152,40 +84,7 @@ async function ensureDemoInitialized() {
   console.log(
     "[RefCheckID][dev] REFCHECKID_DEMO_AUTO_BOOTSTRAP=true: avvio demo:init prima del Web...",
   );
-  await runPnpm("demo:init", [
-    "demo:init",
-    "--",
-    "--api-base-url",
-    demoApiBaseUrl,
-  ]);
-}
-
-async function getJson(url, headers) {
-  const response = await fetch(url, { headers });
-  return parseJsonResponse(response, "GET", url);
-}
-
-async function postJson(url, body) {
-  const response = await fetch(url, {
-    body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
-    method: "POST",
-  });
-  return parseJsonResponse(response, "POST", url);
-}
-
-async function parseJsonResponse(response, method, url) {
-  const body = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${method} ${url} failed with ${response.status}: ${JSON.stringify(body)}`,
-    );
-  }
-  return body;
-}
-
-function countItems(value) {
-  return Array.isArray(value) ? value.length : 0;
+  await runDemoInit(demoApiBaseUrl);
 }
 
 function shutdown(exitCode = 0) {
