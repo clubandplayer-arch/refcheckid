@@ -129,10 +129,44 @@ describe('ARCH-1 Milestone C federation approval workflow', () => {
     });
     expect(list.status).toBe(200);
     expect(list.body).toMatchObject([{ id: pending.id, slaStatus: 'overdue' }]);
-    expect(
-      createOpenApiDocument().paths['/api/v1/photo-approvals/{id}/reject'],
-    ).toMatchObject({
+    expect(createOpenApiDocument().paths['/api/v1/photo-approvals/{id}/reject']).toMatchObject({
       post: { 'x-implementation-status': 'implemented' },
+    });
+  });
+
+  it('keeps the approval queue federation-scoped and unavailable to managers', async () => {
+    const { container, pending } = await seeded();
+    const router = createRestApiRouter(container);
+
+    await expect(
+      router.handle({
+        method: 'GET',
+        path: '/api/v1/photo-approvals',
+        headers: { authorization: 'Bearer test' },
+        auth: {
+          actorId: ids.actor,
+          roles: ['manager'],
+          clubIds: ['20000000-0000-4000-8000-000000000099'],
+          federationIds: [ids.federation],
+        },
+        query: { registrationId: ids.registration },
+      }),
+    ).resolves.toMatchObject({
+      status: 403,
+      body: { error: 'FORBIDDEN', message: 'Photo approvals require federation scope.' },
+    });
+
+    await expect(
+      router.handle({
+        method: 'GET',
+        path: '/api/v1/photo-approvals',
+        headers: { authorization: 'Bearer test' },
+        auth: { actorId: ids.actor, roles: ['federation'], federationIds: [ids.federation] },
+        query: { registrationId: ids.registration },
+      }),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: [expect.objectContaining({ id: pending.id })],
     });
   });
 

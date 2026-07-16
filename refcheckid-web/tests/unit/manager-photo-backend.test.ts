@@ -2,9 +2,18 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const backendSource = readFileSync(join(process.cwd(), "src/lib/manager-photo-backend.ts"), "utf8");
-const workflowSource = readFileSync(join(process.cwd(), "src/features/manager/match-sheet-workflow.tsx"), "utf8");
-const flagSource = readFileSync(join(process.cwd(), "src/lib/photo-feature-flags.ts"), "utf8");
+const backendSource = readFileSync(
+  join(process.cwd(), "src/lib/manager-photo-backend.ts"),
+  "utf8",
+);
+const workflowSource = readFileSync(
+  join(process.cwd(), "src/features/manager/match-sheet-workflow.tsx"),
+  "utf8",
+);
+const flagSource = readFileSync(
+  join(process.cwd(), "src/lib/photo-feature-flags.ts"),
+  "utf8",
+);
 
 describe("ARCH-1 manager web photo migration", () => {
   it("centralizes ARCH-1 feature flags without introducing extra photo flags", () => {
@@ -31,10 +40,11 @@ describe("ARCH-1 manager web photo migration", () => {
   it("reads backend state without local legacy fallback and displays replacement state", () => {
     expect(backendSource).toContain('"players"');
     expect(backendSource).toContain("staff-members");
-    expect(backendSource).toContain("/photo-approvals");
+    expect(backendSource).toContain("/registrations/");
+    expect(backendSource).toContain("/season-photo");
+    expect(backendSource).not.toContain("/photo-approvals");
     expect(backendSource).not.toContain("legacyLocalFallback");
     expect(backendSource).not.toContain("applyManagerPhotoOverrides");
-    expect(backendSource).toContain(".sort((left, right)");
     expect(workflowSource).toContain("Pending Approval");
     expect(workflowSource).toContain("Foto ufficiale corrente");
     expect(workflowSource).toContain("Nuova foto proposta");
