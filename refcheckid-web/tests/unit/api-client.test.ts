@@ -10,6 +10,7 @@ import {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe("unit: frontend API client", () => {
@@ -125,6 +126,89 @@ describe("unit: frontend API client", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining(
         "/staff-registrations?clubId=70000000-0000-4000-8000-000000000003",
+      ),
+      expect.any(Object),
+    );
+  });
+
+  it("opens the manager match-sheet roster without calling federation photo approvals", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/photo-approvals")) {
+        return { ok: false, status: 403 };
+      }
+      if (url.includes("/registrations/registration-home/season-photo")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            signedUrl: { url: "https://photos.example/home.jpg" },
+            version: { status: "active" },
+          }),
+        };
+      }
+      if (url.includes("/registrations/staff-registration-home/season-photo")) {
+        return { ok: false, status: 403 };
+      }
+      const body = url.includes("/players")
+        ? [{ id: "player-home", firstName: "Home", lastName: "Player" }]
+        : url.includes("/player-registrations")
+          ? [
+              {
+                id: "registration-home",
+                playerId: "player-home",
+                clubId: "70000000-0000-4000-8000-000000000003",
+                season: "2026",
+                status: "active",
+              },
+            ]
+          : url.includes("/staff-members")
+            ? [{ id: "staff-home", fullName: "Home Staff" }]
+            : url.includes("/staff-registrations")
+              ? [
+                  {
+                    id: "staff-registration-home",
+                    staffMemberId: "staff-home",
+                    clubId: "70000000-0000-4000-8000-000000000003",
+                    season: "2026",
+                    role: "Allenatore",
+                    status: "active",
+                  },
+                ]
+              : [];
+      return { ok: true, status: 200, json: async () => body };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchPlayers()).resolves.toMatchObject([
+      {
+        id: "player-home",
+        registrationId: "registration-home",
+        photoUrl: "https://photos.example/home.jpg",
+        photo: {
+          status: "active",
+          currentPhotoUrl: "https://photos.example/home.jpg",
+        },
+      },
+    ]);
+    await expect(fetchStaff()).resolves.toMatchObject([
+      {
+        id: "staff-home",
+        registrationId: "staff-registration-home",
+        photo: { status: "missing", currentPhotoUrl: null },
+      },
+    ]);
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/photo-approvals"),
+      expect.anything(),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/registrations/registration-home/season-photo"),
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "/registrations/staff-registration-home/season-photo",
       ),
       expect.any(Object),
     );
