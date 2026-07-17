@@ -46,6 +46,14 @@ export class RegistrationRepository extends DrizzleRepository<PlayerRegistration
       this.staffRegistrations.values().filter((registration) => registration.clubId === clubId),
     );
   }
+
+  debugCounts(): { playerRegistrations: number; staffMembers: number; staffRegistrations: number } {
+    return {
+      playerRegistrations: this.values().length,
+      staffMembers: this.staffMembers.values().length,
+      staffRegistrations: this.staffRegistrations.values().length,
+    };
+  }
 }
 
 export class RegistrationsRepository extends RegistrationRepository {}

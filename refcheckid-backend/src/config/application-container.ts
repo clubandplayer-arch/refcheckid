@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { EventDispatcher } from '../events/index.js';
 import {
   AuditRepository,
@@ -36,6 +37,7 @@ import {
 import { pilotMatches, pilotMatchReports, pilotMatchSheets } from './pilot-data.js';
 
 export interface ApplicationContainer {
+  readonly id: string;
   readonly events: EventDispatcher;
   readonly repositories: {
     readonly audit: AuditRepository;
@@ -76,6 +78,7 @@ export interface ApplicationContainer {
 }
 
 export function createApplicationContainer(): ApplicationContainer {
+  const containerId = randomUUID();
   const events = new EventDispatcher();
   const repositories = {
     audit: new AuditRepository(),
@@ -158,5 +161,10 @@ export function createApplicationContainer(): ApplicationContainer {
     }),
   };
 
-  return { events, repositories, services: completedServices, objectStores };
+  console.info('[RefCheckID][container] application container created', {
+    applicationContainerId: containerId,
+    pid: process.pid,
+  });
+
+  return { id: containerId, events, repositories, services: completedServices, objectStores };
 }
