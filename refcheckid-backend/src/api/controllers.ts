@@ -1,5 +1,5 @@
 import type { ApplicationContainer } from '../config/application-container.js';
-import type { MatchStatus, PhotoApproval } from '../domain/index.js';
+import type { MatchSheet, MatchStatus, PhotoApproval } from '../domain/index.js';
 import type { ApiHandler } from './http.js';
 import { json } from './http.js';
 import { optionalString, requireBodyObject, requireString, requireUuid } from './validation.js';
@@ -427,20 +427,32 @@ export function createControllers(container: ApplicationContainer): Record<strin
       if (request.query.matchId !== undefined) {
         return json(
           200,
-          await container.services.matchSheets.listMatchSheetsByMatch(
-            requireUuid(request.query.matchId, 'matchId'),
+          await enrichMatchSheetsForReferee(
+            container,
+            await container.services.matchSheets.listMatchSheetsByMatch(
+              requireUuid(request.query.matchId, 'matchId'),
+            ),
           ),
         );
       }
       if (request.query.clubId !== undefined) {
         return json(
           200,
-          await container.services.matchSheets.listMatchSheetsByClub(
-            requireUuid(request.query.clubId, 'clubId'),
+          await enrichMatchSheetsForReferee(
+            container,
+            await container.services.matchSheets.listMatchSheetsByClub(
+              requireUuid(request.query.clubId, 'clubId'),
+            ),
           ),
         );
       }
-      return json(200, await container.repositories.matchSheets.list());
+      return json(
+        200,
+        await enrichMatchSheetsForReferee(
+          container,
+          await container.repositories.matchSheets.list(),
+        ),
+      );
     },
     getMatchSheet: async (request) =>
       json(
@@ -617,6 +629,20 @@ const containerOpenApiPlaceholder = {
 };
 const swaggerHtml =
   '<!doctype html><html><body><redoc spec-url="/api/docs/openapi.json"></redoc></body></html>';
+
+async function enrichMatchSheetsForReferee(
+  container: ApplicationContainer,
+  sheets: readonly MatchSheet[],
+) {
+  return Promise.all(
+    sheets.map(async (sheet) => ({
+      ...sheet,
+      playerCount: (await container.repositories.matchSheetPlayers.listByMatchSheet(sheet.id))
+        .length,
+      staffCount: (await container.repositories.matchSheetStaff.listByMatchSheet(sheet.id)).length,
+    })),
+  );
+}
 
 function photoContext(
   request: {

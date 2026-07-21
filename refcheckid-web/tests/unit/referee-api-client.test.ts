@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   fetchRecognitionSubjects,
+  fetchRefereeDashboard,
   fetchRefereeMatchSheets,
   fetchRefereeReport,
   lockSubmittedSheetsAndStartRecognition,
@@ -12,6 +13,34 @@ afterEach(() => {
 });
 
 describe("unit: referee workflow API client", () => {
+  it("maps referee dashboard club ids to team names", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => [
+          {
+            id: "match-1",
+            homeClubId: "70000000-0000-4000-8000-000000000003",
+            awayClubId: "70000000-0000-4000-8000-000000000004",
+            refereeId: "referee-1",
+            scheduledAt: "2026-07-01T18:00:00.000Z",
+            venue: "ARCH-1 Demo Stadium",
+            status: "scheduled",
+          },
+        ],
+      })),
+    );
+
+    await expect(fetchRefereeDashboard()).resolves.toMatchObject({
+      nextMatch: {
+        awayTeam: "Sporting Litorale",
+        homeTeam: "Atletico Aurora",
+      },
+    });
+  });
+
   it("labels home and away sheets clearly with status details", async () => {
     vi.stubGlobal(
       "fetch",
@@ -25,6 +54,8 @@ describe("unit: referee workflow API client", () => {
             clubId: "70000000-0000-4000-8000-000000000003",
             submittedAt: "2026-07-01T10:00:00.000Z",
             status: "submitted",
+            playerCount: 18,
+            staffCount: 4,
           },
           {
             id: "sheet-away",
@@ -39,12 +70,16 @@ describe("unit: referee workflow API client", () => {
 
     await expect(fetchRefereeMatchSheets("match-1")).resolves.toEqual([
       expect.objectContaining({
-        clubName: "Atletico Aurora · 70000000-0000-4000-8000-000000000003",
+        clubName: "Atletico Aurora",
+        playerCount: 18,
+        staffCount: 4,
         status: "submitted",
         team: "home",
       }),
       expect.objectContaining({
-        clubName: "Sporting Litorale · 70000000-0000-4000-8000-000000000004",
+        clubName: "Sporting Litorale",
+        playerCount: 0,
+        staffCount: 0,
         status: "missing",
         team: "away",
       }),
@@ -94,7 +129,6 @@ describe("unit: referee workflow API client", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
-
 
   it("does not synthesize recognition subjects from local snapshots or pilot data", async () => {
     const fetchMock = vi.fn();
@@ -175,7 +209,6 @@ describe("unit: referee workflow API client", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
-
 });
 
 describe("unit: referee manifest client", () => {
@@ -204,7 +237,11 @@ describe("unit: referee manifest client", () => {
             photoEtag: "photo-etag-a",
             manifestSource: "frozen_snapshot",
             isFrozenSnapshot: true,
-            document: { type: "Documento atleta", number: "registration-1", expiresAt: "2027-01-01" },
+            document: {
+              type: "Documento atleta",
+              number: "registration-1",
+              expiresAt: "2027-01-01",
+            },
           },
         ],
       }),
@@ -227,6 +264,52 @@ describe("unit: referee manifest client", () => {
       expect.anything(),
     );
   });
+
+  it("does not expose local file signed photo URLs in recognition subjects", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          matchId: "match-1",
+          manifestVersion: "frozen-v1",
+          photoEtag: "etag-a",
+          generatedAt: "2026-07-10T00:00:00.000Z",
+          expiresAt: null,
+          status: "available",
+          subjects: [
+            {
+              id: "registration-1",
+              firstName: "Ada",
+              lastName: "Rossi",
+              shirtNumber: 10,
+              teamName: "70000000-0000-4000-8000-000000000003",
+              roleLabel: "Titolare",
+              subjectKind: "player",
+              photoUrl: "file:///workspaces/refcheckid/photo.png",
+              photoStatus: "active",
+              photoEtag: "photo-etag-a",
+              manifestSource: "frozen_snapshot",
+              isFrozenSnapshot: true,
+              document: {
+                type: "Documento atleta",
+                number: "registration-1",
+                expiresAt: "2027-01-01",
+              },
+            },
+          ],
+        }),
+      })),
+    );
+
+    await expect(fetchRecognitionSubjects("match-1")).resolves.toEqual([
+      expect.objectContaining({
+        photoUrl: null,
+        teamName: "Atletico Aurora",
+      }),
+    ]);
+  });
 });
 
 describe("unit: referee manifest cache guards", () => {
@@ -247,7 +330,8 @@ describe("unit: referee manifest cache guards", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("window", {
       localStorage: {
-        getItem: () => JSON.stringify({ players: [{ id: "legacy-player" }], staff: [] }),
+        getItem: () =>
+          JSON.stringify({ players: [{ id: "legacy-player" }], staff: [] }),
       },
     });
 

@@ -28,6 +28,8 @@ export interface ApiMatchSheet {
   clubId: string;
   submittedAt: string | null;
   status: "draft" | "submitted" | "locked";
+  playerCount?: number;
+  staffCount?: number;
 }
 
 export interface ApiReport {
