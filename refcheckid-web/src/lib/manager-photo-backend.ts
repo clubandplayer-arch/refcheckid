@@ -102,11 +102,11 @@ export async function readBackendPhotoState(
           `/registrations/${encodeURIComponent(registrationId)}/season-photo?rendition=normalized&ttlSeconds=300`,
         )
       : await readSubjectPhoto(subjectKind, subjectId);
-    const currentPhotoUrl = signed.signedUrl?.url ?? null;
+    const currentPhotoUrl = normalizeBrowserPhotoUrl(signed.signedUrl?.url);
     const currentStatus =
       signed.version?.status === "suspended"
         ? "suspended"
-        : currentPhotoUrl
+        : signed.version?.status === "active" || currentPhotoUrl
           ? "active"
           : "missing";
     return {
@@ -219,6 +219,12 @@ async function readSubjectPhoto(
   return request<SignedReadResponse>(
     `/${endpoint}/${encodeURIComponent(subjectId)}/photo?rendition=normalized&ttlSeconds=300`,
   );
+}
+
+function normalizeBrowserPhotoUrl(value: unknown): string | null {
+  if (typeof value !== "string" || value.length === 0) return null;
+  if (value.startsWith("file://")) return null;
+  return value;
 }
 
 function missingPhotoState(currentPhotoUrl: string | null): ManagerPhotoState {
