@@ -60,7 +60,9 @@ export function RefereeMatchWorkflow() {
   const [step, setStep] = useState(0);
   const [recognitionClosed, setRecognitionClosed] = useState(false);
   const [fullRecognitionComplete, setFullRecognitionComplete] = useState(false);
-  const [initialRecognitionTeamName, setInitialRecognitionTeamName] = useState<string | null>(null);
+  const [initialRecognitionTeamName, setInitialRecognitionTeamName] = useState<
+    string | null
+  >(null);
   const { session } = useSession();
   const dashboardQuery = useQuery({
     enabled: Boolean(session),
@@ -140,7 +142,9 @@ function SheetVerificationStep({
     queryFn: () => fetchRefereeMatchSheets(matchId),
     queryKey: [...queryKeys.matchSheets, matchId],
   });
-  const [selectedStartTeam, setSelectedStartTeam] = useState<string | null>(null);
+  const [selectedStartTeam, setSelectedStartTeam] = useState<string | null>(
+    null,
+  );
   const mutation = useMutation({
     mutationFn: () => lockSubmittedSheetsAndStartRecognition(matchId),
   });
@@ -149,7 +153,8 @@ function SheetVerificationStep({
   const defaultStartTeam = homeSheet?.clubName.split(" · ")[0] ?? null;
   const effectiveStartTeam = selectedStartTeam ?? defaultStartTeam;
   useEffect(() => {
-    if (!selectedStartTeam && defaultStartTeam) setSelectedStartTeam(defaultStartTeam);
+    if (!selectedStartTeam && defaultStartTeam)
+      setSelectedStartTeam(defaultStartTeam);
   }, [defaultStartTeam, selectedStartTeam]);
   if (query.isLoading) return <SkeletonBlock />;
   if (query.isError)
@@ -195,7 +200,9 @@ function SheetVerificationStep({
         </p>
       ) : null}
       <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
-        Il riconoscimento deve iniziare dalla squadra di casa. Se l’arbitro deve partire da un’altra distinta, può selezionare la squadra prima di avviare.
+        Il riconoscimento deve iniziare dalla squadra di casa. Se l’arbitro deve
+        partire da un’altra distinta, può selezionare la squadra prima di
+        avviare.
       </p>
       <Button
         disabled={!canStart}
@@ -205,7 +212,8 @@ function SheetVerificationStep({
         }}
         type="button"
       >
-        Inizia riconoscimento {effectiveStartTeam ? `con ${effectiveStartTeam}` : ""}
+        Inizia riconoscimento{" "}
+        {effectiveStartTeam ? `con ${effectiveStartTeam}` : ""}
       </Button>
     </Card>
   );
@@ -292,7 +300,9 @@ function RecognitionStep({
   onComplete: () => void;
 }>) {
   const [index, setIndex] = useState(0);
-  const [selectedTeamName, setSelectedTeamName] = useState<string | null>(initialTeamName);
+  const [selectedTeamName, setSelectedTeamName] = useState<string | null>(
+    initialTeamName,
+  );
   const [showDocument, setShowDocument] = useState(false);
   const [decisions, setDecisions] = useState<
     Record<string, RecognitionDecision>
@@ -311,7 +321,10 @@ function RecognitionStep({
   const allSubjects = useMemo(() => query.data ?? [], [query.data]);
   useEffect(() => {
     const imageUrls = allSubjects
-      .filter((subject) => (subject.photoStatus ?? "active") === "active" && subject.photoUrl)
+      .filter(
+        (subject) =>
+          (subject.photoStatus ?? "active") === "active" && subject.photoUrl,
+      )
       .map((subject) => subject.photoUrl as string);
     imageUrls.forEach((photoUrl) => {
       const image = new window.Image();
@@ -341,8 +354,12 @@ function RecognitionStep({
     return subject?.teamName === activeTeamName;
   });
   const teamRecognitionSummaries = teamNames.map((teamName) => {
-    const teamSubjects = allSubjects.filter((subject) => subject.teamName === teamName);
-    const completed = teamSubjects.filter((subject) => decisions[subject.id]).length;
+    const teamSubjects = allSubjects.filter(
+      (subject) => subject.teamName === teamName,
+    );
+    const completed = teamSubjects.filter(
+      (subject) => decisions[subject.id],
+    ).length;
     return {
       completed,
       isComplete: teamSubjects.length > 0 && completed === teamSubjects.length,
@@ -379,23 +396,38 @@ function RecognitionStep({
     );
   const currentSubject = subjects[index] ?? null;
   const completedCount = decisionOrder.length;
-  const recognizedSubjects = allSubjects.filter((subject) => decisions[subject.id]);
-  const recognizedTeams = new Set(recognizedSubjects.map((subject) => subject.teamName));
-  const hasHomeRecognition = teamNames[0] ? recognizedTeams.has(teamNames[0]) : false;
-  const hasAwayRecognition = teamNames[1] ? recognizedTeams.has(teamNames[1]) : false;
+  const recognizedSubjects = allSubjects.filter(
+    (subject) => decisions[subject.id],
+  );
+  const recognizedTeams = new Set(
+    recognizedSubjects.map((subject) => subject.teamName),
+  );
+  const hasHomeRecognition = teamNames[0]
+    ? recognizedTeams.has(teamNames[0])
+    : false;
+  const hasAwayRecognition = teamNames[1]
+    ? recognizedTeams.has(teamNames[1])
+    : false;
   const fullRecognitionComplete =
-    completedCount === allSubjects.length && hasHomeRecognition && hasAwayRecognition;
+    completedCount === allSubjects.length &&
+    hasHomeRecognition &&
+    hasAwayRecognition;
   function decide(decision: Exclude<RecognitionDecision, "pending">) {
     if (!currentSubject) return;
     setDecisions((current) => ({ ...current, [currentSubject.id]: decision }));
-    setDecisionOrder((current) => [...current.filter((subjectId) => subjectId !== currentSubject.id), currentSubject.id]);
+    setDecisionOrder((current) => [
+      ...current.filter((subjectId) => subjectId !== currentSubject.id),
+      currentSubject.id,
+    ]);
     setShowDocument(false);
     setIndex(0);
   }
   function goBackToPreviousSubject() {
     const previousSubjectId = currentTeamDecisionOrder.at(-1);
     if (!previousSubjectId) return;
-    const previousSubject = allSubjects.find((subject) => subject.id === previousSubjectId);
+    const previousSubject = allSubjects.find(
+      (subject) => subject.id === previousSubjectId,
+    );
     setDecisions((current) => {
       const next = { ...current };
       delete next[previousSubjectId];
@@ -412,10 +444,13 @@ function RecognitionStep({
     return (
       <Card className="space-y-4 text-center">
         <h2 className="text-2xl font-bold">
-          {fullRecognitionComplete ? "Riconoscimento completato" : "Seleziona la prossima squadra"}
+          {fullRecognitionComplete
+            ? "Riconoscimento completato"
+            : "Seleziona la prossima squadra"}
         </h2>
         <p className="text-sm text-slate-500">
-          {completedCount} tesserati verificati. Ogni squadra va chiusa separatamente.
+          {completedCount} tesserati verificati. Ogni squadra va chiusa
+          separatamente.
         </p>
         <div className="grid gap-3 md:grid-cols-2">
           {teamRecognitionSummaries.map((summary) => (
@@ -438,7 +473,10 @@ function RecognitionStep({
               ) : (
                 <Button
                   className="mt-2 bg-orange-500 hover:bg-orange-600"
-                  onClick={() => { setSelectedTeamName(summary.teamName); setIndex(0); }}
+                  onClick={() => {
+                    setSelectedTeamName(summary.teamName);
+                    setIndex(0);
+                  }}
                   type="button"
                 >
                   Apri {summary.teamName}
@@ -449,7 +487,11 @@ function RecognitionStep({
         </div>
         {fullRecognitionComplete ? (
           <Button
-            className={isRecognitionClosed ? "bg-green-600 hover:bg-green-700" : undefined}
+            className={
+              isRecognitionClosed
+                ? "bg-green-600 hover:bg-green-700"
+                : undefined
+            }
             disabled={mutation.isPending || isRecognitionClosed}
             onClick={() => {
               setIsRecognitionClosed(true);
@@ -457,11 +499,14 @@ function RecognitionStep({
             }}
             type="button"
           >
-            {isRecognitionClosed ? "Riconoscimento chiuso" : "Conferma chiusura riconoscimento"}
+            {isRecognitionClosed
+              ? "Riconoscimento chiuso"
+              : "Conferma chiusura riconoscimento"}
           </Button>
         ) : (
           <p className="rounded-lg bg-orange-100 p-3 text-sm font-semibold text-orange-900">
-            Completa le squadre evidenziate in arancione prima di chiudere il riconoscimento.
+            Completa le squadre evidenziate in arancione prima di chiudere il
+            riconoscimento.
           </p>
         )}
       </Card>
@@ -472,7 +517,8 @@ function RecognitionStep({
         <div>
           <h2 className="text-xl font-bold">Riconoscimento</h2>
           <p className="text-sm text-slate-500">
-            Controlla foto, dati e documento. Conferma il tesserato o torna indietro per rivedere.
+            Controlla foto, dati e documento. Conferma il tesserato o torna
+            indietro per rivedere.
           </p>
         </div>
         <span className="rounded-full bg-muted px-3 py-2 text-sm">
@@ -483,7 +529,8 @@ function RecognitionStep({
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
         <div className="space-y-3">
           <div className="relative mx-auto flex aspect-[3/4] w-full max-w-[260px] items-center justify-center overflow-hidden rounded-xl border-4 border-white bg-white text-center text-base font-semibold shadow-lg ring-1 ring-slate-200">
-            {(currentSubject.photoStatus ?? "missing") === "active" && currentSubject.photoUrl ? (
+            {(currentSubject.photoStatus ?? "missing") === "active" &&
+            currentSubject.photoUrl ? (
               <Image
                 alt={`Foto ${currentSubject.firstName} ${currentSubject.lastName}`}
                 className="h-full w-full object-cover"
@@ -496,9 +543,21 @@ function RecognitionStep({
             )}
           </div>
           <div className="space-y-2 rounded-xl border bg-slate-50 p-3 text-sm">
-            <p className="font-semibold">Stato foto manifest: {photoStatusLabel(currentSubject.photoStatus ?? "missing")}</p>
-            <p className="text-slate-600">Fonte: {currentSubject.isFrozenSnapshot ? "Snapshot congelato" : "Manifest backend"}</p>
-            {currentSubject.photoEtag ? <p className="break-all text-xs text-slate-500">photoEtag: {currentSubject.photoEtag}</p> : null}
+            <p className="font-semibold">
+              Stato foto manifest:{" "}
+              {photoStatusLabel(currentSubject.photoStatus ?? "missing")}
+            </p>
+            <p className="text-slate-600">
+              Fonte:{" "}
+              {currentSubject.isFrozenSnapshot
+                ? "Snapshot congelato"
+                : "Manifest backend"}
+            </p>
+            {currentSubject.photoEtag ? (
+              <p className="break-all text-xs text-slate-500">
+                photoEtag: {currentSubject.photoEtag}
+              </p>
+            ) : null}
           </div>
         </div>
         <div className="space-y-4">
@@ -510,11 +569,15 @@ function RecognitionStep({
               {currentSubject.firstName} {currentSubject.lastName}
             </h3>
             {currentSubject.subjectKind === "player" ? (
-              <p className="text-lg">Maglia #{currentSubject.shirtNumber}</p>
+              <>
+                <p className="text-lg">Maglia #{currentSubject.shirtNumber}</p>
+                <p className="text-sm text-slate-500">
+                  Ruolo: {currentSubject.roleLabel}
+                </p>
+              </>
             ) : (
               <p className="text-lg">Qualifica: {currentSubject.roleLabel}</p>
             )}
-            <p className="text-sm text-slate-500">Ruolo: {currentSubject.roleLabel}</p>
           </div>
           <button
             className="w-full rounded-xl border p-3 text-left"
@@ -728,7 +791,9 @@ function MatchReportStep({
           </dl>
           <Button
             disabled={
-              isReadOnly || blockingErrors.length > 0 || submitMutation.isPending
+              isReadOnly ||
+              blockingErrors.length > 0 ||
+              submitMutation.isPending
             }
             onClick={() => submitMutation.mutate()}
             type="button"
@@ -742,10 +807,7 @@ function MatchReportStep({
 }
 
 type MatchReportEventKey =
-  | "cautions"
-  | "expulsions"
-  | "goals"
-  | "substitutions";
+  "cautions" | "expulsions" | "goals" | "substitutions";
 
 function EventsPanel({
   eventKey,
@@ -765,7 +827,8 @@ function EventsPanel({
   const events = report[eventKey];
   const goalCounts = countGoalsByTeam(report);
   const goalLimitReached =
-    eventKey === "goals" && events.length >= report.homeGoals + report.awayGoals;
+    eventKey === "goals" &&
+    events.length >= report.homeGoals + report.awayGoals;
 
   function setEvents(nextEvents: readonly MatchReportEvent[]) {
     setReport({ ...report, [eventKey]: nextEvents });
@@ -803,19 +866,28 @@ function EventsPanel({
       events.map((event) => {
         if (event.id !== eventId) return event;
         const nextEvent = { ...event, ...patch };
-        if (("teamName" in patch || "shirtNumber" in patch) && !("playerName" in patch)) {
+        if (
+          ("teamName" in patch || "shirtNumber" in patch) &&
+          !("playerName" in patch)
+        ) {
           nextEvent.playerName = resolveReportPlayerName(
             nextEvent.teamName,
             nextEvent.shirtNumber,
           );
         }
-        if (("teamName" in patch || "outgoingShirtNumber" in patch) && !("outgoingPlayerName" in patch)) {
+        if (
+          ("teamName" in patch || "outgoingShirtNumber" in patch) &&
+          !("outgoingPlayerName" in patch)
+        ) {
           nextEvent.outgoingPlayerName = resolveReportPlayerName(
             nextEvent.teamName,
             nextEvent.outgoingShirtNumber,
           );
         }
-        if (("teamName" in patch || "incomingShirtNumber" in patch) && !("incomingPlayerName" in patch)) {
+        if (
+          ("teamName" in patch || "incomingShirtNumber" in patch) &&
+          !("incomingPlayerName" in patch)
+        ) {
           nextEvent.incomingPlayerName = resolveReportPlayerName(
             nextEvent.teamName,
             nextEvent.incomingShirtNumber,
@@ -1012,11 +1084,14 @@ function PlayerAndReasonFields({
         ? cautionReasons
         : expulsionReasons;
   const detailLabel = eventKey === "goals" ? "Tipo gol" : "Motivo";
-  const teamNames = Array.from(new Set(recognitionSubjects.map((subject) => subject.teamName)));
+  const teamNames = Array.from(
+    new Set(recognitionSubjects.map((subject) => subject.teamName)),
+  );
   const selectedTeamIndex = event.teamName === "Casa" ? 0 : 1;
   const selectedTeamName = teamNames[selectedTeamIndex] ?? teamNames[0] ?? "";
   const playerOptions = recognitionSubjects.filter(
-    (subject) => subject.subjectKind === "player" && subject.teamName === selectedTeamName,
+    (subject) =>
+      subject.subjectKind === "player" && subject.teamName === selectedTeamName,
   );
   function optionLabel(subject: RecognitionSubject): string {
     return `#${subject.shirtNumber ?? "?"} ${subject.lastName} ${subject.firstName}`;
@@ -1029,13 +1104,21 @@ function PlayerAndReasonFields({
           className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
           disabled={readOnly}
           onChange={(change) => {
-            const subject = playerOptions.find((player) => player.id === change.target.value);
+            const subject = playerOptions.find(
+              (player) => player.id === change.target.value,
+            );
             onChange({
-              playerName: subject ? `${subject.lastName} ${subject.firstName}` : "",
+              playerName: subject
+                ? `${subject.lastName} ${subject.firstName}`
+                : "",
               shirtNumber: subject?.shirtNumber ?? null,
             });
           }}
-          value={playerOptions.find((player) => player.shirtNumber === event.shirtNumber)?.id ?? ""}
+          value={
+            playerOptions.find(
+              (player) => player.shirtNumber === event.shirtNumber,
+            )?.id ?? ""
+          }
         >
           <option value="">Seleziona tesserato</option>
           {playerOptions.map((subject) => (
@@ -1083,28 +1166,47 @@ function SubstitutionFields({
   recognitionSubjects: readonly RecognitionSubject[];
   substitutions: readonly MatchReportEvent[];
 }>) {
-  const teamNames = Array.from(new Set(recognitionSubjects.map((subject) => subject.teamName)));
+  const teamNames = Array.from(
+    new Set(recognitionSubjects.map((subject) => subject.teamName)),
+  );
   const selectedTeamIndex = event.teamName === "Casa" ? 0 : 1;
   const selectedTeamName = teamNames[selectedTeamIndex] ?? teamNames[0] ?? "";
   const teamPlayers = recognitionSubjects.filter(
-    (subject) => subject.subjectKind === "player" && subject.teamName === selectedTeamName,
+    (subject) =>
+      subject.subjectKind === "player" && subject.teamName === selectedTeamName,
   );
-  const starters = teamPlayers.filter((subject) => subject.roleLabel.startsWith("Titolare"));
-  const reserves = teamPlayers.filter((subject) => subject.roleLabel.startsWith("Riserva"));
+  const starters = teamPlayers.filter((subject) =>
+    subject.roleLabel.startsWith("Titolare"),
+  );
+  const reserves = teamPlayers.filter((subject) =>
+    subject.roleLabel.startsWith("Riserva"),
+  );
   const usedSubstitutionNumbers = new Set(
     substitutions
-      .filter((substitution) => substitution.id !== event.id && substitution.teamName === event.teamName)
+      .filter(
+        (substitution) =>
+          substitution.id !== event.id &&
+          substitution.teamName === event.teamName,
+      )
       .flatMap((substitution) => [
         substitution.outgoingShirtNumber,
         substitution.incomingShirtNumber,
       ])
-      .filter((shirtNumber): shirtNumber is number => typeof shirtNumber === "number"),
+      .filter(
+        (shirtNumber): shirtNumber is number => typeof shirtNumber === "number",
+      ),
   );
   const expelledBeforeThisSubstitution = new Set(
     expulsions
-      .filter((expulsion) => expulsion.teamName === event.teamName && expulsion.minute < event.minute)
+      .filter(
+        (expulsion) =>
+          expulsion.teamName === event.teamName &&
+          expulsion.minute < event.minute,
+      )
       .map((expulsion) => expulsion.shirtNumber)
-      .filter((shirtNumber): shirtNumber is number => typeof shirtNumber === "number"),
+      .filter(
+        (shirtNumber): shirtNumber is number => typeof shirtNumber === "number",
+      ),
   );
   function optionLabel(subject: RecognitionSubject): string {
     return `#${subject.shirtNumber ?? "?"} ${subject.lastName} ${subject.firstName}`;
@@ -1117,13 +1219,21 @@ function SubstitutionFields({
           className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
           disabled={readOnly}
           onChange={(change) => {
-            const subject = starters.find((player) => player.id === change.target.value);
+            const subject = starters.find(
+              (player) => player.id === change.target.value,
+            );
             onChange({
-              outgoingPlayerName: subject ? `${subject.lastName} ${subject.firstName}` : "",
+              outgoingPlayerName: subject
+                ? `${subject.lastName} ${subject.firstName}`
+                : "",
               outgoingShirtNumber: subject?.shirtNumber ?? null,
             });
           }}
-          value={starters.find((player) => player.shirtNumber === event.outgoingShirtNumber)?.id ?? ""}
+          value={
+            starters.find(
+              (player) => player.shirtNumber === event.outgoingShirtNumber,
+            )?.id ?? ""
+          }
         >
           <option value="">Seleziona titolare</option>
           {starters.map((subject) => (
@@ -1151,19 +1261,28 @@ function SubstitutionFields({
           className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
           disabled={readOnly}
           onChange={(change) => {
-            const subject = reserves.find((player) => player.id === change.target.value);
+            const subject = reserves.find(
+              (player) => player.id === change.target.value,
+            );
             onChange({
-              incomingPlayerName: subject ? `${subject.lastName} ${subject.firstName}` : "",
+              incomingPlayerName: subject
+                ? `${subject.lastName} ${subject.firstName}`
+                : "",
               incomingShirtNumber: subject?.shirtNumber ?? null,
             });
           }}
-          value={reserves.find((player) => player.shirtNumber === event.incomingShirtNumber)?.id ?? ""}
+          value={
+            reserves.find(
+              (player) => player.shirtNumber === event.incomingShirtNumber,
+            )?.id ?? ""
+          }
         >
           <option value="">Seleziona riserva</option>
           {reserves.map((subject) => (
             <option
               disabled={
-                subject.shirtNumber !== null && usedSubstitutionNumbers.has(subject.shirtNumber)
+                subject.shirtNumber !== null &&
+                usedSubstitutionNumbers.has(subject.shirtNumber)
               }
               key={subject.id}
               value={subject.id}
@@ -1220,7 +1339,9 @@ function ResultPanel({
   );
 }
 
-function photoStatusLabel(status: NonNullable<RecognitionSubject["photoStatus"]>): string {
+function photoStatusLabel(
+  status: NonNullable<RecognitionSubject["photoStatus"]>,
+): string {
   return {
     active: "Active",
     missing: "Missing",

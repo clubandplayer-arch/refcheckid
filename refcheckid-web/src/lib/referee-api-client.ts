@@ -48,7 +48,10 @@ export async function fetchRefereeMatchSheets(
   const sheets = await fetchMatchSheets(
     `?matchId=${encodeURIComponent(matchId)}`,
   );
-  return sheets.map((sheet, index) => toTeamSheetVerification(sheet, index));
+  const manifestCountsByClub = await fetchManifestCountsByClub(matchId);
+  return sheets.map((sheet, index) =>
+    toTeamSheetVerification(sheet, index, manifestCountsByClub),
+  );
 }
 
 export async function fetchRecognitionSubjects(
@@ -61,6 +64,7 @@ export async function fetchRecognitionSubjects(
     ...subject,
     decision: "pending",
     photoUrl: normalizeBrowserPhotoUrl(subject.photoUrl),
+    roleLabel: formatSubjectRoleLabel(subject.roleLabel, subject.subjectKind),
     teamName: formatClubName(subject.teamName),
   }));
 }
@@ -153,16 +157,69 @@ function toRefereeMatch(
   };
 }
 
+async function fetchManifestCountsByClub(
+  matchId: string,
+): Promise<
+  ReadonlyMap<
+    string,
+    { readonly playerCount: number; readonly staffCount: number }
+  >
+> {
+  try {
+    const manifest = await fetchMatchPhotoManifest(matchId);
+    if (manifest.status !== "available") return new Map();
+    const counts = new Map<
+      string,
+      { playerCount: number; staffCount: number }
+    >();
+    manifest.subjects.forEach((subject) => {
+      const current = counts.get(subject.teamName) ?? {
+        playerCount: 0,
+        staffCount: 0,
+      };
+      counts.set(subject.teamName, {
+        playerCount:
+          current.playerCount + (subject.subjectKind === "player" ? 1 : 0),
+        staffCount:
+          current.staffCount + (subject.subjectKind === "staff" ? 1 : 0),
+      });
+    });
+    return counts;
+  } catch {
+    return new Map();
+  }
+}
+
+function formatSubjectRoleLabel(
+  roleLabel: string,
+  subjectKind: string,
+): string {
+  if (subjectKind !== "player") return roleLabel;
+  if (roleLabel === "starter") return "Titolare";
+  if (roleLabel === "reserve") return "Riserva";
+  return roleLabel;
+}
+
 function toTeamSheetVerification(
   sheet: ApiMatchSheet,
   _index: number,
+  manifestCountsByClub: ReadonlyMap<
+    string,
+    { readonly playerCount: number; readonly staffCount: number }
+  >,
 ): TeamSheetVerification {
   const team = sheet.clubId === managerTeamConfig.away.clubId ? "away" : "home";
   return {
     id: sheet.id,
     clubName: formatClubName(sheet.clubId),
-    playerCount: sheet.playerCount ?? 0,
-    staffCount: sheet.staffCount ?? 0,
+    playerCount:
+      sheet.playerCount && sheet.playerCount > 0
+        ? sheet.playerCount
+        : (manifestCountsByClub.get(sheet.clubId)?.playerCount ?? 0),
+    staffCount:
+      sheet.staffCount && sheet.staffCount > 0
+        ? sheet.staffCount
+        : (manifestCountsByClub.get(sheet.clubId)?.staffCount ?? 0),
     status:
       sheet.status === "locked"
         ? "locked"

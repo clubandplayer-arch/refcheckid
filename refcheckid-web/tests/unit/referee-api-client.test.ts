@@ -86,6 +86,63 @@ describe("unit: referee workflow API client", () => {
     ]);
   });
 
+  it("uses manifest subjects as a fallback for zero match-sheet counts", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/match-sheets?")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [
+            {
+              id: "sheet-home",
+              matchId: "match-1",
+              clubId: "70000000-0000-4000-8000-000000000003",
+              submittedAt: "2026-07-01T10:00:00.000Z",
+              status: "locked",
+              playerCount: 0,
+              staffCount: 0,
+            },
+          ],
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          matchId: "match-1",
+          manifestVersion: "frozen-v1",
+          photoEtag: "etag-a",
+          generatedAt: "2026-07-10T00:00:00.000Z",
+          expiresAt: null,
+          status: "available",
+          subjects: [
+            {
+              teamName: "70000000-0000-4000-8000-000000000003",
+              subjectKind: "player",
+            },
+            {
+              teamName: "70000000-0000-4000-8000-000000000003",
+              subjectKind: "player",
+            },
+            {
+              teamName: "70000000-0000-4000-8000-000000000003",
+              subjectKind: "staff",
+            },
+          ],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchRefereeMatchSheets("match-1")).resolves.toEqual([
+      expect.objectContaining({
+        playerCount: 2,
+        staffCount: 1,
+      }),
+    ]);
+  });
+
   it("locks every unlocked sheet before starting recognition", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -263,6 +320,69 @@ describe("unit: referee manifest client", () => {
       expect.stringContaining("/matches/match-1/photo-manifest"),
       expect.anything(),
     );
+  });
+
+  it("translates raw lineup roles in recognition subjects", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          matchId: "match-1",
+          manifestVersion: "frozen-v1",
+          photoEtag: "etag-a",
+          generatedAt: "2026-07-10T00:00:00.000Z",
+          expiresAt: null,
+          status: "available",
+          subjects: [
+            {
+              id: "registration-1",
+              firstName: "Ada",
+              lastName: "Rossi",
+              shirtNumber: 10,
+              teamName: "70000000-0000-4000-8000-000000000003",
+              roleLabel: "starter",
+              subjectKind: "player",
+              photoUrl: null,
+              photoStatus: "active",
+              photoEtag: "photo-etag-a",
+              manifestSource: "frozen_snapshot",
+              isFrozenSnapshot: true,
+              document: {
+                type: "Documento atleta",
+                number: "registration-1",
+                expiresAt: "2027-01-01",
+              },
+            },
+            {
+              id: "registration-2",
+              firstName: "Bea",
+              lastName: "Rossi",
+              shirtNumber: 12,
+              teamName: "70000000-0000-4000-8000-000000000003",
+              roleLabel: "reserve",
+              subjectKind: "player",
+              photoUrl: null,
+              photoStatus: "active",
+              photoEtag: "photo-etag-b",
+              manifestSource: "frozen_snapshot",
+              isFrozenSnapshot: true,
+              document: {
+                type: "Documento atleta",
+                number: "registration-2",
+                expiresAt: "2027-01-01",
+              },
+            },
+          ],
+        }),
+      })),
+    );
+
+    await expect(fetchRecognitionSubjects("match-1")).resolves.toEqual([
+      expect.objectContaining({ roleLabel: "Titolare" }),
+      expect.objectContaining({ roleLabel: "Riserva" }),
+    ]);
   });
 
   it("does not expose local file signed photo URLs in recognition subjects", async () => {
