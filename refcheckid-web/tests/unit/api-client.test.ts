@@ -84,8 +84,8 @@ describe("unit: frontend API client", () => {
             ]
           : url.includes("/staff-members")
             ? [
-                { id: "staff-home", fullName: "Home Staff" },
-                { id: "staff-away", fullName: "Away Staff" },
+                { id: "staff-home", firstName: "Home", lastName: "Staff" },
+                { id: "staff-away", firstName: "Away", lastName: "Staff" },
               ]
             : url.includes("/staff-registrations")
               ? [
@@ -113,6 +113,7 @@ describe("unit: frontend API client", () => {
     await expect(fetchStaff()).resolves.toMatchObject([
       {
         id: "staff-home",
+        fullName: "Home Staff",
         registrationId: "staff-registration-home",
         season: "2026",
       },

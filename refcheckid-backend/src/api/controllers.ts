@@ -1,6 +1,6 @@
 import type { ApplicationContainer } from '../config/application-container.js';
 import type { MatchStatus, PhotoApproval } from '../domain/index.js';
-import type { ApiHandler, ApiRequest } from './http.js';
+import type { ApiHandler } from './http.js';
 import { json } from './http.js';
 import { optionalString, requireBodyObject, requireString, requireUuid } from './validation.js';
 
@@ -24,10 +24,7 @@ export function createControllers(container: ApplicationContainer): Record<strin
     listClubs: async () => json(200, await container.repositories.clubs.list()),
     getClub: async (request) =>
       json(200, await container.repositories.clubs.findById(requireUuid(request.params.id, 'id'))),
-    listPlayers: async (request) => {
-      await logRosterRepositoryDebug(container, request, 'players');
-      return json(200, await container.repositories.players.list());
-    },
+    listPlayers: async () => json(200, await container.repositories.players.list()),
     getPlayer: async (request) =>
       json(
         200,
@@ -39,37 +36,30 @@ export function createControllers(container: ApplicationContainer): Record<strin
         200,
         await container.repositories.referees.findById(requireUuid(request.params.id, 'id')),
       ),
-    listPlayerRegistrations: async (request) => {
-      await logRosterRepositoryDebug(container, request, 'player-registrations');
-      return json(
+    listPlayerRegistrations: async (request) =>
+      json(
         200,
         request.query.clubId === undefined
           ? await container.repositories.registrations.list()
           : await container.repositories.registrations.listByClub(
               requireUuid(request.query.clubId, 'clubId'),
             ),
-      );
-    },
+      ),
     getPlayerRegistration: async (request) =>
       json(
         200,
         await container.repositories.registrations.findById(requireUuid(request.params.id, 'id')),
       ),
-    listStaffMembers: async (request) => {
-      await logRosterRepositoryDebug(container, request, 'staff-members');
-      return json(200, await container.repositories.registrations.listStaffMembers());
-    },
-    listStaffRegistrations: async (request) => {
-      await logRosterRepositoryDebug(container, request, 'staff-registrations');
-      return json(
+    listStaffMembers: async () => json(200, await container.repositories.registrations.listStaffMembers()),
+    listStaffRegistrations: async (request) =>
+      json(
         200,
         request.query.clubId === undefined
           ? []
           : await container.repositories.registrations.listStaffRegistrationsByClub(
               requireUuid(request.query.clubId, 'clubId'),
             ),
-      );
-    },
+      ),
     listPhotos: async () => json(200, await container.repositories.photos.list()),
     listPhotoSubjects: async () => json(200, await container.services.photos.listPhotoSubjects()),
     getPlayerPhoto: async (request) => {
@@ -769,42 +759,6 @@ function requireFederationRejectReasonCode(value: unknown) {
     throw new Error(`Invalid federation reject reasonCode: ${reasonCode}`);
   }
   return reasonCode;
-}
-
-async function logRosterRepositoryDebug(
-  container: ApplicationContainer,
-  request: ApiRequest,
-  endpoint: 'players' | 'player-registrations' | 'staff-members' | 'staff-registrations',
-) {
-  const registrationCounts = container.repositories.registrations.debugCounts();
-  const queryString = formatQueryString(request.query);
-  console.info('[RefCheckID][roster-debug] repository snapshot', {
-    applicationContainerId: container.id,
-    endpoint,
-    method: request.method,
-    path: request.path,
-    pid: process.pid,
-    query: request.query,
-    queryString,
-    records: {
-      playerRegistrations: registrationCounts.playerRegistrations,
-      players: (await container.repositories.players.list()).length,
-      staffMembers: registrationCounts.staffMembers,
-      staffRegistrations: registrationCounts.staffRegistrations,
-    },
-    requestUrl: `${request.path}${queryString}`,
-    requestId: request.requestId ?? null,
-    xRequestId: request.headers['x-request-id'] ?? null,
-  });
-}
-
-function formatQueryString(query: Record<string, string | undefined>): string {
-  const searchParams = new URLSearchParams();
-  for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined) searchParams.set(key, value);
-  }
-  const serialized = searchParams.toString();
-  return serialized.length === 0 ? '' : `?${serialized}`;
 }
 
 function paginate<T>(items: readonly T[], query: Record<string, unknown>): readonly T[] {

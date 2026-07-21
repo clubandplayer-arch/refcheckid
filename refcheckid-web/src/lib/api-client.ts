@@ -191,9 +191,7 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
           return [
             {
               id: String(staffMember.id),
-              fullName: String(
-                staffMember.fullName ?? staffMember.full_name ?? staffMember.id,
-              ),
+              fullName: formatPersonName(staffMember, String(staffMember.id)),
               role: String(registration.role ?? staffMember.role ?? "staff"),
               photoUrl: staffMember.photoUrl
                 ? String(staffMember.photoUrl)
@@ -205,6 +203,27 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
           ];
         });
   return enrichStaffWithBackendStatus(managerTeam, mappedStaff);
+}
+
+function formatPersonName(
+  person: Record<string, unknown>,
+  fallback: string,
+): string {
+  const fullName = person.fullName ?? person.full_name;
+  if (typeof fullName === "string" && fullName.trim().length > 0) {
+    return fullName;
+  }
+
+  const firstName = person.firstName ?? person.first_name;
+  const lastName = person.lastName ?? person.last_name;
+  const parts = [firstName, lastName]
+    .filter(
+      (value): value is string =>
+        typeof value === "string" && value.trim().length > 0,
+    )
+    .map((value) => value.trim());
+
+  return parts.length > 0 ? parts.join(" ") : fallback;
 }
 
 export interface ApiPlayerRegistration {
