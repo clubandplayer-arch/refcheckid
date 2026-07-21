@@ -502,9 +502,9 @@ function buildDemoLineup(
   return {
     players: items
       .filter((item) => item.subjectKind === 'athlete')
-      .map((item) => ({
+      .map((item, index) => ({
         playerRegistrationId: item.registrationId,
-        role: 'starter',
+        role: index < 11 ? 'starter' : 'reserve',
         shirtNumber:
           typeof item.generatedImage.shirtNumber === 'number' ? item.generatedImage.shirtNumber : null,
       })),
