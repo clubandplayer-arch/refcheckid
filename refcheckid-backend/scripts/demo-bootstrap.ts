@@ -453,7 +453,7 @@ async function completeMatchWorkflow(
   }
 
   await completeMatch(apiBaseUrl, workflow.matchId, sessions.referee.accessToken);
-  await submitMatchReport(apiBaseUrl, workflow, sessions.referee.accessToken);
+  await prepareDraftMatchReport(apiBaseUrl, workflow, sessions.referee.accessToken);
 }
 
 async function submitAndLockMatchSheet(
@@ -563,7 +563,7 @@ async function completeMatch(
   }
 }
 
-async function submitMatchReport(
+async function prepareDraftMatchReport(
   apiBaseUrl: string,
   workflow: WorkflowPlan,
   accessToken: string,
@@ -585,25 +585,20 @@ async function submitMatchReport(
         )
       : existingReport;
 
-  const updated =
-    report.status === 'submitted'
-      ? report
-      : await patchJson<MatchReport>(
-          `${apiBaseUrl}/match-reports/${report.id}`,
-          { summary: workflow.reportSummary },
-          accessToken,
-        );
-  const submitted =
-    updated.status === 'submitted'
-      ? updated
-      : await postJson<MatchReport>(
-          `${apiBaseUrl}/match-reports/${updated.id}/submit`,
-          {},
-          accessToken,
-        );
+  if (report.status === 'submitted') {
+    throw new Error(
+      `Match report ${report.id} is already submitted and cannot be prepared for manual demo compilation.`,
+    );
+  }
 
-  if (submitted.status !== 'submitted') {
-    throw new Error(`Match report ${submitted.id} is not submitted: ${submitted.status}.`);
+  const updated = await patchJson<MatchReport>(
+    `${apiBaseUrl}/match-reports/${report.id}`,
+    { summary: workflow.reportSummary },
+    accessToken,
+  );
+
+  if (updated.status === 'submitted') {
+    throw new Error(`Match report ${updated.id} was submitted unexpectedly.`);
   }
 }
 
