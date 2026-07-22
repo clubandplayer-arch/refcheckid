@@ -32,24 +32,24 @@ export function createControllers(container: ApplicationContainer): Record<strin
       const federationId = requireUuid(String(body.federationId), 'federationId');
       const context = federationImportContext(request);
       if (!canAccessFederationImport(context, federationId)) {
-        return json(403, { error: 'FORBIDDEN', message: 'Federation imports require federation/admin scope.' });
+        return json(403, {
+          error: 'FORBIDDEN',
+          message: 'Federation imports require federation/admin scope.',
+        });
       }
       const sourceSystem = optionalString(body.sourceSystem, 'sourceSystem');
-      return json(
-        202,
-        {
-          importBatch: await container.services.federationImports.createBatch({
-            federationId,
-            importType: requireFederationImportType(body.importType),
-            originalFilename: requireString(body.originalFilename, 'originalFilename'),
-            mimeType: requireString(body.mimeType, 'mimeType'),
-            fileSizeBytes: Number(body.fileSizeBytes ?? 0),
-            sha256: requireString(body.sha256, 'sha256'),
-            ...(sourceSystem === null ? {} : { sourceSystem }),
-            context,
-          }),
-        },
-      );
+      return json(202, {
+        importBatch: await container.services.federationImports.createBatch({
+          federationId,
+          importType: requireFederationImportType(body.importType),
+          originalFilename: requireString(body.originalFilename, 'originalFilename'),
+          mimeType: requireString(body.mimeType, 'mimeType'),
+          fileSizeBytes: Number(body.fileSizeBytes ?? 0),
+          sha256: requireString(body.sha256, 'sha256'),
+          ...(sourceSystem === null ? {} : { sourceSystem }),
+          context,
+        }),
+      });
     },
     listFederationImports: async (request) => {
       const filter = {
@@ -65,23 +65,44 @@ export function createControllers(container: ApplicationContainer): Record<strin
       };
       const context = federationImportContext(request);
       if (!canAccessFederationImport(context, filter.federationId)) {
-        return json(403, { error: 'FORBIDDEN', message: 'Federation imports require federation/admin scope.' });
+        return json(403, {
+          error: 'FORBIDDEN',
+          message: 'Federation imports require federation/admin scope.',
+        });
       }
       return json(
         200,
         paginate(
-          await container.services.federationImports.listBatches(
-            context,
-            filter,
-          ),
+          await container.services.federationImports.listBatches(context, filter),
           request.query,
         ),
+      );
+    },
+    parseFederationImport: async (request) => {
+      const context = federationImportContext(request);
+      if (!canAccessFederationImport(context)) {
+        return json(403, {
+          error: 'FORBIDDEN',
+          message: 'Federation imports require federation/admin scope.',
+        });
+      }
+      const body = requireBodyObject(request.body);
+      return json(
+        200,
+        await container.services.federationImports.parseBatch({
+          batchId: requireUuid(request.params.id, 'id'),
+          csvContent: requireString(body.csvContent, 'csvContent'),
+          context,
+        }),
       );
     },
     getFederationImport: async (request) => {
       const context = federationImportContext(request);
       if (!canAccessFederationImport(context)) {
-        return json(403, { error: 'FORBIDDEN', message: 'Federation imports require federation/admin scope.' });
+        return json(403, {
+          error: 'FORBIDDEN',
+          message: 'Federation imports require federation/admin scope.',
+        });
       }
       const batch = await container.services.federationImports.getBatch(
         context,
@@ -91,24 +112,26 @@ export function createControllers(container: ApplicationContainer): Record<strin
         ? json(404, { error: 'FEDERATION_IMPORT_NOT_FOUND' })
         : json(200, batch);
     },
-    listFederationImportRows: async (request) =>
-      {
-        const context = federationImportContext(request);
-        if (!canAccessFederationImport(context)) {
-          return json(403, { error: 'FORBIDDEN', message: 'Federation imports require federation/admin scope.' });
-        }
-        return json(
-          200,
-          paginate(
-            await container.services.federationImports.listRows(
-              context,
-              requireUuid(request.params.id, 'id'),
-              {},
-            ),
-            request.query,
+    listFederationImportRows: async (request) => {
+      const context = federationImportContext(request);
+      if (!canAccessFederationImport(context)) {
+        return json(403, {
+          error: 'FORBIDDEN',
+          message: 'Federation imports require federation/admin scope.',
+        });
+      }
+      return json(
+        200,
+        paginate(
+          await container.services.federationImports.listRows(
+            context,
+            requireUuid(request.params.id, 'id'),
+            {},
           ),
-        );
-      },
+          request.query,
+        ),
+      );
+    },
     listClubs: async () => json(200, await container.repositories.clubs.list()),
     getClub: async (request) =>
       json(200, await container.repositories.clubs.findById(requireUuid(request.params.id, 'id'))),
@@ -138,7 +161,8 @@ export function createControllers(container: ApplicationContainer): Record<strin
         200,
         await container.repositories.registrations.findById(requireUuid(request.params.id, 'id')),
       ),
-    listStaffMembers: async () => json(200, await container.repositories.registrations.listStaffMembers()),
+    listStaffMembers: async () =>
+      json(200, await container.repositories.registrations.listStaffMembers()),
     listStaffRegistrations: async (request) =>
       json(
         200,
@@ -282,7 +306,10 @@ export function createControllers(container: ApplicationContainer): Record<strin
             ? undefined
             : requireUuid(request.query.federationId, 'federationId');
       if (context.actorRole === 'manager' || context.actorRole === 'referee') {
-        return json(403, { error: 'FORBIDDEN', message: 'Photo approvals require federation scope.' });
+        return json(403, {
+          error: 'FORBIDDEN',
+          message: 'Photo approvals require federation scope.',
+        });
       }
       const approvals =
         federationId === undefined
@@ -295,40 +322,40 @@ export function createControllers(container: ApplicationContainer): Record<strin
         200,
         paginate(
           enrichedApprovals
-          .filter((approval) =>
-            request.query.status === undefined ? true : approval.status === request.query.status,
-          )
-          .filter((approval) =>
-            request.query.seasonId === undefined
-              ? true
-              : approval.seasonId === request.query.seasonId,
-          )
-          .filter((approval) =>
-            request.query.registrationId === undefined
-              ? true
-              : approval.registrationId === request.query.registrationId,
-          )
-          .filter((approval) =>
-            request.query.requestedFrom === undefined
-              ? true
-              : approval.requestedAt >= request.query.requestedFrom,
-          )
-          .filter((approval) =>
-            request.query.requestedTo === undefined
-              ? true
-              : approval.requestedAt <= request.query.requestedTo,
-          )
-          .filter((approval) =>
-            request.query.clubId === undefined ? true : approval.clubId === request.query.clubId,
-          )
-          .filter((approval) =>
-            request.query.sla === undefined
-              ? true
-              : request.query.sla === 'overdue'
-                ? approval.slaStatus === 'overdue'
-                : approval.slaStatus === request.query.sla,
-          )
-          .sort((left, right) => left.requestedAt.localeCompare(right.requestedAt)),
+            .filter((approval) =>
+              request.query.status === undefined ? true : approval.status === request.query.status,
+            )
+            .filter((approval) =>
+              request.query.seasonId === undefined
+                ? true
+                : approval.seasonId === request.query.seasonId,
+            )
+            .filter((approval) =>
+              request.query.registrationId === undefined
+                ? true
+                : approval.registrationId === request.query.registrationId,
+            )
+            .filter((approval) =>
+              request.query.requestedFrom === undefined
+                ? true
+                : approval.requestedAt >= request.query.requestedFrom,
+            )
+            .filter((approval) =>
+              request.query.requestedTo === undefined
+                ? true
+                : approval.requestedAt <= request.query.requestedTo,
+            )
+            .filter((approval) =>
+              request.query.clubId === undefined ? true : approval.clubId === request.query.clubId,
+            )
+            .filter((approval) =>
+              request.query.sla === undefined
+                ? true
+                : request.query.sla === 'overdue'
+                  ? approval.slaStatus === 'overdue'
+                  : approval.slaStatus === request.query.sla,
+            )
+            .sort((left, right) => left.requestedAt.localeCompare(right.requestedAt)),
           request.query,
         ),
       );
@@ -415,7 +442,8 @@ export function createControllers(container: ApplicationContainer): Record<strin
                 ? null
                 : photoVersionContentUrl(snapshot.photoVersionId),
             photoStatus: snapshot.photoStatus,
-            photoEtag: snapshot.photoEtag ?? `snapshot:${snapshot.registrationId}:${snapshot.photoStatus}`,
+            photoEtag:
+              snapshot.photoEtag ?? `snapshot:${snapshot.registrationId}:${snapshot.photoStatus}`,
             manifestSource: 'frozen_snapshot',
             isFrozenSnapshot: true,
             document: {
@@ -697,31 +725,31 @@ function parseMatchSheetLineup(body: unknown) {
   } = {};
   if (Array.isArray(parsed.players)) {
     lineup.players = parsed.players.map((player) => {
-        const row = requireBodyObject(player);
-        return {
-          playerRegistrationId: requireUuid(
-            row.playerRegistrationId as string | undefined,
-            'playerRegistrationId',
-          ),
-          shirtNumber:
-            row.shirtNumber === null || row.shirtNumber === undefined
-              ? null
-              : Number(row.shirtNumber),
-          role: requireString(row.role, 'role'),
-        };
-      });
+      const row = requireBodyObject(player);
+      return {
+        playerRegistrationId: requireUuid(
+          row.playerRegistrationId as string | undefined,
+          'playerRegistrationId',
+        ),
+        shirtNumber:
+          row.shirtNumber === null || row.shirtNumber === undefined
+            ? null
+            : Number(row.shirtNumber),
+        role: requireString(row.role, 'role'),
+      };
+    });
   }
   if (Array.isArray(parsed.staff)) {
     lineup.staff = parsed.staff.map((staffMember) => {
-        const row = requireBodyObject(staffMember);
-        return {
-          staffRegistrationId: requireUuid(
-            row.staffRegistrationId as string | undefined,
-            'staffRegistrationId',
-          ),
-          role: requireString(row.role, 'role'),
-        };
-      });
+      const row = requireBodyObject(staffMember);
+      return {
+        staffRegistrationId: requireUuid(
+          row.staffRegistrationId as string | undefined,
+          'staffRegistrationId',
+        ),
+        role: requireString(row.role, 'role'),
+      };
+    });
   }
   return lineup;
 }
@@ -789,7 +817,9 @@ async function findLatestPendingPhotoApproval(
   const approvals = await container.repositories.photoApprovals.listPendingByRegistration(
     registrationId as never,
   );
-  return [...approvals].sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null;
+  return (
+    [...approvals].sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null
+  );
 }
 
 async function findRegistrationClubId(
@@ -806,10 +836,7 @@ async function findRegistrationClubId(
   return staff?.clubId;
 }
 
-async function enrichPhotoApproval(
-  container: ApplicationContainer,
-  approval: PhotoApproval,
-) {
+async function enrichPhotoApproval(container: ApplicationContainer, approval: PhotoApproval) {
   const registration =
     approval.registrationId === null
       ? null
@@ -840,7 +867,9 @@ async function enrichPhotoApproval(
       ? null
       : await container.repositories.globalOfficialPhotos.findById(version.globalOfficialPhotoId);
   const currentVersionId =
-    global?.currentVersionId === approval.photoVersionId ? null : (global?.currentVersionId ?? null);
+    global?.currentVersionId === approval.photoVersionId
+      ? null
+      : (global?.currentVersionId ?? null);
   const now = new Date().toISOString();
   const slaStatus =
     approval.status !== 'pending'
@@ -864,7 +893,9 @@ async function enrichPhotoApproval(
     currentVersionId,
     proposedVersionId: approval.photoVersionId,
     currentPhotoUrl:
-      currentVersionId === null ? null : await createApprovalPreviewUrl(container, currentVersionId),
+      currentVersionId === null
+        ? null
+        : await createApprovalPreviewUrl(container, currentVersionId),
     proposedPhotoUrl: await createApprovalPreviewUrl(container, approval.photoVersionId),
     photoEtag: `photo:${approval.photoVersionId}:${approval.updatedAt}`,
     slaStatus,
@@ -881,10 +912,12 @@ function photoVersionContentUrl(versionId: string): string {
   return `/api/v1/photos/versions/${versionId}/content?rendition=normalized`;
 }
 
-function withBrowserPhotoContentUrl<T extends {
-  readonly signedUrl?: { readonly url?: string };
-  readonly version?: { readonly id?: string };
-}>(read: T): T {
+function withBrowserPhotoContentUrl<
+  T extends {
+    readonly signedUrl?: { readonly url?: string };
+    readonly version?: { readonly id?: string };
+  },
+>(read: T): T {
   if (!read.version?.id) return read;
   return {
     ...read,

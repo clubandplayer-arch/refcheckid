@@ -22,17 +22,17 @@ Regola di lavoro:
 
 ## Sequenza PR approvata
 
-| Ordine | PR | Tema | Perché | Stato | Check prima della prossima PR |
-| ------ | -- | ---- | ------ | ----- | ----------------------------- |
-| 1 | PR 1 | Template e specifica finale | Evita di scrivere codice su formato non confermato | Eseguita | Sì: conferma template e colonne da parte prodotto/Federazione |
-| 2 | PR 2 | Backend import batch/staging | Crea base sicura | In verifica | Sì: verifica che upload/staging non scriva nei dati finali |
-| 3 | PR 3 | Parser + riconoscimento + mapping | Risolve file federali diversi | Da fare | Sì: verifica riconoscimento file e mapping colonne con esempi realistici |
-| 4 | PR 4 | Validazione + preview + report | Evita import ciechi | Da fare | Sì: verifica preview, warning, errori bloccanti e report |
-| 5 | PR 5 | Commit società/tesserati/staff | Primo valore reale per dirigente | Da fare | Sì: verifica import reale, reimport idempotente e cambio società |
-| 6 | PR 6 | Commit arbitri/calendario/designazioni | Primo valore reale per arbitro | Da fare | Sì: verifica calendario, designazioni e visibilità arbitro |
-| 7 | PR 7 | UI Federazione import | Rende usabile il sistema | Da fare | Sì: verifica guidata end-to-end da UI Federazione |
-| 8 | PR 8 | Collegamento flussi reali + rimozione demo/fallback | Chiude il cerchio | Da fare | Sì: verifica ciclo completo Federazione → Dirigente → Arbitro → Federazione |
-| 9 | PR 9 | XLSX + miglioramenti | Dopo CSV stabile | Da fare | Sì: verifica import XLSX sugli stessi scenari CSV |
+| Ordine | PR   | Tema                                                | Perché                                             | Stato       | Check prima della prossima PR                                               |
+| ------ | ---- | --------------------------------------------------- | -------------------------------------------------- | ----------- | --------------------------------------------------------------------------- |
+| 1      | PR 1 | Template e specifica finale                         | Evita di scrivere codice su formato non confermato | Eseguita    | Sì: conferma template e colonne da parte prodotto/Federazione               |
+| 2      | PR 2 | Backend import batch/staging                        | Crea base sicura                                   | Eseguita    | Sì: verifica che upload/staging non scriva nei dati finali                  |
+| 3      | PR 3 | Parser + riconoscimento + mapping                   | Risolve file federali diversi                      | In verifica | Sì: verifica riconoscimento file e mapping colonne con esempi realistici    |
+| 4      | PR 4 | Validazione + preview + report                      | Evita import ciechi                                | Da fare     | Sì: verifica preview, warning, errori bloccanti e report                    |
+| 5      | PR 5 | Commit società/tesserati/staff                      | Primo valore reale per dirigente                   | Da fare     | Sì: verifica import reale, reimport idempotente e cambio società            |
+| 6      | PR 6 | Commit arbitri/calendario/designazioni              | Primo valore reale per arbitro                     | Da fare     | Sì: verifica calendario, designazioni e visibilità arbitro                  |
+| 7      | PR 7 | UI Federazione import                               | Rende usabile il sistema                           | Da fare     | Sì: verifica guidata end-to-end da UI Federazione                           |
+| 8      | PR 8 | Collegamento flussi reali + rimozione demo/fallback | Chiude il cerchio                                  | Da fare     | Sì: verifica ciclo completo Federazione → Dirigente → Arbitro → Federazione |
+| 9      | PR 9 | XLSX + miglioramenti                                | Dopo CSV stabile                                   | Da fare     | Sì: verifica import XLSX sugli stessi scenari CSV                           |
 
 ## Dettaglio PR 1 — Template e specifica finale
 
@@ -293,14 +293,15 @@ Ripetere gli scenari CSV principali con file XLSX:
 
 ## Registro avanzamento
 
-| Data | PR | Stato | Note | Check richiesto | Esito check |
-| ---- | -- | ----- | ---- | --------------- | ----------- |
-| 2026-07-22 | Piano iniziale | Eseguita | Creato tracker operativo con sequenza PR approvata. | No | n/d |
-| 2026-07-22 | PR 1 | In verifica | Aggiunti specifica finale e template CSV per società, tesserati, staff, arbitri, calendario e designazioni. | Sì | In attesa conferma template |
-| 2026-07-22 | PR 1 UI check | In verifica | Aggiunta area Federazione `Import dati` per scaricare e verificare i template PR 1 prima della PR 2. | Sì | In attesa conferma template da UI |
-| 2026-07-22 | PR 1 UI preview | In verifica | Aggiunta anteprima tabellare leggibile dei template perché il CSV scaricato può essere poco comprensibile per utenti non tecnici. | Sì | In attesa conferma anteprima/template |
-| 2026-07-22 | PR 1 large import UX | Eseguita | Chiarito che la UI PR 1 mostra solo esempi e che gli import reali con migliaia di righe dovranno usare staging, riepiloghi, filtri, paginazione e download errori/warning. | Sì | Confermata: si procede a PR 2 |
-| 2026-07-22 | PR 2 | In verifica | Implementato backend import batch/staging con migrazione, dominio, repository, servizio, endpoint e test. | Sì | In attesa verifica staging senza commit dati finali |
+| Data       | PR                   | Stato       | Note                                                                                                                                                                       | Check richiesto | Esito check                                                  |
+| ---------- | -------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------ |
+| 2026-07-22 | Piano iniziale       | Eseguita    | Creato tracker operativo con sequenza PR approvata.                                                                                                                        | No              | n/d                                                          |
+| 2026-07-22 | PR 1                 | In verifica | Aggiunti specifica finale e template CSV per società, tesserati, staff, arbitri, calendario e designazioni.                                                                | Sì              | In attesa conferma template                                  |
+| 2026-07-22 | PR 1 UI check        | In verifica | Aggiunta area Federazione `Import dati` per scaricare e verificare i template PR 1 prima della PR 2.                                                                       | Sì              | In attesa conferma template da UI                            |
+| 2026-07-22 | PR 1 UI preview      | In verifica | Aggiunta anteprima tabellare leggibile dei template perché il CSV scaricato può essere poco comprensibile per utenti non tecnici.                                          | Sì              | In attesa conferma anteprima/template                        |
+| 2026-07-22 | PR 1 large import UX | Eseguita    | Chiarito che la UI PR 1 mostra solo esempi e che gli import reali con migliaia di righe dovranno usare staging, riepiloghi, filtri, paginazione e download errori/warning. | Sì              | Confermata: si procede a PR 2                                |
+| 2026-07-22 | PR 2                 | Eseguita    | Implementato backend import batch/staging con migrazione, dominio, repository, servizio, endpoint e test.                                                                  | Sì              | Confermata: si procede a PR 3                                |
+| 2026-07-22 | PR 3                 | In verifica | Implementato parser CSV, riconoscimento tipo file, mapping automatico colonne e salvataggio righe normalizzate in staging.                                                 | Sì              | In attesa verifica riconoscimento/mapping con CSV realistici |
 
 ## Decisione finale
 

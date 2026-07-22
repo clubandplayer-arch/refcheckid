@@ -41,7 +41,7 @@ const stagedImportBody = {
   sourceSystem: 'federation-export',
 };
 
-describe('PR2 federation import batch/staging', () => {
+describe('federation import batch/staging parser flow', () => {
   it('stages an import batch without writing final domain rows', async () => {
     const container = createApplicationContainer();
     const router = createRestApiRouter(container);
@@ -93,7 +93,12 @@ describe('PR2 federation import batch/staging', () => {
       router.handle({ method: 'GET', path: '/api/v1/federation-imports', headers, query: {} }),
     ).resolves.toMatchObject({ status: 200, body: [expect.objectContaining({ id })] });
     await expect(
-      router.handle({ method: 'GET', path: `/api/v1/federation-imports/${id}`, headers, query: {} }),
+      router.handle({
+        method: 'GET',
+        path: `/api/v1/federation-imports/${id}`,
+        headers,
+        query: {},
+      }),
     ).resolves.toMatchObject({ status: 200, body: { id, status: 'uploaded' } });
     await expect(
       router.handle({
@@ -103,6 +108,100 @@ describe('PR2 federation import batch/staging', () => {
         query: {},
       }),
     ).resolves.toMatchObject({ status: 200, body: [] });
+  });
+
+  it('parses CSV content, detects import type and stages normalized rows without final commits', async () => {
+    const container = createApplicationContainer();
+    const router = createRestApiRouter(container);
+    const headers = await federationHeaders();
+    const playersBefore = await container.repositories.players.list();
+    const created = await router.handle({
+      method: 'POST',
+      path: '/api/v1/federation-imports',
+      headers,
+      query: {},
+      body: {
+        ...stagedImportBody,
+        importType: 'players_general',
+        originalFilename: 'tesserati_generale.csv',
+      },
+    });
+    const id = (created.body as { importBatch: { id: string } }).importBatch.id;
+
+    const parsed = await router.handle({
+      method: 'POST',
+      path: `/api/v1/federation-imports/${id}/parse`,
+      headers,
+      query: {},
+      body: {
+        csvContent:
+          'codice_tessera,nome,cognome,data_nascita,stato_tesserato\nTESS001,Marco,Rossi,2006-04-12,active\nTESS002,Luca,Bianchi,2006-09-03,active',
+      },
+    });
+
+    expect(parsed).toMatchObject({
+      status: 200,
+      body: {
+        detectedType: 'players_general',
+        confidence: 1,
+        mapping: {
+          codice_tessera: 'codice_tessera',
+          nome: 'nome',
+          cognome: 'cognome',
+          data_nascita: 'data_nascita',
+          stato_tesserato: 'stato_tesserato',
+        },
+        importBatch: { id, status: 'mapped', totalRows: 2, detectedType: 'players_general' },
+        rows: [
+          expect.objectContaining({
+            rowNumber: 2,
+            status: 'pending',
+            normalizedData: expect.objectContaining({ codice_tessera: 'TESS001' }),
+          }),
+          expect.objectContaining({ rowNumber: 3 }),
+        ],
+      },
+    });
+    await expect(container.repositories.players.list()).resolves.toHaveLength(playersBefore.length);
+  });
+
+  it('detects common header synonyms and reports declared/detected mismatch warnings', async () => {
+    const router = createRestApiRouter(createApplicationContainer());
+    const headers = await federationHeaders();
+    const created = await router.handle({
+      method: 'POST',
+      path: '/api/v1/federation-imports',
+      headers,
+      query: {},
+      body: { ...stagedImportBody, importType: 'clubs', originalFilename: 'ambiguous.csv' },
+    });
+    const id = (created.body as { importBatch: { id: string } }).importBatch.id;
+
+    await expect(
+      router.handle({
+        method: 'POST',
+        path: `/api/v1/federation-imports/${id}/parse`,
+        headers,
+        query: {},
+        body: {
+          csvContent:
+            'tessera,first_name,last_name,birth_date,status\nTESS003,Anna,Verdi,2007-01-01,active',
+        },
+      }),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: {
+        detectedType: 'players_general',
+        mapping: {
+          codice_tessera: 'tessera',
+          nome: 'first_name',
+          cognome: 'last_name',
+          data_nascita: 'birth_date',
+          stato_tesserato: 'status',
+        },
+        warnings: [expect.stringContaining('differs from declared type clubs')],
+      },
+    });
   });
 
   it('forbids manager import creation', async () => {
@@ -126,6 +225,7 @@ describe('PR2 federation import batch/staging', () => {
       get: { 'x-implementation-status': 'implemented' },
       post: { 'x-implementation-status': 'implemented' },
     });
+    expect(document.paths['/api/v1/federation-imports/{id}/parse']).toBeDefined();
     expect(document.paths['/api/v1/federation-imports/{id}/rows']).toBeDefined();
   });
 });

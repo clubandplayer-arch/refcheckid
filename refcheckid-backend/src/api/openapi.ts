@@ -152,6 +152,14 @@ export function createOpenApiDocument(): OpenApiDocument {
         responses: { '200': { description: 'Federation import staging batch detail.' } },
       },
     },
+    '/api/v1/federation-imports/{id}/parse': {
+      post: {
+        tags: ['FederationImport'],
+        operationId: 'parseFederationImport',
+        'x-implementation-status': 'implemented',
+        responses: { '200': { description: 'Federation import parsed and mapped in staging.' } },
+      },
+    },
     '/api/v1/federation-imports/{id}/rows': {
       get: {
         tags: ['FederationImport'],
