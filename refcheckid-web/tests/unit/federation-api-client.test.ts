@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchFederationDashboard,
   fetchFederationHistory,
+  fetchPhotoRequests,
   fetchFederationMatches,
   fetchFederationReports,
 } from "../../src/lib/federation-api-client";
@@ -184,6 +185,40 @@ describe("regression: federation report reception", () => {
     expect(dashboard.notifications).toContain("1 richieste foto in attesa");
     expect(dashboard.notifications).not.toContain("2 richieste foto");
     expect(request).toHaveBeenCalledWith("/photo-approvals");
+  });
+
+  it("rewrites local file photo URLs to browser-safe version content URLs", async () => {
+    vi.mocked(request).mockImplementation(async (path: string) => {
+      if (path === "/photo-approvals") {
+        return [
+          {
+            id: "approval-local-file",
+            photoVersionId: "version-new",
+            proposedVersionId: "version-new",
+            currentVersionId: "version-old",
+            federationId: "fed-1",
+            seasonId: "2026",
+            registrationId: "registration-1",
+            requestedAt: "2026-07-14T12:00:00.000Z",
+            status: "pending",
+            decisionReasonCode: null,
+            decisionNotes: null,
+            currentPhotoUrl: "file:///workspace/refcheckid/photo-old.png",
+            proposedPhotoUrl: "file:///workspace/refcheckid/photo-new.png",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const [photoRequest] = await fetchPhotoRequests();
+
+    expect(photoRequest).toMatchObject({
+      currentPhotoUrl:
+        "/api/v1/photos/versions/version-old/content?rendition=normalized",
+      proposedPhotoUrl:
+        "/api/v1/photos/versions/version-new/content?rendition=normalized",
+    });
   });
 
   it("keeps in-compilation reports visible as pending calendar work", async () => {

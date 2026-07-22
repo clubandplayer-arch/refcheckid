@@ -43,7 +43,10 @@ export const authorizationMiddleware: ApiMiddleware = (next) => (request) => {
     request.path === '/api/v1/openapi.json' ||
     request.path === '/api/v1/swagger' ||
     request.path === '/api/v1/auth/login' ||
-    request.path === '/api/v1/auth/refresh') {
+    request.path === '/api/v1/auth/refresh' ||
+    (request.method === 'GET' &&
+      request.path.startsWith('/api/v1/photos/versions/') &&
+      request.path.endsWith('/content'))) {
     return next(request);
   }
 

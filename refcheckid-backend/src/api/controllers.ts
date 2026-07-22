@@ -762,15 +762,7 @@ async function enrichPhotoApproval(
 async function createApprovalPreviewUrl(container: ApplicationContainer, versionId: string) {
   const version = await container.repositories.photoVersions.findById(versionId as never);
   if (version === null) return null;
-  const objectKey = version.storageNormalizedKey ?? version.storageOriginalKey;
-  const signed = await container.objectStores.photos.createSignedReadUrl({
-    objectKey,
-    rendition: 'normalized',
-    ttlSeconds: 900,
-    disposition: 'inline',
-    correlationId: crypto.randomUUID(),
-  });
-  return signed.url;
+  return `/api/v1/photos/versions/${versionId}/content?rendition=normalized`;
 }
 
 function requireFederationRejectReasonCode(value: unknown) {

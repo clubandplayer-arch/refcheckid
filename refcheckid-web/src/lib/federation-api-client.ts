@@ -462,17 +462,15 @@ function toPhotoRequest(approval: ApiPhotoApproval): PhotoRequest {
     clubName:
       approval.clubName ?? `Federazione ${approval.federationId.slice(0, 8)}`,
     currentPhotoUrl:
-      approval.currentPhotoUrl ??
-      (approval.currentVersionId
-        ? `/api/v1/photos/versions/${approval.currentVersionId}/content`
-        : null),
+      normalizeBrowserPhotoUrl(approval.currentPhotoUrl) ??
+      photoVersionContentUrl(approval.currentVersionId),
     playerName:
       approval.subjectName ??
       approval.registrationId ??
       approval.photoVersionId,
     proposedPhotoUrl:
-      approval.proposedPhotoUrl ??
-      `/api/v1/photos/versions/${approval.proposedVersionId ?? approval.photoVersionId}/content`,
+      normalizeBrowserPhotoUrl(approval.proposedPhotoUrl) ??
+      photoVersionContentUrl(approval.proposedVersionId ?? approval.photoVersionId),
     requestedAt: approval.requestedAt,
     status: approval.status,
     reasonCode: approval.decisionReasonCode,
@@ -480,6 +478,17 @@ function toPhotoRequest(approval: ApiPhotoApproval): PhotoRequest {
     slaStatus: approval.slaStatus ?? null,
     photoEtag: approval.photoEtag ?? null,
   };
+}
+
+function photoVersionContentUrl(versionId: string | null | undefined): string | null {
+  if (!versionId) return null;
+  return `/api/v1/photos/versions/${encodeURIComponent(versionId)}/content?rendition=normalized`;
+}
+
+function normalizeBrowserPhotoUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value.startsWith("file://")) return null;
+  return value;
 }
 
 function formatPhotoAuditEvent(eventType: string): string {
