@@ -111,10 +111,8 @@ export async function readBackendPhotoState(
       normalizeBrowserPhotoUrl(signed.proposedPhotoUrl) ??
       photoVersionContentUrl(signed.proposedVersionId);
     const currentPhotoUrl =
-      responseStatus === "pending" && proposedPhotoUrl !== null
-        ? null
-        : normalizeBrowserPhotoUrl(signed.signedUrl?.url) ??
-          photoVersionContentUrl(signed.version?.id);
+      normalizeBrowserPhotoUrl(signed.signedUrl?.url) ??
+      photoVersionContentUrl(signed.version?.id);
     const currentStatus =
       responseStatus === "pending" || proposedPhotoUrl !== null
         ? "pending"
