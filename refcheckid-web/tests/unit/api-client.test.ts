@@ -215,6 +215,54 @@ describe("unit: frontend API client", () => {
     );
   });
 
+  it("shows pending manager uploads as proposed photos until federation approval", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/registrations/registration-home/season-photo")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            approvalId: "approval-home",
+            proposedPhotoUrl:
+              "/api/v1/photos/versions/version-pending/content?rendition=normalized",
+            proposedVersionId: "version-pending",
+            status: "pending",
+          }),
+        };
+      }
+      const body = url.includes("/players")
+        ? [{ id: "player-home", firstName: "Home", lastName: "Player" }]
+        : url.includes("/player-registrations")
+          ? [
+              {
+                id: "registration-home",
+                playerId: "player-home",
+                clubId: "70000000-0000-4000-8000-000000000003",
+                season: "2026",
+                status: "active",
+              },
+            ]
+          : [];
+      return { ok: true, status: 200, json: async () => body };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchPlayers()).resolves.toMatchObject([
+      {
+        id: "player-home",
+        photoUrl: null,
+        photo: {
+          approvalId: "approval-home",
+          currentPhotoUrl: null,
+          proposedPhotoUrl:
+            "/api/v1/photos/versions/version-pending/content?rendition=normalized",
+          status: "pending",
+        },
+      },
+    ]);
+  });
+
   it("does not expose local file signed photo URLs to browser image rendering", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

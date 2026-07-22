@@ -14,7 +14,11 @@ export interface ManagerPhotoState {
 }
 
 interface SignedReadResponse {
+  approvalId?: string | null;
+  proposedPhotoUrl?: string | null;
+  proposedVersionId?: string | null;
   signedUrl?: { url?: string };
+  status?: OfficialPhotoStatus | string | null;
   version?: { id?: string; status?: string };
 }
 interface UploadIntentResponse {
@@ -102,19 +106,28 @@ export async function readBackendPhotoState(
           `/registrations/${encodeURIComponent(registrationId)}/season-photo?rendition=normalized&ttlSeconds=300`,
         )
       : await readSubjectPhoto(subjectKind, subjectId);
+    const responseStatus = normalizeOfficialPhotoStatus(signed.status);
+    const proposedPhotoUrl =
+      normalizeBrowserPhotoUrl(signed.proposedPhotoUrl) ??
+      photoVersionContentUrl(signed.proposedVersionId);
     const currentPhotoUrl =
-      normalizeBrowserPhotoUrl(signed.signedUrl?.url) ??
-      photoVersionContentUrl(signed.version?.id);
+      responseStatus === "pending" && proposedPhotoUrl !== null
+        ? null
+        : normalizeBrowserPhotoUrl(signed.signedUrl?.url) ??
+          photoVersionContentUrl(signed.version?.id);
     const currentStatus =
-      signed.version?.status === "suspended"
-        ? "suspended"
-        : signed.version?.status === "active" || currentPhotoUrl
-          ? "active"
-          : "missing";
+      responseStatus === "pending" || proposedPhotoUrl !== null
+        ? "pending"
+        : responseStatus ??
+          (signed.version?.status === "suspended"
+            ? "suspended"
+            : signed.version?.status === "active" || currentPhotoUrl
+              ? "active"
+              : "missing");
     return {
-      approvalId: null,
+      approvalId: signed.approvalId ?? null,
       currentPhotoUrl,
-      proposedPhotoUrl: null,
+      proposedPhotoUrl,
       status: currentStatus,
     };
   } catch {
@@ -223,7 +236,7 @@ async function readSubjectPhoto(
   );
 }
 
-function photoVersionContentUrl(versionId: string | undefined): string | null {
+function photoVersionContentUrl(versionId: string | null | undefined): string | null {
   if (!versionId) return null;
   return `/api/v1/photos/versions/${encodeURIComponent(versionId)}/content?rendition=normalized`;
 }
@@ -232,6 +245,16 @@ function normalizeBrowserPhotoUrl(value: unknown): string | null {
   if (typeof value !== "string" || value.length === 0) return null;
   if (value.startsWith("file://")) return null;
   return value;
+}
+
+function normalizeOfficialPhotoStatus(value: unknown): OfficialPhotoStatus | null {
+  return value === "missing" ||
+    value === "pending" ||
+    value === "active" ||
+    value === "rejected" ||
+    value === "suspended"
+    ? value
+    : null;
 }
 
 function missingPhotoState(currentPhotoUrl: string | null): ManagerPhotoState {

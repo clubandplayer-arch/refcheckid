@@ -146,6 +146,17 @@ export class PhotoApprovalRepository extends DrizzleRepository<PhotoApproval> {
     );
   }
 
+  listPendingByRegistration(registrationId: UUID): Promise<readonly PhotoApproval[]> {
+    return Promise.resolve(
+      this.values().filter(
+        (approval) =>
+          approval.registrationId === registrationId &&
+          approval.status === 'pending' &&
+          approval.deletedAt === null,
+      ),
+    );
+  }
+
   listByFederation(federationId: UUID): Promise<readonly PhotoApproval[]> {
     return Promise.resolve(
       this.values().filter(

@@ -614,21 +614,11 @@ function PlayersStep({
               }`}
               key={player.id}
             >
-              <div className="flex items-start gap-3 md:block">
-                {player.photoUrl ? (
-                  <Image
-                    alt={`Foto ${player.lastName} ${player.firstName}`}
-                    className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
-                    height={96}
-                    src={player.photoUrl}
-                    width={80}
-                  />
-                ) : (
-                  <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
-                    Foto
-                  </div>
-                )}
-              </div>
+              <SubjectPhotoThumbnail
+                alt={`Foto ${player.lastName} ${player.firstName}`}
+                photo={player.photo}
+                photoUrl={player.photoUrl}
+              />
               <div className="min-w-0 space-y-1">
                 <p className="break-words text-base font-semibold leading-tight text-slate-900">
                   {player.lastName} {player.firstName}
@@ -679,6 +669,43 @@ function PlayersStep({
         })}
       </div>
     </Card>
+  );
+}
+
+function SubjectPhotoThumbnail({
+  alt,
+  photo,
+  photoUrl,
+}: Readonly<{
+  alt: string;
+  photo: PlayerListItem["photo"] | StaffListItem["photo"];
+  photoUrl: string | null;
+}>) {
+  const displayPhotoUrl = photo?.proposedPhotoUrl ?? photo?.currentPhotoUrl ?? photoUrl;
+  const isPending = photo?.status === "pending" && photo?.proposedPhotoUrl !== null;
+  return (
+    <div className="flex items-start gap-3 md:block">
+      {displayPhotoUrl ? (
+        <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-lg border bg-white shadow-sm">
+          <Image
+            alt={alt}
+            className="h-full w-full object-cover"
+            height={96}
+            src={displayPhotoUrl}
+            width={80}
+          />
+          {isPending ? (
+            <span className="absolute inset-x-1 bottom-1 rounded bg-red-600/95 px-1 py-0.5 text-center text-[10px] font-bold uppercase leading-none text-white shadow">
+              Da approvare
+            </span>
+          ) : null}
+        </div>
+      ) : (
+        <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
+          Foto
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1206,21 +1233,11 @@ function StaffStep({
               className="grid gap-3 p-4 md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px] md:items-start"
               key={staffMember.id}
             >
-              <div className="flex items-start gap-3 md:block">
-                {staffMember.photoUrl ? (
-                  <Image
-                    alt={`Foto ${staffMember.fullName}`}
-                    className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
-                    height={96}
-                    src={staffMember.photoUrl}
-                    width={80}
-                  />
-                ) : (
-                  <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
-                    Foto
-                  </div>
-                )}
-              </div>
+              <SubjectPhotoThumbnail
+                alt={`Foto ${staffMember.fullName}`}
+                photo={staffMember.photo}
+                photoUrl={staffMember.photoUrl}
+              />
               <div className="min-w-0 space-y-1">
                 <p className="break-words text-base font-semibold leading-tight text-slate-900">
                   {staffMember.fullName}

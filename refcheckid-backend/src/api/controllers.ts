@@ -101,10 +101,25 @@ export function createControllers(container: ApplicationContainer): Record<strin
       return json(200, withBrowserPhotoContentUrl(read));
     },
     getRegistrationSeasonPhoto: async (request) => {
+      const registrationId = requireUuid(request.params.id, 'id');
       const photo = (await container.repositories.seasonRegistrationPhotos.list()).find(
-        (row) => row.registrationId === requireUuid(request.params.id, 'id'),
+        (row) => row.registrationId === registrationId,
       );
-      if (!photo) return json(404, { error: 'PHOTO_NOT_FOUND' });
+      const pendingApproval = await findLatestPendingPhotoApproval(container, registrationId);
+      const pendingPhoto =
+        pendingApproval === null
+          ? {}
+          : {
+              approvalId: pendingApproval.id,
+              proposedPhotoUrl: photoVersionContentUrl(pendingApproval.photoVersionId),
+              proposedVersionId: pendingApproval.photoVersionId,
+              status: 'pending',
+            };
+      if (!photo) {
+        return pendingApproval === null
+          ? json(404, { error: 'PHOTO_NOT_FOUND' })
+          : json(200, pendingPhoto);
+      }
       const read = await container.services.photos.createSignedReadUrl(
         photo.effectiveVersionId,
         photoContext(request, {
@@ -116,7 +131,11 @@ export function createControllers(container: ApplicationContainer): Record<strin
           ttlSeconds: Number(request.query.ttlSeconds ?? 300),
         },
       );
-      return json(200, withBrowserPhotoContentUrl(read));
+      return json(200, {
+        ...withBrowserPhotoContentUrl(read),
+        status: pendingApproval === null ? photo.status : 'pending',
+        ...pendingPhoto,
+      });
     },
     createPhotoUploadIntent: async (request) => {
       const body = requireBodyObject(request.body);
@@ -673,6 +692,16 @@ function photoContext(
   if (registrationClubId !== null) context.registrationClubId = registrationClubId;
   if (matchId !== null) context.matchId = matchId;
   return context as unknown as import('../services/photo-service.js').PhotoAccessContext;
+}
+
+async function findLatestPendingPhotoApproval(
+  container: ApplicationContainer,
+  registrationId: string,
+): Promise<PhotoApproval | null> {
+  const approvals = await container.repositories.photoApprovals.listPendingByRegistration(
+    registrationId as never,
+  );
+  return [...approvals].sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null;
 }
 
 async function findRegistrationClubId(
