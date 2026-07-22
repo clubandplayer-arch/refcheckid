@@ -30,6 +30,7 @@ import type {
 
 const sections = [
   "Cruscotto",
+  "Import dati",
   "Calendario",
   "Referti",
   "Foto",
@@ -43,6 +44,96 @@ const reportStatuses: readonly ("all" | FederationReportStatus)[] = [
   "submitted",
   "reviewed",
 ];
+const importTemplates = [
+  {
+    check:
+      "Confermare che codice società, stagione, categoria/campionato/girone e contatti siano campi realistici.",
+    description: "Crea o aggiorna società/squadre gestite dalla Federazione.",
+    fileName: "societa.csv",
+    requiredColumns: ["codice_societa", "nome_societa", "stato", "stagione"],
+    title: "Società / squadre",
+  },
+  {
+    check:
+      "Confermare che codice tessera e data nascita siano sempre disponibili nell'export federale.",
+    description: "Crea o aggiorna l'anagrafica generale dei tesserati.",
+    fileName: "tesserati_generale.csv",
+    requiredColumns: [
+      "codice_tessera",
+      "nome",
+      "cognome",
+      "data_nascita",
+      "stato_tesserato",
+    ],
+    title: "Tesserati generale",
+  },
+  {
+    check:
+      "Confermare se il file sarà multi-società o se la società verrà scelta prima dell'upload.",
+    description: "Associa tesserati a società e stagione sportiva.",
+    fileName: "tesserati_societa.csv",
+    requiredColumns: [
+      "codice_societa",
+      "codice_tessera",
+      "stagione",
+      "stato_posizione",
+    ],
+    title: "Tesserati per società",
+  },
+  {
+    check:
+      "Confermare ruoli staff ammessi e se codice staff è disponibile nei dati federali.",
+    description: "Crea o aggiorna staff e posizione presso società/stagione.",
+    fileName: "staff.csv",
+    requiredColumns: [
+      "codice_societa",
+      "codice_staff",
+      "nome",
+      "cognome",
+      "ruolo",
+      "stagione",
+      "stato_posizione",
+    ],
+    title: "Staff",
+  },
+  {
+    check:
+      "Confermare codice arbitro, sezioni e qualifiche disponibili negli export.",
+    description: "Crea o aggiorna gli arbitri abilitati dalla Federazione.",
+    fileName: "arbitri.csv",
+    requiredColumns: ["codice_arbitro", "nome", "cognome", "stato"],
+    title: "Arbitri",
+  },
+  {
+    check:
+      "Confermare che codice gara, società casa/ospite, stagione e campionato distinguano univocamente la gara.",
+    description: "Crea o aggiorna il calendario ufficiale gare.",
+    fileName: "calendario.csv",
+    requiredColumns: [
+      "codice_gara",
+      "stagione",
+      "data",
+      "ora",
+      "codice_societa_casa",
+      "codice_societa_ospite",
+      "stato_gara",
+    ],
+    title: "Calendario gare",
+  },
+  {
+    check:
+      "Confermare che calendario e designazioni possano essere file separati nel MVP.",
+    description: "Designa l'arbitro principale MVP su una gara già importata.",
+    fileName: "designazioni.csv",
+    requiredColumns: [
+      "codice_gara",
+      "codice_arbitro",
+      "ruolo",
+      "stato_designazione",
+    ],
+    title: "Designazioni arbitrali",
+  },
+] as const;
 
 export function FederationWorkflow() {
   const [section, setSection] = useState(0);
@@ -62,10 +153,11 @@ export function FederationWorkflow() {
         ))}
       </aside>
       {section === 0 ? <FederationDashboardPanel /> : null}
-      {section === 1 ? <MatchCalendarPanel /> : null}
-      {section === 2 ? <ReportsPanel /> : null}
-      {section === 3 ? <PhotoRequestsPanel /> : null}
-      {section === 4 ? <HistoryPanel /> : null}
+      {section === 1 ? <ImportTemplatesPanel /> : null}
+      {section === 2 ? <MatchCalendarPanel /> : null}
+      {section === 3 ? <ReportsPanel /> : null}
+      {section === 4 ? <PhotoRequestsPanel /> : null}
+      {section === 5 ? <HistoryPanel /> : null}
     </div>
   );
 }
@@ -127,6 +219,83 @@ function StatCard({
     <Card>
       <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
       <p className="mt-2 text-3xl font-bold">{value}</p>
+    </Card>
+  );
+}
+
+function ImportTemplatesPanel() {
+  return (
+    <Card className="space-y-5">
+      <div>
+        <p className="text-sm font-semibold text-primary">
+          PR 1 · Verifica template CSV
+        </p>
+        <h2 className="text-xl font-bold">Import dati federali</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Scarica i template e conferma se colonne obbligatorie, codici esterni
+          e campi competizione sono coerenti con gli export reali della
+          Federazione. Questa schermata è solo di verifica: non importa ancora
+          dati.
+        </p>
+      </div>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <p className="font-semibold">Check richiesto prima della PR 2</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>I template rappresentano dati federali realistici.</li>
+          <li>Le colonne obbligatorie sono disponibili nei database federali.</li>
+          <li>
+            I codici esterni sono realistici: società, tessera, staff, arbitro e
+            gara.
+          </li>
+          <li>
+            Società e squadra possono coincidere nel MVP oppure serve entità
+            separata.
+          </li>
+          <li>
+            Stagione, campionato, categoria e girone bastano a distinguere le
+            competizioni.
+          </li>
+        </ul>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {importTemplates.map((template) => (
+          <div className="space-y-3 rounded-xl border p-4" key={template.fileName}>
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h3 className="font-bold">{template.title}</h3>
+                <p className="text-sm text-slate-500">
+                  {template.description}
+                </p>
+              </div>
+              <a
+                className="inline-flex min-h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white"
+                download
+                href={`/federation-import-templates/${template.fileName}`}
+              >
+                Scarica CSV
+              </a>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-500">
+                Colonne obbligatorie
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {template.requiredColumns.map((column) => (
+                  <span
+                    className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-slate-700"
+                    key={column}
+                  >
+                    {column}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+              {template.check}
+            </p>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }

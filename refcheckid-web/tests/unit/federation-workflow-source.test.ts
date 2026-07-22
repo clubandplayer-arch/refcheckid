@@ -31,6 +31,7 @@ describe("regression: federation history actions", () => {
 
   it("localizes federation navigation, statuses and team sides", () => {
     expect(source).toContain('"Cruscotto"');
+    expect(source).toContain('"Import dati"');
     expect(source).toContain('scheduled: "Programmata"');
     expect(source).toContain('in_compilation: "In compilazione"');
     expect(source).toContain('submitted: "Inviato"');
@@ -54,5 +55,20 @@ describe("regression: federation history actions", () => {
     expect(source).toContain("item.reportId ?");
     expect(source).toContain("min-w-[120px] rounded-md");
     expect(source).toContain("min-w-[130px] rounded-md bg-slate-700");
+  });
+
+  it("exposes PR1 import templates for federation product verification", () => {
+    expect(source).toContain("ImportTemplatesPanel");
+    expect(source).toContain("PR 1 · Verifica template CSV");
+    expect(source).toContain("Scarica CSV");
+    expect(source).toContain("/federation-import-templates/");
+    expect(source).toContain("societa.csv");
+    expect(source).toContain("tesserati_generale.csv");
+    expect(source).toContain("tesserati_societa.csv");
+    expect(source).toContain("staff.csv");
+    expect(source).toContain("arbitri.csv");
+    expect(source).toContain("calendario.csv");
+    expect(source).toContain("designazioni.csv");
+    expect(source).toContain("Check richiesto prima della PR 2");
   });
 });
