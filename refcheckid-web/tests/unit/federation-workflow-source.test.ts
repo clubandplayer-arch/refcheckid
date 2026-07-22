@@ -60,7 +60,9 @@ describe("regression: federation history actions", () => {
   it("exposes PR1 import templates for federation product verification", () => {
     expect(source).toContain("ImportTemplatesPanel");
     expect(source).toContain("PR 1 · Verifica template CSV");
-    expect(source).toContain("Anteprima leggibile");
+    expect(source).toContain("Anteprima limitata");
+    expect(source).toContain("PR 2–4: staging e paginazione");
+    expect(source).toContain("Anteprima leggibile — solo righe esempio");
     expect(source).toContain("previewRows");
     expect(source).toContain("Scarica CSV");
     expect(source).toContain("/federation-import-templates/");

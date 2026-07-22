@@ -308,6 +308,29 @@ function ImportTemplatesPanel() {
           </li>
         </ul>
       </div>
+      <div className="grid gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950 md:grid-cols-3">
+        <div>
+          <p className="font-semibold">Anteprima limitata</p>
+          <p className="mt-1">
+            Qui mostriamo solo righe esempio per confermare colonne e formato:
+            non verranno mai renderizzate 10.000 righe tutte insieme.
+          </p>
+        </div>
+        <div>
+          <p className="font-semibold">PR 2–4: staging e paginazione</p>
+          <p className="mt-1">
+            Gli import reali saranno letti in staging con conteggi, filtri,
+            pagine e righe errore/warning scaricabili.
+          </p>
+        </div>
+        <div>
+          <p className="font-semibold">Check operatore</p>
+          <p className="mt-1">
+            L’operatore vedrà riepilogo, campione righe e problemi da risolvere,
+            non una tabella infinita di società o tesserati.
+          </p>
+        </div>
+      </div>
       <div className="grid gap-4 lg:grid-cols-2">
         {importTemplates.map((template) => (
           <div className="space-y-3 rounded-xl border p-4" key={template.fileName}>
@@ -347,7 +370,7 @@ function ImportTemplatesPanel() {
             <div className="overflow-x-auto rounded-lg border">
               <table className="min-w-full text-left text-xs">
                 <caption className="bg-slate-50 px-3 py-2 text-left font-semibold text-slate-600">
-                  Anteprima leggibile
+                  Anteprima leggibile — solo righe esempio
                 </caption>
                 <thead className="bg-muted text-slate-600">
                   <tr>

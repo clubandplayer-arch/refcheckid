@@ -61,7 +61,8 @@ Prodotto/Federazione deve confermare:
 - se i nomi colonna sono realistici;
 - se servono campi aggiuntivi per categoria, campionato, girone o stagione;
 - se società e squadra sono sinonimi nel MVP oppure entità separate;
-- se i template sono comprensibili da un operatore federale.
+- se i template sono comprensibili da un operatore federale;
+- se la gestione grandi import deve usare riepilogo, filtri, paginazione e download errori invece di mostrare tutte le righe.
 
 ## Dettaglio PR 2 — Backend import batch/staging
 
@@ -298,6 +299,7 @@ Ripetere gli scenari CSV principali con file XLSX:
 | 2026-07-22 | PR 1 | In verifica | Aggiunti specifica finale e template CSV per società, tesserati, staff, arbitri, calendario e designazioni. | Sì | In attesa conferma template |
 | 2026-07-22 | PR 1 UI check | In verifica | Aggiunta area Federazione `Import dati` per scaricare e verificare i template PR 1 prima della PR 2. | Sì | In attesa conferma template da UI |
 | 2026-07-22 | PR 1 UI preview | In verifica | Aggiunta anteprima tabellare leggibile dei template perché il CSV scaricato può essere poco comprensibile per utenti non tecnici. | Sì | In attesa conferma anteprima/template |
+| 2026-07-22 | PR 1 large import UX | In verifica | Chiarito che la UI PR 1 mostra solo esempi e che gli import reali con migliaia di righe dovranno usare staging, riepiloghi, filtri, paginazione e download errori/warning. | Sì | In attesa conferma strategia grandi volumi |
 
 ## Decisione finale
 

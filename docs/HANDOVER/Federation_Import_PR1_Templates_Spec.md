@@ -63,6 +63,24 @@ Import tesserati, staff, calendario o designazioni che referenziano una società
 
 Il cambio società è un caso ordinario. Deve aggiornare la posizione del tesserato mantenendo storico e audit, senza cancellare la posizione precedente.
 
+### Grandi volumi e anteprima
+
+I template PR 1 contengono solo poche righe esempio per verificare colonne e formato. Non rappresentano il comportamento UI finale su import reali da migliaia di record.
+
+Per import reali, il sistema non deve mai renderizzare in UI tutte le righe del file contemporaneamente. La gestione prevista per le PR successive è:
+
+- upload in staging;
+- parsing asincrono o comunque isolato dal commit finale;
+- conteggi sintetici per righe totali, valide, warning, errori, nuove, aggiornate, invariate;
+- anteprima campione limitata;
+- paginazione server-side o equivalente;
+- filtri per stato riga;
+- ricerca per codice società, codice tessera, codice gara o testo;
+- download file errori/warning;
+- commit solo dopo conferma esplicita.
+
+Questa regola è obbligatoria per casi come 10.000 tesserati, 3.000 società o calendari molto estesi.
+
 ## Template CSV inclusi
 
 | Tipo import | File template | Scopo |
@@ -283,6 +301,7 @@ Prima di passare alla PR 2, verificare e confermare:
 6. stati proposti sono corretti;
 7. calendario e designazioni possono essere file separati nel MVP;
 8. XLSX può restare PR 9 senza bloccare CSV.
+9. la UX di grandi import deve mostrare riepilogo, filtri, paginazione e righe problematiche, non l'intero file in una tabella unica.
 
 ## Esito atteso PR 1
 
