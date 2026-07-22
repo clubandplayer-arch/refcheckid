@@ -24,7 +24,7 @@ Regola di lavoro:
 
 | Ordine | PR | Tema | Perché | Stato | Check prima della prossima PR |
 | ------ | -- | ---- | ------ | ----- | ----------------------------- |
-| 1 | PR 1 | Template e specifica finale | Evita di scrivere codice su formato non confermato | Da fare | Sì: conferma template e colonne da parte prodotto/Federazione |
+| 1 | PR 1 | Template e specifica finale | Evita di scrivere codice su formato non confermato | In verifica | Sì: conferma template e colonne da parte prodotto/Federazione |
 | 2 | PR 2 | Backend import batch/staging | Crea base sicura | Da fare | Sì: verifica che upload/staging non scriva nei dati finali |
 | 3 | PR 3 | Parser + riconoscimento + mapping | Risolve file federali diversi | Da fare | Sì: verifica riconoscimento file e mapping colonne con esempi realistici |
 | 4 | PR 4 | Validazione + preview + report | Evita import ciechi | Da fare | Sì: verifica preview, warning, errori bloccanti e report |
@@ -295,6 +295,7 @@ Ripetere gli scenari CSV principali con file XLSX:
 | Data | PR | Stato | Note | Check richiesto | Esito check |
 | ---- | -- | ----- | ---- | --------------- | ----------- |
 | 2026-07-22 | Piano iniziale | Eseguita | Creato tracker operativo con sequenza PR approvata. | No | n/d |
+| 2026-07-22 | PR 1 | In verifica | Aggiunti specifica finale e template CSV per società, tesserati, staff, arbitri, calendario e designazioni. | Sì | In attesa conferma template |
 
 ## Decisione finale
 
