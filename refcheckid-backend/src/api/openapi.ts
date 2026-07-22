@@ -160,6 +160,16 @@ export function createOpenApiDocument(): OpenApiDocument {
         responses: { '200': { description: 'Federation import parsed and mapped in staging.' } },
       },
     },
+    '/api/v1/federation-imports/{id}/validate': {
+      post: {
+        tags: ['FederationImport'],
+        operationId: 'validateFederationImport',
+        'x-implementation-status': 'implemented',
+        responses: {
+          '200': { description: 'Federation import validated with preview report.' },
+        },
+      },
+    },
     '/api/v1/federation-imports/{id}/rows': {
       get: {
         tags: ['FederationImport'],

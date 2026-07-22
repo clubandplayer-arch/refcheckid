@@ -204,6 +204,140 @@ describe('federation import batch/staging parser flow', () => {
     });
   });
 
+  it('validates parsed rows and builds a preview report without final commits', async () => {
+    const container = createApplicationContainer();
+    const router = createRestApiRouter(container);
+    const headers = await federationHeaders();
+    const playersBefore = await container.repositories.players.list();
+    const created = await router.handle({
+      method: 'POST',
+      path: '/api/v1/federation-imports',
+      headers,
+      query: {},
+      body: {
+        ...stagedImportBody,
+        importType: 'players_general',
+        originalFilename: 'tesserati_generale.csv',
+      },
+    });
+    const id = (created.body as { importBatch: { id: string } }).importBatch.id;
+
+    await router.handle({
+      method: 'POST',
+      path: `/api/v1/federation-imports/${id}/parse`,
+      headers,
+      query: {},
+      body: {
+        csvContent:
+          'codice_tessera,nome,cognome,data_nascita,stato_tesserato\nTESS010,Paolo,Rossi,2006-04-12,active\nTESS011,Sara,Neri,2007-01-02,inactive',
+      },
+    });
+
+    const validated = await router.handle({
+      method: 'POST',
+      path: `/api/v1/federation-imports/${id}/validate`,
+      headers,
+      query: {},
+      body: {},
+    });
+
+    expect(validated).toMatchObject({
+      status: 200,
+      body: {
+        importBatch: {
+          id,
+          status: 'validated',
+          totalRows: 2,
+          errorRows: 0,
+          warningRows: 2,
+        },
+        report: {
+          phase: 'validation_preview',
+          summary: {
+            totalRows: 2,
+            errorRows: 0,
+            warningRows: 2,
+            newRows: 2,
+            commitBlocked: false,
+          },
+        },
+        rows: [
+          expect.objectContaining({
+            status: 'warning',
+            warnings: [expect.stringContaining('Preview: row will be treated as new')],
+          }),
+          expect.objectContaining({ status: 'warning' }),
+        ],
+      },
+    });
+    await expect(container.repositories.players.list()).resolves.toHaveLength(playersBefore.length);
+  });
+
+  it('marks invalid and duplicate rows as blocking validation errors', async () => {
+    const router = createRestApiRouter(createApplicationContainer());
+    const headers = await federationHeaders();
+    const created = await router.handle({
+      method: 'POST',
+      path: '/api/v1/federation-imports',
+      headers,
+      query: {},
+      body: {
+        ...stagedImportBody,
+        importType: 'calendar',
+        originalFilename: 'calendario.csv',
+      },
+    });
+    const id = (created.body as { importBatch: { id: string } }).importBatch.id;
+
+    await router.handle({
+      method: 'POST',
+      path: `/api/v1/federation-imports/${id}/parse`,
+      headers,
+      query: {},
+      body: {
+        csvContent:
+          'codice_gara,stagione,data,ora,codice_societa_casa,codice_societa_ospite,stato_gara\nGARA900,2026/2027,2026-09-20,15:00,CLUB001,CLUB002,scheduled\nGARA900,2026/2027,20/09/2026,1500,CLUB001,CLUB001,bozza',
+      },
+    });
+
+    await expect(
+      router.handle({
+        method: 'POST',
+        path: `/api/v1/federation-imports/${id}/validate`,
+        headers,
+        query: {},
+        body: {},
+      }),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: {
+        importBatch: { status: 'validated', errorRows: 2 },
+        report: {
+          summary: {
+            totalRows: 2,
+            errorRows: 2,
+            duplicateRows: 2,
+            commitBlocked: true,
+          },
+        },
+        rows: [
+          expect.objectContaining({
+            status: 'error',
+            errors: [expect.stringContaining('Duplicate row key')],
+          }),
+          expect.objectContaining({
+            status: 'error',
+            errors: expect.arrayContaining([
+              expect.stringContaining('Invalid ISO date data'),
+              expect.stringContaining('Invalid time ora'),
+              expect.stringContaining('Home and away society codes must be different'),
+            ]),
+          }),
+        ],
+      },
+    });
+  });
+
   it('forbids manager import creation', async () => {
     const router = createRestApiRouter(createApplicationContainer());
 
@@ -226,6 +360,7 @@ describe('federation import batch/staging parser flow', () => {
       post: { 'x-implementation-status': 'implemented' },
     });
     expect(document.paths['/api/v1/federation-imports/{id}/parse']).toBeDefined();
+    expect(document.paths['/api/v1/federation-imports/{id}/validate']).toBeDefined();
     expect(document.paths['/api/v1/federation-imports/{id}/rows']).toBeDefined();
   });
 });

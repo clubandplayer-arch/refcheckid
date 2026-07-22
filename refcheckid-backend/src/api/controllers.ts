@@ -96,6 +96,22 @@ export function createControllers(container: ApplicationContainer): Record<strin
         }),
       );
     },
+    validateFederationImport: async (request) => {
+      const context = federationImportContext(request);
+      if (!canAccessFederationImport(context)) {
+        return json(403, {
+          error: 'FORBIDDEN',
+          message: 'Federation imports require federation/admin scope.',
+        });
+      }
+      return json(
+        200,
+        await container.services.federationImports.validateBatch({
+          batchId: requireUuid(request.params.id, 'id'),
+          context,
+        }),
+      );
+    },
     getFederationImport: async (request) => {
       const context = federationImportContext(request);
       if (!canAccessFederationImport(context)) {

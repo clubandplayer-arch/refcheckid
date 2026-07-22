@@ -38,6 +38,17 @@ export interface FederationImportServiceDependencies {
   readonly now?: () => ISODateTime;
 }
 
+export interface ValidateFederationImportBatchCommand {
+  readonly batchId: UUID;
+  readonly context: FederationImportActorContext;
+}
+
+export interface FederationImportValidationResult {
+  readonly importBatch: FederationImportBatch;
+  readonly rows: readonly FederationImportRow[];
+  readonly report: Record<string, unknown>;
+}
+
 export interface ParseFederationImportBatchCommand {
   readonly batchId: UUID;
   readonly csvContent: string;
@@ -197,6 +208,38 @@ export class FederationImportService {
       warnings,
       rows,
     };
+  }
+
+  async validateBatch(
+    command: ValidateFederationImportBatchCommand,
+  ): Promise<FederationImportValidationResult> {
+    const batch = await this.getBatch(command.context, command.batchId);
+    if (batch === null) throw new FederationImportInvariantError('Import batch was not found.');
+    const rows = await this.dependencies.importRows.listByBatch(batch.id);
+    if (rows.length === 0) {
+      throw new FederationImportInvariantError('Import batch must be parsed before validation.');
+    }
+    const importType = batch.detectedType ?? batch.importType;
+    const validationRows = validateRows(importType, rows);
+    const updatedRows: FederationImportRow[] = [];
+    for (const validation of validationRows) {
+      updatedRows.push(
+        await this.dependencies.importRows.update(validation.row.id, {
+          status: validation.status,
+          errors: validation.errors,
+          warnings: validation.warnings,
+        }),
+      );
+    }
+    const report = buildValidationReport(importType, validationRows);
+    const updatedBatch = await this.dependencies.importBatches.update(batch.id, {
+      status: 'validated',
+      validRows: validationRows.filter((row) => row.status === 'valid').length,
+      warningRows: validationRows.filter((row) => row.status === 'warning').length,
+      errorRows: validationRows.filter((row) => row.status === 'error').length,
+      report,
+    });
+    return { importBatch: updatedBatch, rows: updatedRows, report };
   }
 
   async transitionBatchStatus(
@@ -459,6 +502,189 @@ function normalizeRow(
       rawData[sourceColumn] ?? '',
     ]),
   );
+}
+
+interface RowValidationResult {
+  readonly row: FederationImportRow;
+  readonly key: string;
+  readonly status: 'valid' | 'warning' | 'error';
+  readonly errors: readonly string[];
+  readonly warnings: readonly string[];
+}
+
+function validateRows(
+  importType: FederationImportType,
+  rows: readonly FederationImportRow[],
+): readonly RowValidationResult[] {
+  const keyCounts = new Map<string, number>();
+  const firstPass = rows.map((row) => {
+    const normalizedData = stringRecord(row.normalizedData ?? {});
+    const key = rowBusinessKey(importType, normalizedData);
+    keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
+    return { row, normalizedData, key };
+  });
+
+  return firstPass.map(({ row, normalizedData, key }) => {
+    const errors = [
+      ...missingValueErrors(importType, normalizedData),
+      ...formatErrors(importType, normalizedData),
+      ...(key === '' ? ['Cannot compute row business key.'] : []),
+      ...(key !== '' && (keyCounts.get(key) ?? 0) > 1
+        ? [`Duplicate row key in import file: ${key}.`]
+        : []),
+    ];
+    const warnings = [
+      ...statusWarnings(importType, normalizedData),
+      ...(errors.length === 0
+        ? [
+            `Preview: row will be treated as new ${previewEntityName(importType)} unless PR5/PR6 finds an existing record.`,
+          ]
+        : []),
+    ];
+    const status = errors.length > 0 ? 'error' : warnings.length > 0 ? 'warning' : 'valid';
+    return { row, key, status, errors, warnings };
+  });
+}
+
+function buildValidationReport(
+  importType: FederationImportType,
+  validations: readonly RowValidationResult[],
+): Record<string, unknown> {
+  const errorRows = validations.filter((row) => row.status === 'error');
+  const warningRows = validations.filter((row) => row.status === 'warning');
+  const duplicateRows = validations.filter((row) =>
+    row.errors.some((error) => error.startsWith('Duplicate row key')),
+  );
+  const commitEligibleRows = validations.length - errorRows.length;
+  return {
+    phase: 'validation_preview',
+    importType,
+    summary: {
+      totalRows: validations.length,
+      validRows: validations.filter((row) => row.status === 'valid').length,
+      warningRows: warningRows.length,
+      errorRows: errorRows.length,
+      newRows: commitEligibleRows,
+      updatedRows: 0,
+      unchangedRows: 0,
+      duplicateRows: duplicateRows.length,
+      commitBlocked: errorRows.length > 0,
+    },
+    sampleRows: validations.slice(0, 10).map((validation) => ({
+      rowNumber: validation.row.rowNumber,
+      key: validation.key,
+      status: validation.status,
+      errors: validation.errors,
+      warnings: validation.warnings,
+      normalizedData: validation.row.normalizedData,
+    })),
+    downloadableReports: {
+      errors: errorRows.map((validation) => ({
+        rowNumber: validation.row.rowNumber,
+        key: validation.key,
+        errors: validation.errors,
+      })),
+      warnings: warningRows.map((validation) => ({
+        rowNumber: validation.row.rowNumber,
+        key: validation.key,
+        warnings: validation.warnings,
+      })),
+    },
+  };
+}
+
+function missingValueErrors(
+  importType: FederationImportType,
+  row: Record<string, string>,
+): readonly string[] {
+  const definition = importTemplateDefinitions.find((item) => item.type === importType);
+  if (definition === undefined) return [`Unsupported import type ${importType}.`];
+  return definition.required
+    .filter((column) => (row[column] ?? '').trim().length === 0)
+    .map((column) => `Missing required value ${column}.`);
+}
+
+function formatErrors(
+  importType: FederationImportType,
+  row: Record<string, string>,
+): readonly string[] {
+  const errors: string[] = [];
+  for (const column of ['data_nascita', 'data']) {
+    if (row[column] !== undefined && row[column].trim().length > 0 && !isIsoDate(row[column])) {
+      errors.push(`Invalid ISO date ${column}: ${row[column]}.`);
+    }
+  }
+  if (row.ora !== undefined && row.ora.trim().length > 0 && !/^\d{2}:\d{2}$/.test(row.ora)) {
+    errors.push(`Invalid time ora: ${row.ora}.`);
+  }
+  if (
+    importType === 'calendar' &&
+    row.codice_societa_casa !== undefined &&
+    row.codice_societa_ospite !== undefined &&
+    row.codice_societa_casa === row.codice_societa_ospite
+  ) {
+    errors.push('Home and away society codes must be different.');
+  }
+  return errors;
+}
+
+function statusWarnings(
+  importType: FederationImportType,
+  row: Record<string, string>,
+): readonly string[] {
+  const checks: Record<FederationImportType, Record<string, readonly string[]>> = {
+    clubs: { stato: ['active', 'inactive'] },
+    players_general: { stato_tesserato: ['active', 'inactive'] },
+    players_by_club: { stato_posizione: ['active', 'inactive'] },
+    staff: { stato_posizione: ['active', 'inactive'] },
+    referees: { stato: ['active', 'inactive'] },
+    calendar: { stato_gara: ['scheduled', 'in_progress', 'completed', 'cancelled'] },
+    designations: { stato_designazione: ['assigned', 'cancelled'] },
+  };
+  return Object.entries(checks[importType]).flatMap(([column, allowed]) => {
+    const value = row[column];
+    if (value === undefined || value.trim().length === 0 || allowed.includes(value)) return [];
+    return [`Unexpected ${column} value ${value}; allowed values are ${allowed.join(', ')}.`];
+  });
+}
+
+function rowBusinessKey(importType: FederationImportType, row: Record<string, string>): string {
+  const keyColumns: Record<FederationImportType, readonly string[]> = {
+    clubs: ['codice_societa', 'stagione'],
+    players_general: ['codice_tessera'],
+    players_by_club: ['codice_societa', 'codice_tessera', 'stagione'],
+    staff: ['codice_societa', 'codice_staff', 'stagione'],
+    referees: ['codice_arbitro'],
+    calendar: ['codice_gara'],
+    designations: ['codice_gara', 'codice_arbitro', 'ruolo'],
+  };
+  const parts = keyColumns[importType].map((column) => row[column]?.trim() ?? '');
+  return parts.some((part) => part.length === 0) ? '' : parts.join('|');
+}
+
+function previewEntityName(importType: FederationImportType): string {
+  const names: Record<FederationImportType, string> = {
+    clubs: 'society/club',
+    players_general: 'player registry entry',
+    players_by_club: 'player position',
+    staff: 'staff position',
+    referees: 'referee',
+    calendar: 'match',
+    designations: 'referee designation',
+  };
+  return names[importType];
+}
+
+function stringRecord(value: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [key, String(entry ?? '')]),
+  );
+}
+
+function isIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
 }
 
 function normalizeColumnName(value: string): string {
