@@ -297,6 +297,7 @@ Ripetere gli scenari CSV principali con file XLSX:
 | 2026-07-22 | Piano iniziale | Eseguita | Creato tracker operativo con sequenza PR approvata. | No | n/d |
 | 2026-07-22 | PR 1 | In verifica | Aggiunti specifica finale e template CSV per società, tesserati, staff, arbitri, calendario e designazioni. | Sì | In attesa conferma template |
 | 2026-07-22 | PR 1 UI check | In verifica | Aggiunta area Federazione `Import dati` per scaricare e verificare i template PR 1 prima della PR 2. | Sì | In attesa conferma template da UI |
+| 2026-07-22 | PR 1 UI preview | In verifica | Aggiunta anteprima tabellare leggibile dei template perché il CSV scaricato può essere poco comprensibile per utenti non tecnici. | Sì | In attesa conferma anteprima/template |
 
 ## Decisione finale
 

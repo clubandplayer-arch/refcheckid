@@ -50,6 +50,11 @@ const importTemplates = [
       "Confermare che codice società, stagione, categoria/campionato/girone e contatti siano campi realistici.",
     description: "Crea o aggiorna società/squadre gestite dalla Federazione.",
     fileName: "societa.csv",
+    previewColumns: ["codice_societa", "nome_societa", "stagione", "campionato"],
+    previewRows: [
+      ["CLUB001", "ASD Atletico Aurora", "2026/2027", "Campionato Demo"],
+      ["CLUB002", "ASD Sporting Litorale", "2026/2027", "Campionato Demo"],
+    ],
     requiredColumns: ["codice_societa", "nome_societa", "stato", "stagione"],
     title: "Società / squadre",
   },
@@ -58,6 +63,11 @@ const importTemplates = [
       "Confermare che codice tessera e data nascita siano sempre disponibili nell'export federale.",
     description: "Crea o aggiorna l'anagrafica generale dei tesserati.",
     fileName: "tesserati_generale.csv",
+    previewColumns: ["codice_tessera", "nome", "cognome", "data_nascita"],
+    previewRows: [
+      ["TESS001", "Marco", "Rossi", "2006-04-12"],
+      ["TESS002", "Luca", "Bianchi", "2006-09-03"],
+    ],
     requiredColumns: [
       "codice_tessera",
       "nome",
@@ -72,6 +82,16 @@ const importTemplates = [
       "Confermare se il file sarà multi-società o se la società verrà scelta prima dell'upload.",
     description: "Associa tesserati a società e stagione sportiva.",
     fileName: "tesserati_societa.csv",
+    previewColumns: [
+      "codice_societa",
+      "codice_tessera",
+      "stagione",
+      "stato_posizione",
+    ],
+    previewRows: [
+      ["CLUB001", "TESS001", "2026/2027", "active"],
+      ["CLUB001", "TESS002", "2026/2027", "active"],
+    ],
     requiredColumns: [
       "codice_societa",
       "codice_tessera",
@@ -85,6 +105,11 @@ const importTemplates = [
       "Confermare ruoli staff ammessi e se codice staff è disponibile nei dati federali.",
     description: "Crea o aggiorna staff e posizione presso società/stagione.",
     fileName: "staff.csv",
+    previewColumns: ["codice_societa", "codice_staff", "ruolo", "stagione"],
+    previewRows: [
+      ["CLUB001", "STAFF001", "allenatore", "2026/2027"],
+      ["CLUB001", "STAFF002", "dirigente_accompagnatore", "2026/2027"],
+    ],
     requiredColumns: [
       "codice_societa",
       "codice_staff",
@@ -101,6 +126,11 @@ const importTemplates = [
       "Confermare codice arbitro, sezioni e qualifiche disponibili negli export.",
     description: "Crea o aggiorna gli arbitri abilitati dalla Federazione.",
     fileName: "arbitri.csv",
+    previewColumns: ["codice_arbitro", "nome", "cognome", "qualifica"],
+    previewRows: [
+      ["ARB001", "Giuseppe", "Verdi", "arbitro_principale"],
+      ["ARB002", "Anna", "Neri", "arbitro_principale"],
+    ],
     requiredColumns: ["codice_arbitro", "nome", "cognome", "stato"],
     title: "Arbitri",
   },
@@ -109,6 +139,17 @@ const importTemplates = [
       "Confermare che codice gara, società casa/ospite, stagione e campionato distinguano univocamente la gara.",
     description: "Crea o aggiorna il calendario ufficiale gare.",
     fileName: "calendario.csv",
+    previewColumns: [
+      "codice_gara",
+      "data",
+      "ora",
+      "casa",
+      "ospite",
+    ],
+    previewRows: [
+      ["GARA001", "2026-09-20", "15:00", "CLUB001", "CLUB002"],
+      ["GARA002", "2026-09-27", "15:00", "CLUB002", "CLUB001"],
+    ],
     requiredColumns: [
       "codice_gara",
       "stagione",
@@ -125,6 +166,16 @@ const importTemplates = [
       "Confermare che calendario e designazioni possano essere file separati nel MVP.",
     description: "Designa l'arbitro principale MVP su una gara già importata.",
     fileName: "designazioni.csv",
+    previewColumns: [
+      "codice_gara",
+      "codice_arbitro",
+      "ruolo",
+      "stato_designazione",
+    ],
+    previewRows: [
+      ["GARA001", "ARB001", "arbitro_principale", "designato"],
+      ["GARA002", "ARB002", "arbitro_principale", "designato"],
+    ],
     requiredColumns: [
       "codice_gara",
       "codice_arbitro",
@@ -293,6 +344,33 @@ function ImportTemplatesPanel() {
             <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
               {template.check}
             </p>
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="min-w-full text-left text-xs">
+                <caption className="bg-slate-50 px-3 py-2 text-left font-semibold text-slate-600">
+                  Anteprima leggibile
+                </caption>
+                <thead className="bg-muted text-slate-600">
+                  <tr>
+                    {template.previewColumns.map((column) => (
+                      <th className="px-3 py-2 font-semibold" key={column}>
+                        {column}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {template.previewRows.map((row) => (
+                    <tr key={row.join("-")}>
+                      {row.map((cell, index) => (
+                        <td className="px-3 py-2" key={`${cell}-${index}`}>
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ))}
       </div>
