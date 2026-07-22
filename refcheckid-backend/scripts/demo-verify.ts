@@ -318,8 +318,10 @@ async function verifyMatchWorkflow(
   if (report === null) {
     throw new Error(`Match ${workflow.matchId} does not have a report.`);
   }
-  if (report.status !== 'submitted') {
-    throw new Error(`Match report ${report.id} is not submitted: ${report.status}.`);
+  if (report.status === 'submitted') {
+    throw new Error(
+      `Match report ${report.id} is already submitted and cannot be edited in the demo UI.`,
+    );
   }
   if (report.summary !== workflow.reportSummary) {
     throw new Error(`Match report ${report.id} summary does not match the demo workflow plan.`);

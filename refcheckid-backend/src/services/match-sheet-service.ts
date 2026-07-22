@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
-import type { MatchSheet, MatchSheetPhotoSnapshot, MatchSheetStatus, UUID } from '../domain/index.js';
+import type {
+  MatchSheet,
+  MatchSheetPhotoSnapshot,
+  MatchSheetStatus,
+  UUID,
+} from '../domain/index.js';
 import type { EventPublisher } from '../events/index.js';
 import type {
   MatchSheetPlayerRepositoryPort,
@@ -81,7 +86,10 @@ export class MatchSheetService {
     return this.dependencies.matchSheetsRepository.listByClub(clubId);
   }
 
-  async submitMatchSheet(matchSheetId: UUID, input: SubmitMatchSheetInput = {}): Promise<MatchSheet> {
+  async submitMatchSheet(
+    matchSheetId: UUID,
+    input: SubmitMatchSheetInput = {},
+  ): Promise<MatchSheet> {
     const matchSheet = await this.dependencies.matchSheetsRepository.findById(matchSheetId);
     if (matchSheet === null) {
       throw new MatchSheetNotFoundError(matchSheetId);
@@ -207,7 +215,7 @@ export class MatchSheetService {
             firstName: person?.firstName ?? 'Tesserato',
             lastName: person?.lastName ?? player.playerRegistrationId,
             shirtNumber: player.shirtNumber,
-            roleLabel: player.role,
+            roleLabel: toMatchSheetPlayerRoleLabel(player.role),
             teamName: matchSheet.clubId,
             subjectKind: 'player',
           },
@@ -327,4 +335,10 @@ export class MatchSheetService {
       auditCorrelationId: randomUUID(),
     });
   }
+}
+
+function toMatchSheetPlayerRoleLabel(role: string): string {
+  if (role === 'starter') return 'Titolare';
+  if (role === 'reserve') return 'Riserva';
+  return role;
 }

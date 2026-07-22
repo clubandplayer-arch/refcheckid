@@ -1,7 +1,7 @@
 export type FederationMatchStatus =
   "scheduled" | "in_progress" | "completed" | "archived";
 export type FederationReportStatus =
-  "missing" | "draft" | "submitted" | "reviewed";
+  "missing" | "draft" | "in_compilation" | "submitted" | "reviewed";
 export type PhotoRequestStatus =
   "pending" | "approved" | "rejected" | "cancelled" | "expired";
 export type SyncStatus = "ok" | "warning" | "failed";
@@ -73,4 +73,6 @@ export interface FederationHistoryItem {
   refereeName: string;
   reportId: string;
   auditSummary: readonly string[];
+  eventCategory: "photo" | "match";
+  eventDescription: string;
 }

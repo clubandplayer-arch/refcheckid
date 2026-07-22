@@ -50,6 +50,7 @@ export interface PhotoObjectStore {
   deleteObjectControlled(objectKey: string, reason: string): Promise<void>;
   registerRendition(input: PhotoRenditionRegistration): Promise<void>;
   putObject?(objectKey: string, bytes: Buffer): Promise<void>;
+  readObject?(objectKey: string): Promise<Buffer>;
 }
 
 export class LocalPhotoObjectStore implements PhotoObjectStore {
@@ -75,6 +76,10 @@ export class LocalPhotoObjectStore implements PhotoObjectStore {
   async putObject(objectKey: string, bytes: Buffer): Promise<void> {
     await mkdir(dirname(this.pathFor(objectKey)), { recursive: true });
     await writeFile(this.pathFor(objectKey), bytes);
+  }
+
+  async readObject(objectKey: string): Promise<Buffer> {
+    return readFile(this.pathFor(objectKey));
   }
 
   async confirmUploadedObject(objectKey: string): Promise<PhotoUploadedObjectConfirmation> {

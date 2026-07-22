@@ -87,9 +87,9 @@
         "federationId": "70000000-0000-4000-8000-000000000002",
         "firstName": "Home",
         "lastName": "Uno",
-        "birthDate": "2001-01-10",
+        "birthDate": "2000-01-01",
         "birthPlace": "Demo City",
-        "fiscalCode": "ARCH1HOME01",
+        "fiscalCode": "ARCH1HOMEP01",
         "status": "active",
         "createdAt": "2026-07-01T00:00:00.000Z",
         "updatedAt": "2026-07-01T00:00:00.000Z",
@@ -100,9 +100,217 @@
         "federationId": "70000000-0000-4000-8000-000000000002",
         "firstName": "Home",
         "lastName": "Due",
-        "birthDate": "2002-02-20",
+        "birthDate": "2001-02-02",
         "birthPlace": "Demo City",
-        "fiscalCode": "ARCH1HOME02",
+        "fiscalCode": "ARCH1HOMEP02",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000003",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Tre",
+        "birthDate": "2002-03-03",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP03",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000004",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Quattro",
+        "birthDate": "2003-04-04",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP04",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000005",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Cinque",
+        "birthDate": "2004-05-05",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP05",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000006",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Sei",
+        "birthDate": "2005-06-06",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP06",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000007",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Sette",
+        "birthDate": "2006-07-07",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP07",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000008",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Otto",
+        "birthDate": "2007-08-08",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP08",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000009",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Nove",
+        "birthDate": "2000-09-09",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP09",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000010",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Dieci",
+        "birthDate": "2001-10-10",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP10",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000011",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Undici",
+        "birthDate": "2002-11-11",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP11",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000012",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Dodici",
+        "birthDate": "2003-12-12",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP12",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000013",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Tredici",
+        "birthDate": "2004-01-13",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP13",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000014",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Quattordici",
+        "birthDate": "2005-02-14",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP14",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000015",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Quindici",
+        "birthDate": "2006-03-15",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP15",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000016",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Sedici",
+        "birthDate": "2007-04-16",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP16",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000017",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Diciassette",
+        "birthDate": "2000-05-17",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP17",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "71000000-0000-4000-8000-000000000018",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Home",
+        "lastName": "Diciotto",
+        "birthDate": "2001-06-18",
+        "birthPlace": "Demo City",
+        "fiscalCode": "ARCH1HOMEP18",
         "status": "active",
         "createdAt": "2026-07-01T00:00:00.000Z",
         "updatedAt": "2026-07-01T00:00:00.000Z",
@@ -113,9 +321,9 @@
         "federationId": "70000000-0000-4000-8000-000000000002",
         "firstName": "Away",
         "lastName": "Uno",
-        "birthDate": "2001-03-15",
+        "birthDate": "2000-01-01",
         "birthPlace": "Demo Town",
-        "fiscalCode": "ARCH1AWAY01",
+        "fiscalCode": "ARCH1AWAYP01",
         "status": "active",
         "createdAt": "2026-07-01T00:00:00.000Z",
         "updatedAt": "2026-07-01T00:00:00.000Z",
@@ -126,9 +334,217 @@
         "federationId": "70000000-0000-4000-8000-000000000002",
         "firstName": "Away",
         "lastName": "Due",
-        "birthDate": "2002-04-25",
+        "birthDate": "2001-02-02",
         "birthPlace": "Demo Town",
-        "fiscalCode": "ARCH1AWAY02",
+        "fiscalCode": "ARCH1AWAYP02",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000003",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Tre",
+        "birthDate": "2002-03-03",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP03",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000004",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Quattro",
+        "birthDate": "2003-04-04",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP04",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000005",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Cinque",
+        "birthDate": "2004-05-05",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP05",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000006",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Sei",
+        "birthDate": "2005-06-06",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP06",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000007",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Sette",
+        "birthDate": "2006-07-07",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP07",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000008",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Otto",
+        "birthDate": "2007-08-08",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP08",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000009",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Nove",
+        "birthDate": "2000-09-09",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP09",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000010",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Dieci",
+        "birthDate": "2001-10-10",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP10",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000011",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Undici",
+        "birthDate": "2002-11-11",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP11",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000012",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Dodici",
+        "birthDate": "2003-12-12",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP12",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000013",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Tredici",
+        "birthDate": "2004-01-13",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP13",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000014",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Quattordici",
+        "birthDate": "2005-02-14",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP14",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000015",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Quindici",
+        "birthDate": "2006-03-15",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP15",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000016",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Sedici",
+        "birthDate": "2007-04-16",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP16",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000017",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Diciassette",
+        "birthDate": "2000-05-17",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP17",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "72000000-0000-4000-8000-000000000018",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Away",
+        "lastName": "Diciotto",
+        "birthDate": "2001-06-18",
+        "birthPlace": "Demo Town",
+        "fiscalCode": "ARCH1AWAYP18",
         "status": "active",
         "createdAt": "2026-07-01T00:00:00.000Z",
         "updatedAt": "2026-07-01T00:00:00.000Z",
@@ -161,6 +577,198 @@
         "deletedAt": null
       },
       {
+        "id": "73000000-0000-4000-8000-000000000003",
+        "playerId": "71000000-0000-4000-8000-000000000003",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-03",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000004",
+        "playerId": "71000000-0000-4000-8000-000000000004",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-04",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000005",
+        "playerId": "71000000-0000-4000-8000-000000000005",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-05",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000006",
+        "playerId": "71000000-0000-4000-8000-000000000006",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-06",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000007",
+        "playerId": "71000000-0000-4000-8000-000000000007",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-07",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000008",
+        "playerId": "71000000-0000-4000-8000-000000000008",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-08",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000009",
+        "playerId": "71000000-0000-4000-8000-000000000009",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-09",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000010",
+        "playerId": "71000000-0000-4000-8000-000000000010",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-10",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000011",
+        "playerId": "71000000-0000-4000-8000-000000000011",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-11",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000012",
+        "playerId": "71000000-0000-4000-8000-000000000012",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-12",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000013",
+        "playerId": "71000000-0000-4000-8000-000000000013",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-13",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000014",
+        "playerId": "71000000-0000-4000-8000-000000000014",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-14",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000015",
+        "playerId": "71000000-0000-4000-8000-000000000015",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-15",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000016",
+        "playerId": "71000000-0000-4000-8000-000000000016",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-16",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000017",
+        "playerId": "71000000-0000-4000-8000-000000000017",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-17",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "73000000-0000-4000-8000-000000000018",
+        "playerId": "71000000-0000-4000-8000-000000000018",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "registrationNumber": "HOME-2026-18",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
         "id": "74000000-0000-4000-8000-000000000001",
         "playerId": "72000000-0000-4000-8000-000000000001",
         "clubId": "70000000-0000-4000-8000-000000000004",
@@ -183,6 +791,198 @@
         "createdAt": "2026-07-01T00:00:00.000Z",
         "updatedAt": "2026-07-01T00:00:00.000Z",
         "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000003",
+        "playerId": "72000000-0000-4000-8000-000000000003",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-03",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000004",
+        "playerId": "72000000-0000-4000-8000-000000000004",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-04",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000005",
+        "playerId": "72000000-0000-4000-8000-000000000005",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-05",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000006",
+        "playerId": "72000000-0000-4000-8000-000000000006",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-06",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000007",
+        "playerId": "72000000-0000-4000-8000-000000000007",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-07",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000008",
+        "playerId": "72000000-0000-4000-8000-000000000008",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-08",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000009",
+        "playerId": "72000000-0000-4000-8000-000000000009",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-09",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000010",
+        "playerId": "72000000-0000-4000-8000-000000000010",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-10",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000011",
+        "playerId": "72000000-0000-4000-8000-000000000011",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-11",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000012",
+        "playerId": "72000000-0000-4000-8000-000000000012",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-12",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000013",
+        "playerId": "72000000-0000-4000-8000-000000000013",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-13",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000014",
+        "playerId": "72000000-0000-4000-8000-000000000014",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-14",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000015",
+        "playerId": "72000000-0000-4000-8000-000000000015",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-15",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000016",
+        "playerId": "72000000-0000-4000-8000-000000000016",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-16",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000017",
+        "playerId": "72000000-0000-4000-8000-000000000017",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-17",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "74000000-0000-4000-8000-000000000018",
+        "playerId": "72000000-0000-4000-8000-000000000018",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "registrationNumber": "AWAY-2026-18",
+        "status": "active",
+        "registeredAt": "2026-07-01T00:00:00.000Z",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
       }
     ],
     "staffMembers": [
@@ -191,8 +991,44 @@
         "federationId": "70000000-0000-4000-8000-000000000002",
         "firstName": "Tecnico",
         "lastName": "Home",
-        "birthDate": "1980-05-10",
-        "fiscalCode": "ARCH1STAFFH",
+        "birthDate": "1979-05-10",
+        "fiscalCode": "ARCH1STAFFH01",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "75000000-0000-4000-8000-000000000002",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Assistente",
+        "lastName": "Home",
+        "birthDate": "1980-06-11",
+        "fiscalCode": "ARCH1STAFFH02",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "75000000-0000-4000-8000-000000000003",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Preparatore",
+        "lastName": "Home",
+        "birthDate": "1981-07-12",
+        "fiscalCode": "ARCH1STAFFH03",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "75000000-0000-4000-8000-000000000004",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Dirigente",
+        "lastName": "Home",
+        "birthDate": "1982-08-13",
+        "fiscalCode": "ARCH1STAFFH04",
         "status": "active",
         "createdAt": "2026-07-01T00:00:00.000Z",
         "updatedAt": "2026-07-01T00:00:00.000Z",
@@ -203,8 +1039,44 @@
         "federationId": "70000000-0000-4000-8000-000000000002",
         "firstName": "Tecnico",
         "lastName": "Away",
-        "birthDate": "1981-06-20",
-        "fiscalCode": "ARCH1STAFFA",
+        "birthDate": "1979-05-10",
+        "fiscalCode": "ARCH1STAFFA01",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "76000000-0000-4000-8000-000000000002",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Assistente",
+        "lastName": "Away",
+        "birthDate": "1980-06-11",
+        "fiscalCode": "ARCH1STAFFA02",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "76000000-0000-4000-8000-000000000003",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Preparatore",
+        "lastName": "Away",
+        "birthDate": "1981-07-12",
+        "fiscalCode": "ARCH1STAFFA03",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "76000000-0000-4000-8000-000000000004",
+        "federationId": "70000000-0000-4000-8000-000000000002",
+        "firstName": "Dirigente",
+        "lastName": "Away",
+        "birthDate": "1982-08-13",
+        "fiscalCode": "ARCH1STAFFA04",
         "status": "active",
         "createdAt": "2026-07-01T00:00:00.000Z",
         "updatedAt": "2026-07-01T00:00:00.000Z",
@@ -225,12 +1097,84 @@
         "deletedAt": null
       },
       {
+        "id": "77000000-0000-4000-8000-000000000002",
+        "staffMemberId": "75000000-0000-4000-8000-000000000002",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "role": "Vice allenatore",
+        "registrationNumber": "HOME-STAFF-2026-02",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "77000000-0000-4000-8000-000000000003",
+        "staffMemberId": "75000000-0000-4000-8000-000000000003",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "role": "Preparatore atletico",
+        "registrationNumber": "HOME-STAFF-2026-03",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "77000000-0000-4000-8000-000000000004",
+        "staffMemberId": "75000000-0000-4000-8000-000000000004",
+        "clubId": "70000000-0000-4000-8000-000000000003",
+        "season": "2026",
+        "role": "Dirigente accompagnatore",
+        "registrationNumber": "HOME-STAFF-2026-04",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
         "id": "78000000-0000-4000-8000-000000000001",
         "staffMemberId": "76000000-0000-4000-8000-000000000001",
         "clubId": "70000000-0000-4000-8000-000000000004",
         "season": "2026",
         "role": "Allenatore",
         "registrationNumber": "AWAY-STAFF-2026-01",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "78000000-0000-4000-8000-000000000002",
+        "staffMemberId": "76000000-0000-4000-8000-000000000002",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "role": "Vice allenatore",
+        "registrationNumber": "AWAY-STAFF-2026-02",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "78000000-0000-4000-8000-000000000003",
+        "staffMemberId": "76000000-0000-4000-8000-000000000003",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "role": "Preparatore atletico",
+        "registrationNumber": "AWAY-STAFF-2026-03",
+        "status": "active",
+        "createdAt": "2026-07-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T00:00:00.000Z",
+        "deletedAt": null
+      },
+      {
+        "id": "78000000-0000-4000-8000-000000000004",
+        "staffMemberId": "76000000-0000-4000-8000-000000000004",
+        "clubId": "70000000-0000-4000-8000-000000000004",
+        "season": "2026",
+        "role": "Dirigente accompagnatore",
+        "registrationNumber": "AWAY-STAFF-2026-04",
         "status": "active",
         "createdAt": "2026-07-01T00:00:00.000Z",
         "updatedAt": "2026-07-01T00:00:00.000Z",
@@ -263,8 +1207,8 @@
       "clubId": "70000000-0000-4000-8000-000000000003",
       "manager": "homeManager",
       "generatedImage": {
-        "initials": "HU",
-        "shirtNumber": 10,
+        "initials": "H01",
+        "shirtNumber": 1,
         "primaryColor": "#1d4ed8",
         "secondaryColor": "#ffffff"
       }
@@ -277,8 +1221,232 @@
       "clubId": "70000000-0000-4000-8000-000000000003",
       "manager": "homeManager",
       "generatedImage": {
-        "initials": "HD",
+        "initials": "H02",
+        "shirtNumber": 2,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-03",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000003",
+      "registrationId": "73000000-0000-4000-8000-000000000003",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H03",
+        "shirtNumber": 3,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-04",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000004",
+      "registrationId": "73000000-0000-4000-8000-000000000004",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H04",
+        "shirtNumber": 4,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-05",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000005",
+      "registrationId": "73000000-0000-4000-8000-000000000005",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H05",
+        "shirtNumber": 5,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-06",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000006",
+      "registrationId": "73000000-0000-4000-8000-000000000006",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H06",
+        "shirtNumber": 6,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-07",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000007",
+      "registrationId": "73000000-0000-4000-8000-000000000007",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H07",
+        "shirtNumber": 7,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-08",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000008",
+      "registrationId": "73000000-0000-4000-8000-000000000008",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H08",
+        "shirtNumber": 8,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-09",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000009",
+      "registrationId": "73000000-0000-4000-8000-000000000009",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H09",
+        "shirtNumber": 9,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-10",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000010",
+      "registrationId": "73000000-0000-4000-8000-000000000010",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H10",
+        "shirtNumber": 10,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-11",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000011",
+      "registrationId": "73000000-0000-4000-8000-000000000011",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H11",
         "shirtNumber": 11,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-12",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000012",
+      "registrationId": "73000000-0000-4000-8000-000000000012",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H12",
+        "shirtNumber": 12,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-13",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000013",
+      "registrationId": "73000000-0000-4000-8000-000000000013",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H13",
+        "shirtNumber": 13,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-14",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000014",
+      "registrationId": "73000000-0000-4000-8000-000000000014",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H14",
+        "shirtNumber": 14,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-15",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000015",
+      "registrationId": "73000000-0000-4000-8000-000000000015",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H15",
+        "shirtNumber": 15,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-16",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000016",
+      "registrationId": "73000000-0000-4000-8000-000000000016",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H16",
+        "shirtNumber": 16,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-17",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000017",
+      "registrationId": "73000000-0000-4000-8000-000000000017",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H17",
+        "shirtNumber": 17,
+        "primaryColor": "#1d4ed8",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-player-18",
+      "subjectKind": "athlete",
+      "subjectId": "71000000-0000-4000-8000-000000000018",
+      "registrationId": "73000000-0000-4000-8000-000000000018",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "H18",
+        "shirtNumber": 18,
         "primaryColor": "#1d4ed8",
         "secondaryColor": "#ffffff"
       }
@@ -291,8 +1459,8 @@
       "clubId": "70000000-0000-4000-8000-000000000004",
       "manager": "awayManager",
       "generatedImage": {
-        "initials": "AU",
-        "shirtNumber": 7,
+        "initials": "A01",
+        "shirtNumber": 1,
         "primaryColor": "#dc2626",
         "secondaryColor": "#ffffff"
       }
@@ -305,14 +1473,238 @@
       "clubId": "70000000-0000-4000-8000-000000000004",
       "manager": "awayManager",
       "generatedImage": {
-        "initials": "AD",
+        "initials": "A02",
+        "shirtNumber": 2,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-03",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000003",
+      "registrationId": "74000000-0000-4000-8000-000000000003",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A03",
+        "shirtNumber": 3,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-04",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000004",
+      "registrationId": "74000000-0000-4000-8000-000000000004",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A04",
+        "shirtNumber": 4,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-05",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000005",
+      "registrationId": "74000000-0000-4000-8000-000000000005",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A05",
+        "shirtNumber": 5,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-06",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000006",
+      "registrationId": "74000000-0000-4000-8000-000000000006",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A06",
+        "shirtNumber": 6,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-07",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000007",
+      "registrationId": "74000000-0000-4000-8000-000000000007",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A07",
+        "shirtNumber": 7,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-08",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000008",
+      "registrationId": "74000000-0000-4000-8000-000000000008",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A08",
         "shirtNumber": 8,
         "primaryColor": "#dc2626",
         "secondaryColor": "#ffffff"
       }
     },
     {
-      "label": "home-staff-coach",
+      "label": "away-player-09",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000009",
+      "registrationId": "74000000-0000-4000-8000-000000000009",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A09",
+        "shirtNumber": 9,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-10",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000010",
+      "registrationId": "74000000-0000-4000-8000-000000000010",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A10",
+        "shirtNumber": 10,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-11",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000011",
+      "registrationId": "74000000-0000-4000-8000-000000000011",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A11",
+        "shirtNumber": 11,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-12",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000012",
+      "registrationId": "74000000-0000-4000-8000-000000000012",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A12",
+        "shirtNumber": 12,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-13",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000013",
+      "registrationId": "74000000-0000-4000-8000-000000000013",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A13",
+        "shirtNumber": 13,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-14",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000014",
+      "registrationId": "74000000-0000-4000-8000-000000000014",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A14",
+        "shirtNumber": 14,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-15",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000015",
+      "registrationId": "74000000-0000-4000-8000-000000000015",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A15",
+        "shirtNumber": 15,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-16",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000016",
+      "registrationId": "74000000-0000-4000-8000-000000000016",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A16",
+        "shirtNumber": 16,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-17",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000017",
+      "registrationId": "74000000-0000-4000-8000-000000000017",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A17",
+        "shirtNumber": 17,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-player-18",
+      "subjectKind": "athlete",
+      "subjectId": "72000000-0000-4000-8000-000000000018",
+      "registrationId": "74000000-0000-4000-8000-000000000018",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "A18",
+        "shirtNumber": 18,
+        "primaryColor": "#dc2626",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-staff-01",
       "subjectKind": "staff_member",
       "subjectId": "75000000-0000-4000-8000-000000000001",
       "registrationId": "77000000-0000-4000-8000-000000000001",
@@ -326,7 +1718,49 @@
       }
     },
     {
-      "label": "away-staff-coach",
+      "label": "home-staff-02",
+      "subjectKind": "staff_member",
+      "subjectId": "75000000-0000-4000-8000-000000000002",
+      "registrationId": "77000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "AH",
+        "shirtNumber": null,
+        "primaryColor": "#0f172a",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-staff-03",
+      "subjectKind": "staff_member",
+      "subjectId": "75000000-0000-4000-8000-000000000003",
+      "registrationId": "77000000-0000-4000-8000-000000000003",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "PH",
+        "shirtNumber": null,
+        "primaryColor": "#0f172a",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "home-staff-04",
+      "subjectKind": "staff_member",
+      "subjectId": "75000000-0000-4000-8000-000000000004",
+      "registrationId": "77000000-0000-4000-8000-000000000004",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "manager": "homeManager",
+      "generatedImage": {
+        "initials": "DH",
+        "shirtNumber": null,
+        "primaryColor": "#0f172a",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-staff-01",
       "subjectKind": "staff_member",
       "subjectId": "76000000-0000-4000-8000-000000000001",
       "registrationId": "78000000-0000-4000-8000-000000000001",
@@ -334,6 +1768,48 @@
       "manager": "awayManager",
       "generatedImage": {
         "initials": "TA",
+        "shirtNumber": null,
+        "primaryColor": "#0f172a",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-staff-02",
+      "subjectKind": "staff_member",
+      "subjectId": "76000000-0000-4000-8000-000000000002",
+      "registrationId": "78000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "AA",
+        "shirtNumber": null,
+        "primaryColor": "#0f172a",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-staff-03",
+      "subjectKind": "staff_member",
+      "subjectId": "76000000-0000-4000-8000-000000000003",
+      "registrationId": "78000000-0000-4000-8000-000000000003",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "PA",
+        "shirtNumber": null,
+        "primaryColor": "#0f172a",
+        "secondaryColor": "#ffffff"
+      }
+    },
+    {
+      "label": "away-staff-04",
+      "subjectKind": "staff_member",
+      "subjectId": "76000000-0000-4000-8000-000000000004",
+      "registrationId": "78000000-0000-4000-8000-000000000004",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "manager": "awayManager",
+      "generatedImage": {
+        "initials": "DA",
         "shirtNumber": null,
         "primaryColor": "#0f172a",
         "secondaryColor": "#ffffff"

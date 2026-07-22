@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchFederationDashboard,
   fetchFederationHistory,
+  fetchPhotoRequests,
   fetchFederationMatches,
   fetchFederationReports,
 } from "../../src/lib/federation-api-client";
@@ -90,12 +91,13 @@ describe("regression: federation report reception", () => {
     });
   });
 
-  it("maps known club identifiers to team names in the federation calendar", async () => {
+  it("maps known club and referee identifiers in the federation calendar", async () => {
     vi.mocked(fetchMatches).mockResolvedValue([
       {
         ...match,
         awayClubId: "70000000-0000-4000-8000-000000000004",
         homeClubId: "70000000-0000-4000-8000-000000000003",
+        refereeId: "70000000-0000-4000-8000-000000000005",
       },
     ]);
 
@@ -104,6 +106,7 @@ describe("regression: federation report reception", () => {
     expect(matches[0]).toMatchObject({
       awayTeam: "Sporting Litorale",
       homeTeam: "Atletico Aurora",
+      refereeName: "Arbitro Demo",
     });
   });
 
@@ -160,6 +163,17 @@ describe("regression: federation report reception", () => {
             slaStatus: "overdue",
             photoEtag: "photo:version-new:etag",
           },
+          {
+            id: "approval-2",
+            photoVersionId: "version-approved",
+            federationId: "fed-1",
+            seasonId: "2026",
+            registrationId: "registration-2",
+            requestedAt: "2026-07-14T12:30:00.000Z",
+            status: "approved",
+            decisionReasonCode: null,
+            decisionNotes: null,
+          },
         ];
       }
       return [];
@@ -168,7 +182,115 @@ describe("regression: federation report reception", () => {
     const dashboard = await fetchFederationDashboard();
 
     expect(dashboard.pendingPhotoRequests).toBe(1);
+    expect(dashboard.notifications).toContain("1 richieste foto in attesa");
+    expect(dashboard.notifications).not.toContain("2 richieste foto");
     expect(request).toHaveBeenCalledWith("/photo-approvals");
+  });
+
+  it("rewrites local file photo URLs to browser-safe version content URLs", async () => {
+    vi.mocked(request).mockImplementation(async (path: string) => {
+      if (path === "/photo-approvals") {
+        return [
+          {
+            id: "approval-local-file",
+            photoVersionId: "version-new",
+            proposedVersionId: "version-new",
+            currentVersionId: "version-old",
+            federationId: "fed-1",
+            seasonId: "2026",
+            registrationId: "registration-1",
+            requestedAt: "2026-07-14T12:00:00.000Z",
+            status: "pending",
+            decisionReasonCode: null,
+            decisionNotes: null,
+            currentPhotoUrl: "file:///workspace/refcheckid/photo-old.png",
+            proposedPhotoUrl: "file:///workspace/refcheckid/photo-new.png",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const [photoRequest] = await fetchPhotoRequests();
+
+    expect(photoRequest).toMatchObject({
+      currentPhotoUrl:
+        "/api/v1/photos/versions/version-old/content?rendition=normalized",
+      proposedPhotoUrl:
+        "/api/v1/photos/versions/version-new/content?rendition=normalized",
+    });
+  });
+
+  it("keeps in-compilation reports visible as pending calendar work", async () => {
+    vi.mocked(fetchMatchReports).mockResolvedValue({
+      id: "backend-report-draft",
+      matchId: "match-1",
+      refereeId: "70000000-0000-4000-8000-000000000005",
+      status: "in_compilation",
+      submittedAt: null,
+      summary: null,
+    });
+
+    const [dashboard, matches, reports] = await Promise.all([
+      fetchFederationDashboard(),
+      fetchFederationMatches(),
+      fetchFederationReports(),
+    ]);
+
+    expect(dashboard.reportsReceived).toBe(0);
+    expect(dashboard.matchesPending).toBe(1);
+    expect(matches[0]).toMatchObject({
+      refereeName: "Arbitro Demo",
+      reportStatus: "in_compilation",
+    });
+    expect(reports).toEqual([]);
+  });
+
+  it("renders federation history with explicit photo subject and action labels", async () => {
+    vi.mocked(request).mockImplementation(async (path: string) => {
+      if (path === "/audit/by-action?action=MATCH_ARCHIVED") return [];
+      if (path === "/photos/audit") {
+        return [
+          {
+            actorRole: "federation",
+            eventType: "photo.approved",
+            id: "audit-photo-1",
+            photoVersionId: "photo-version-123456789999",
+            registrationId: "registration-1",
+          },
+        ];
+      }
+      if (path === "/players") {
+        return [{ firstName: "Mario", id: "player-1", lastName: "Rossi" }];
+      }
+      if (path === "/player-registrations") {
+        return [
+          {
+            clubId: "70000000-0000-4000-8000-000000000003",
+            id: "registration-1",
+            playerId: "player-1",
+          },
+        ];
+      }
+      if (path === "/staff-members" || path === "/staff-registrations")
+        return [];
+      return [];
+    });
+
+    const history = await fetchFederationHistory();
+
+    expect(history[0]).toMatchObject({
+      eventCategory: "photo",
+      eventDescription: "approvata dalla Federazione",
+      matchLabel: "Foto tessera · approvata dalla Federazione",
+      refereeName: "Federazione",
+      auditSummary: expect.arrayContaining([
+        "Tesserato: Mario Rossi · Atletico Aurora",
+        "Evento: approvata dalla Federazione",
+        "ID registrazione: registration-1",
+        "Versione foto: 123456789999",
+      ]),
+    });
   });
 
   it("shows a backend-submitted report without reading local browser storage", async () => {

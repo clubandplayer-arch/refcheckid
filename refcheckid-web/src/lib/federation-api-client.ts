@@ -1,8 +1,4 @@
-import {
-  fetchMatchReports,
-  fetchMatches,
-  request,
-} from "./api-client";
+import { fetchMatchReports, fetchMatches, request } from "./api-client";
 import type { ApiMatch, ApiReport } from "./api-client";
 import { managerTeamConfig } from "./manager-team";
 import type {
@@ -24,16 +20,18 @@ export async function fetchFederationDashboard(): Promise<FederationDashboard> {
     (match) =>
       match.reportStatus !== "submitted" && match.reportStatus !== "reviewed",
   ).length;
+  const pendingPhotoRequests = photos.filter(
+    (photo) => photo.status === "pending",
+  ).length;
   return {
     matchesPending: pendingMatches,
     reportsReceived: reports.length,
-    pendingPhotoRequests: photos.filter((photo) => photo.status === "pending")
-      .length,
+    pendingPhotoRequests,
     syncStatus: "ok",
     notifications: [
       `${reports.length} referti ricevuti`,
       `${pendingMatches} gare in attesa`,
-      `${photos.length} richieste foto`,
+      `${pendingPhotoRequests} richieste foto in attesa`,
     ],
   };
 }
@@ -143,12 +141,15 @@ export function rejectPhotoRequest(
 export async function fetchFederationHistory(): Promise<
   readonly FederationHistoryItem[]
 > {
-  const audit = await request<readonly Record<string, unknown>[]>(
-    "/audit/by-action?action=MATCH_ARCHIVED",
-  );
-  const photoAudit = await request<readonly Record<string, unknown>[]>(
-    "/photos/audit",
-  ).catch(() => []);
+  const [audit, photoAudit, registrationLabels] = await Promise.all([
+    request<readonly Record<string, unknown>[]>(
+      "/audit/by-action?action=MATCH_ARCHIVED",
+    ),
+    request<readonly Record<string, unknown>[]>("/photos/audit").catch(
+      () => [],
+    ),
+    fetchRegistrationLabels(),
+  ]);
   return [
     ...photoAudit
       .filter((item) =>
@@ -160,28 +161,59 @@ export async function fetchFederationHistory(): Promise<
         ].includes(String(item.eventType ?? item.event_type ?? "")),
       )
       .map((item) => {
-        const eventType = String(item.eventType ?? item.event_type ?? "photo.audit");
-        const registrationId = String(item.registrationId ?? item.registration_id ?? "");
+        const eventType = String(
+          item.eventType ?? item.event_type ?? "photo.audit",
+        );
+        const registrationId = String(
+          item.registrationId ?? item.registration_id ?? "",
+        );
+        const photoVersionId = String(
+          item.photoVersionId ?? item.photo_version_id ?? "",
+        );
+        const subjectLabel =
+          registrationLabels.get(registrationId) ??
+          (registrationId
+            ? `Registrazione ${shortId(registrationId)}`
+            : "Tesserato non identificato");
+        const eventDescription = formatPhotoAuditEvent(eventType);
         return {
           id: String(item.id),
           auditSummary: [
-            formatPhotoAuditEvent(eventType),
-            `Registrazione: ${registrationId || "n/d"}`,
+            `Tesserato: ${subjectLabel}`,
+            `Evento: ${eventDescription}`,
+            `ID registrazione: ${registrationId || "n/d"}`,
+            `Versione foto: ${shortId(photoVersionId) || "n/d"}`,
           ],
           clubNames: [],
-          matchLabel: `Workflow foto ${registrationId || String(item.photoVersionId ?? item.photo_version_id ?? "")}`,
-          refereeName: String(item.actorRole ?? item.actor_role ?? "Federazione"),
+          eventCategory: "photo" as const,
+          eventDescription,
+          matchLabel: `Foto tessera · ${eventDescription}`,
+          refereeName: formatActorRole(
+            String(item.actorRole ?? item.actor_role ?? "federation"),
+          ),
           reportId: "",
         };
       }),
-    ...audit.map((item) => ({
-      id: String(item.id),
-      auditSummary: [String(item.action ?? "Audit")],
-      clubNames: [],
-      matchLabel: String(item.entityId ?? item.entity_id ?? "Gara"),
-      refereeName: String(item.actorId ?? item.actor_id ?? "—"),
-      reportId: String(item.entityId ?? item.entity_id ?? ""),
-    })),
+    ...audit.map((item) => {
+      const eventDescription = formatMatchAuditEvent(
+        String(item.action ?? "Audit"),
+      );
+      return {
+        id: String(item.id),
+        auditSummary: [
+          `Evento: ${eventDescription}`,
+          `ID gara/referto: ${String(item.entityId ?? item.entity_id ?? "n/d")}`,
+        ],
+        clubNames: [],
+        eventCategory: "match" as const,
+        eventDescription,
+        matchLabel: `Gara archiviata · ${String(item.entityId ?? item.entity_id ?? "Gara")}`,
+        refereeName: formatActorRole(
+          String(item.actorId ?? item.actor_id ?? "sistema"),
+        ),
+        reportId: String(item.entityId ?? item.entity_id ?? ""),
+      };
+    }),
   ];
 }
 
@@ -216,7 +248,7 @@ function toFederationMatch(
           ? "in_progress"
           : "scheduled",
     matchday: new Date(match.scheduledAt).getUTCDate(),
-    refereeName: match.refereeId ?? "Da assegnare",
+    refereeName: formatRefereeName(match.refereeId),
     reportStatus: normalizedReportStatus,
     scheduledAt: match.scheduledAt,
   };
@@ -229,9 +261,109 @@ function formatClubName(clubIdOrName: string): string {
   return club?.label ?? clubIdOrName;
 }
 
+async function fetchRegistrationLabels(): Promise<Map<string, string>> {
+  const [players, playerRegistrations, staffMembers, staffRegistrations] =
+    await Promise.all([
+      request<readonly Record<string, unknown>[]>("/players").catch(() => []),
+      request<readonly Record<string, unknown>[]>(
+        "/player-registrations",
+      ).catch(() => []),
+      request<readonly Record<string, unknown>[]>("/staff-members").catch(
+        () => [],
+      ),
+      request<readonly Record<string, unknown>[]>("/staff-registrations").catch(
+        () => [],
+      ),
+    ]);
+
+  const playerById = new Map(
+    players.map((player) => [String(player.id), player]),
+  );
+  const staffById = new Map(
+    staffMembers.map((staff) => [String(staff.id), staff]),
+  );
+  const labels = new Map<string, string>();
+
+  for (const registration of playerRegistrations) {
+    const player = playerById.get(
+      String(registration.playerId ?? registration.player_id),
+    );
+    labels.set(
+      String(registration.id),
+      formatHistorySubjectLabel(
+        player,
+        String(registration.clubId ?? registration.club_id),
+        "Giocatore",
+      ),
+    );
+  }
+
+  for (const registration of staffRegistrations) {
+    const staff = staffById.get(
+      String(registration.staffMemberId ?? registration.staff_member_id),
+    );
+    labels.set(
+      String(registration.id),
+      formatHistorySubjectLabel(
+        staff,
+        String(registration.clubId ?? registration.club_id),
+        "Staff",
+      ),
+    );
+  }
+
+  return labels;
+}
+
+function formatHistorySubjectLabel(
+  subject: Record<string, unknown> | undefined,
+  clubIdOrName: string,
+  fallbackRole: string,
+): string {
+  const name = subject ? formatPersonName(subject, fallbackRole) : fallbackRole;
+  const clubName = clubIdOrName
+    ? formatClubName(clubIdOrName)
+    : "Società non disponibile";
+  return `${name} · ${clubName}`;
+}
+
+function formatPersonName(
+  person: Record<string, unknown>,
+  fallback: string,
+): string {
+  const fullName = person.fullName ?? person.full_name;
+  if (typeof fullName === "string" && fullName.trim().length > 0) {
+    return fullName.trim();
+  }
+
+  const firstName = person.firstName ?? person.first_name;
+  const lastName = person.lastName ?? person.last_name;
+  const parts = [firstName, lastName]
+    .filter(
+      (value): value is string =>
+        typeof value === "string" && value.trim().length > 0,
+    )
+    .map((value) => value.trim());
+
+  return parts.length > 0 ? parts.join(" ") : fallback;
+}
+
+function shortId(value: string): string {
+  return value ? value.slice(-12) : "";
+}
+
+function formatRefereeName(refereeIdOrName: string | null | undefined): string {
+  if (!refereeIdOrName) return "Da assegnare";
+  if (refereeIdOrName === "70000000-0000-4000-8000-000000000005") {
+    return "Arbitro Demo";
+  }
+  return refereeIdOrName;
+}
+
 function normalizeReportStatus(status?: string) {
   if (status === "submitted" || status === "reviewed") return status;
   if (status === "draft") return "draft";
+  if (status === "in_compilation") return "in_compilation";
   return "missing";
 }
 
@@ -275,7 +407,7 @@ function toFederationReport(
     homeTeam: fallbackTeams.homeTeam,
     awayTeam: fallbackTeams.awayTeam,
     matchId: report.matchId,
-    refereeName: report.refereeId,
+    refereeName: formatRefereeName(report.refereeId),
     refereeNotes: report.summary ?? "Referto ricevuto.",
     result: { awayGoals: 0, homeGoals: 0 },
     substitutions: [],
@@ -300,9 +432,7 @@ function resolveReportTeams(
   };
 }
 
-function parseSubmittedReportSummary(
-  summary: string | null,
-): {
+function parseSubmittedReportSummary(summary: string | null): {
   awayTeam: string;
   cautions: FederationReport["cautions"];
   expulsions: FederationReport["expulsions"];
@@ -315,7 +445,9 @@ function parseSubmittedReportSummary(
 } | null {
   if (!summary) return null;
   try {
-    const parsed = JSON.parse(summary) as ReturnType<typeof parseSubmittedReportSummary>;
+    const parsed = JSON.parse(summary) as ReturnType<
+      typeof parseSubmittedReportSummary
+    >;
     return parsed && typeof parsed === "object" && "result" in parsed
       ? parsed
       : null;
@@ -327,14 +459,18 @@ function parseSubmittedReportSummary(
 function toPhotoRequest(approval: ApiPhotoApproval): PhotoRequest {
   return {
     id: approval.id,
-    clubName: approval.clubName ?? `Federazione ${approval.federationId.slice(0, 8)}`,
-    currentPhotoUrl: approval.currentPhotoUrl ?? (approval.currentVersionId
-      ? `/api/v1/photos/versions/${approval.currentVersionId}/content`
-      : null),
-    playerName: approval.subjectName ?? approval.registrationId ?? approval.photoVersionId,
+    clubName:
+      approval.clubName ?? `Federazione ${approval.federationId.slice(0, 8)}`,
+    currentPhotoUrl:
+      normalizeBrowserPhotoUrl(approval.currentPhotoUrl) ??
+      photoVersionContentUrl(approval.currentVersionId),
+    playerName:
+      approval.subjectName ??
+      approval.registrationId ??
+      approval.photoVersionId,
     proposedPhotoUrl:
-      approval.proposedPhotoUrl ??
-      `/api/v1/photos/versions/${approval.proposedVersionId ?? approval.photoVersionId}/content`,
+      normalizeBrowserPhotoUrl(approval.proposedPhotoUrl) ??
+      photoVersionContentUrl(approval.proposedVersionId ?? approval.photoVersionId),
     requestedAt: approval.requestedAt,
     status: approval.status,
     reasonCode: approval.decisionReasonCode,
@@ -344,13 +480,40 @@ function toPhotoRequest(approval: ApiPhotoApproval): PhotoRequest {
   };
 }
 
+function photoVersionContentUrl(versionId: string | null | undefined): string | null {
+  if (!versionId) return null;
+  return `/api/v1/photos/versions/${encodeURIComponent(versionId)}/content?rendition=normalized`;
+}
+
+function normalizeBrowserPhotoUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value.startsWith("file://")) return null;
+  return value;
+}
+
 function formatPhotoAuditEvent(eventType: string): string {
   return (
     {
-      "photo.approved": "Foto approvata dalla federazione",
-      "photo.rejected": "Foto rifiutata dalla federazione",
-      "photo.official_changed": "Foto ufficiale aggiornata",
-      "photo.version_viewed_for_approval": "Versione foto visualizzata per approvazione",
+      "photo.approved": "approvata dalla Federazione",
+      "photo.rejected": "rifiutata dalla Federazione",
+      "photo.official_changed": "foto ufficiale aggiornata",
+      "photo.version_viewed_for_approval": "visualizzata per approvazione",
     }[eventType] ?? eventType
+  );
+}
+
+function formatMatchAuditEvent(action: string): string {
+  return { MATCH_ARCHIVED: "referto archiviato" }[action] ?? action;
+}
+
+function formatActorRole(value: string): string {
+  return (
+    {
+      federation: "Federazione",
+      manager: "Dirigente",
+      referee: "Arbitro",
+      sistema: "Sistema",
+      system: "Sistema",
+    }[value] ?? formatRefereeName(value)
   );
 }

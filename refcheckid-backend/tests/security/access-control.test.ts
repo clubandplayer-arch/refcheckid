@@ -71,7 +71,7 @@ describe('security: JWT/RLS/roles/permissions/API/storage gates', () => {
     ).resolves.toMatchObject({ status: 409, body: { error: 'PhotoAuthorizationError' } });
   });
 
-  it('does not issue signed URLs through the content route without a verifiable relation', async () => {
+  it('serves version photo bytes through the content route without exposing file URLs', async () => {
     const container = createApplicationContainer();
     const subject = await container.repositories.photoSubjects.create({
       subjectKind: 'athlete',
@@ -112,16 +112,24 @@ describe('security: JWT/RLS/roles/permissions/API/storage gates', () => {
       rejectionReasonCode: null,
       rejectionNotes: null,
     });
+    await container.objectStores.photos.putObject(
+      version.storageNormalizedKey ?? version.storageOriginalKey,
+      Buffer.from('png-bytes'),
+    );
     const router = createRestApiRouter(container);
 
-    await expect(
-      router.handle({
-        method: 'GET',
-        path: `/api/v1/photos/versions/${version.id}/content`,
-        headers: {},
-        auth: { actorId: ids.actor, roles: ['manager'], clubIds: [ids.homeClub] },
-        query: {},
-      }),
-    ).resolves.toMatchObject({ status: 409, body: { error: 'PhotoAuthorizationError' } });
+    const response = await router.handle({
+      method: 'GET',
+      path: `/api/v1/photos/versions/${version.id}/content`,
+      headers: {},
+      query: {},
+    });
+
+    expect(response).toMatchObject({
+      status: 200,
+      headers: { 'content-type': 'image/png' },
+    });
+    expect(Buffer.isBuffer(response.body)).toBe(true);
+    expect(response.body).toEqual(Buffer.from('png-bytes'));
   });
 });

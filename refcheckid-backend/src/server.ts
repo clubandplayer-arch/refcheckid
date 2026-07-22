@@ -95,6 +95,12 @@ async function handleRequest(
     status: apiResponse.status,
   });
 
+  if (Buffer.isBuffer(apiResponse.body)) {
+    response.writeHead(apiResponse.status);
+    response.end(apiResponse.body);
+    return;
+  }
+
   if (typeof apiResponse.body === 'string') {
     response.writeHead(apiResponse.status);
     response.end(apiResponse.body);

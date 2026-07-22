@@ -614,21 +614,11 @@ function PlayersStep({
               }`}
               key={player.id}
             >
-              <div className="flex items-start gap-3 md:block">
-                {player.photoUrl ? (
-                  <Image
-                    alt={`Foto ${player.lastName} ${player.firstName}`}
-                    className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
-                    height={96}
-                    src={player.photoUrl}
-                    width={80}
-                  />
-                ) : (
-                  <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
-                    Foto
-                  </div>
-                )}
-              </div>
+              <SubjectPhotoThumbnail
+                alt={`Foto ${player.lastName} ${player.firstName}`}
+                photo={player.photo}
+                photoUrl={player.photoUrl}
+              />
               <div className="min-w-0 space-y-1">
                 <p className="break-words text-base font-semibold leading-tight text-slate-900">
                   {player.lastName} {player.firstName}
@@ -639,31 +629,33 @@ function PlayersStep({
                 </p>
                 <BackendPhotoStatus photo={player.photo} />
               </div>
-              <PhotoComparison
-                currentPhotoUrl={
-                  player.photo?.currentPhotoUrl ?? player.photoUrl
-                }
-                proposedPhotoUrl={player.photo?.proposedPhotoUrl ?? null}
-              />
-              <PhotoCaptureControls
-                currentPhotoUrl={
-                  player.photo?.currentPhotoUrl ?? player.photoUrl
-                }
-                onConfirm={() => onConfirmPhoto(player.id)}
-                onPhotoSelected={(file) => onPhotoSelected(player.id, file)}
-                onPhotoTransform={(transform) =>
-                  onPhotoTransform(player.id, transform)
-                }
-                photoDraft={photoDraft?.id === player.id ? photoDraft : null}
-                photoError={
-                  photoError?.subjectKind === "athlete" &&
-                  photoError.subjectId === player.id
-                    ? photoError.message
-                    : null
-                }
-                subjectLabel={`${player.lastName} ${player.firstName}`}
-                uploadUnavailableReason={uploadUnavailableReason}
-              />
+              <div className="min-w-0 space-y-2">
+                <PhotoComparison
+                  currentPhotoUrl={
+                    player.photo?.currentPhotoUrl ?? player.photoUrl
+                  }
+                  proposedPhotoUrl={player.photo?.proposedPhotoUrl ?? null}
+                />
+                <PhotoCaptureControls
+                  currentPhotoUrl={
+                    player.photo?.currentPhotoUrl ?? player.photoUrl
+                  }
+                  onConfirm={() => onConfirmPhoto(player.id)}
+                  onPhotoSelected={(file) => onPhotoSelected(player.id, file)}
+                  onPhotoTransform={(transform) =>
+                    onPhotoTransform(player.id, transform)
+                  }
+                  photoDraft={photoDraft?.id === player.id ? photoDraft : null}
+                  photoError={
+                    photoError?.subjectKind === "athlete" &&
+                    photoError.subjectId === player.id
+                      ? photoError.message
+                      : null
+                  }
+                  subjectLabel={`${player.lastName} ${player.firstName}`}
+                  uploadUnavailableReason={uploadUnavailableReason}
+                />
+              </div>
               <label className="flex items-center gap-2 text-sm md:justify-end">
                 <span className="md:sr-only">Convoca</span>
                 <input
@@ -679,6 +671,43 @@ function PlayersStep({
         })}
       </div>
     </Card>
+  );
+}
+
+function SubjectPhotoThumbnail({
+  alt,
+  photo,
+  photoUrl,
+}: Readonly<{
+  alt: string;
+  photo: PlayerListItem["photo"] | StaffListItem["photo"];
+  photoUrl: string | null;
+}>) {
+  const displayPhotoUrl = photo?.proposedPhotoUrl ?? photo?.currentPhotoUrl ?? photoUrl;
+  const isPending = photo?.status === "pending" && photo?.proposedPhotoUrl !== null;
+  return (
+    <div className="flex items-start gap-3 md:block">
+      {displayPhotoUrl ? (
+        <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-lg border bg-white shadow-sm">
+          <Image
+            alt={alt}
+            className="h-full w-full object-cover"
+            height={96}
+            src={displayPhotoUrl}
+            width={80}
+          />
+          {isPending ? (
+            <span className="absolute inset-x-1 bottom-1 rounded bg-red-600/95 px-1 py-0.5 text-center text-[9px] font-bold leading-tight text-white shadow">
+              Da approvare
+            </span>
+          ) : null}
+        </div>
+      ) : (
+        <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
+          Foto
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1206,21 +1235,11 @@ function StaffStep({
               className="grid gap-3 p-4 md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px] md:items-start"
               key={staffMember.id}
             >
-              <div className="flex items-start gap-3 md:block">
-                {staffMember.photoUrl ? (
-                  <Image
-                    alt={`Foto ${staffMember.fullName}`}
-                    className="h-24 w-20 shrink-0 rounded-lg border bg-white object-cover shadow-sm"
-                    height={96}
-                    src={staffMember.photoUrl}
-                    width={80}
-                  />
-                ) : (
-                  <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs">
-                    Foto
-                  </div>
-                )}
-              </div>
+              <SubjectPhotoThumbnail
+                alt={`Foto ${staffMember.fullName}`}
+                photo={staffMember.photo}
+                photoUrl={staffMember.photoUrl}
+              />
               <div className="min-w-0 space-y-1">
                 <p className="break-words text-base font-semibold leading-tight text-slate-900">
                   {staffMember.fullName}
@@ -1230,35 +1249,37 @@ function StaffStep({
                 </p>
                 <BackendPhotoStatus photo={staffMember.photo} />
               </div>
-              <PhotoComparison
-                currentPhotoUrl={
-                  staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl
-                }
-                proposedPhotoUrl={staffMember.photo?.proposedPhotoUrl ?? null}
-              />
-              <PhotoCaptureControls
-                currentPhotoUrl={
-                  staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl
-                }
-                onConfirm={() => onConfirmPhoto(staffMember.id)}
-                onPhotoSelected={(file) =>
-                  onPhotoSelected(staffMember.id, file)
-                }
-                onPhotoTransform={(transform) =>
-                  onPhotoTransform(staffMember.id, transform)
-                }
-                photoDraft={
-                  photoDraft?.id === staffMember.id ? photoDraft : null
-                }
-                photoError={
-                  photoError?.subjectKind === "staff_member" &&
-                  photoError.subjectId === staffMember.id
-                    ? photoError.message
-                    : null
-                }
-                subjectLabel={staffMember.fullName}
-                uploadUnavailableReason={uploadUnavailableReason}
-              />
+              <div className="min-w-0 space-y-2">
+                <PhotoComparison
+                  currentPhotoUrl={
+                    staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl
+                  }
+                  proposedPhotoUrl={staffMember.photo?.proposedPhotoUrl ?? null}
+                />
+                <PhotoCaptureControls
+                  currentPhotoUrl={
+                    staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl
+                  }
+                  onConfirm={() => onConfirmPhoto(staffMember.id)}
+                  onPhotoSelected={(file) =>
+                    onPhotoSelected(staffMember.id, file)
+                  }
+                  onPhotoTransform={(transform) =>
+                    onPhotoTransform(staffMember.id, transform)
+                  }
+                  photoDraft={
+                    photoDraft?.id === staffMember.id ? photoDraft : null
+                  }
+                  photoError={
+                    photoError?.subjectKind === "staff_member" &&
+                    photoError.subjectId === staffMember.id
+                      ? photoError.message
+                      : null
+                  }
+                  subjectLabel={staffMember.fullName}
+                  uploadUnavailableReason={uploadUnavailableReason}
+                />
+              </div>
               <label className="flex items-center gap-2 text-sm md:justify-end">
                 <span className="md:sr-only">Seleziona</span>
                 <input

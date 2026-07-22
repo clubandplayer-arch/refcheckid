@@ -101,27 +101,55 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
     headers: { 'content-type': 'application/json' },
     body: await container.repositories.photoVersions.findById(request.params.id as never),
   }));
-  router.register('GET', '/api/v1/photos/versions/:id/content', async (request) => ({
-    status: 200,
-    headers: { 'content-type': 'application/json' },
-    body: await container.services.photos.createSignedReadUrl(
-      request.params.id as never,
-      {
-        actorRole: request.auth?.roles[0] as never,
-        actorId: request.auth?.actorId as never,
-        clubId: request.auth?.clubIds?.[0] as never,
-        clubIds: request.auth?.clubIds as never,
-        federationId: request.auth?.federationIds?.[0] as never,
-        federationIds: request.auth?.federationIds as never,
-        authorizedMatchIds: request.auth?.authorizedMatchIds as never,
-        matchId: request.query.matchId as never,
+  router.register('GET', '/api/v1/photos/versions/:id/content', async (request) => {
+    const version = await container.repositories.photoVersions.findById(request.params.id as never);
+    if (version === null) {
+      return {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+        body: { error: 'PHOTO_VERSION_NOT_FOUND', message: 'Photo version not found.' },
+      };
+    }
+
+    const rendition = request.query.rendition === 'original' ? 'original' : 'normalized';
+    const objectKey =
+      rendition === 'original'
+        ? version.storageOriginalKey
+        : (version.storageNormalizedKey ?? version.storageOriginalKey);
+
+    let bytes: Buffer | undefined;
+    try {
+      bytes = await container.objectStores.photos.readObject?.(objectKey);
+    } catch {
+      return {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+        body: { error: 'PHOTO_CONTENT_NOT_FOUND', message: 'Photo content not found.' },
+      };
+    }
+    if (bytes === undefined) {
+      return {
+        status: 501,
+        headers: { 'content-type': 'application/json' },
+        body: { error: 'PHOTO_CONTENT_UNAVAILABLE', message: 'Photo content streaming is unavailable.' },
+      };
+    }
+
+    const contentType =
+      rendition === 'original'
+        ? version.mimeType
+        : (version.normalizedMimeType ?? version.mimeType ?? 'application/octet-stream');
+
+    return {
+      status: 200,
+      headers: {
+        'content-type': contentType,
+        'cache-control': 'private, max-age=300',
+        'content-length': String(bytes.byteLength),
       },
-      {
-        rendition: request.query.rendition as never,
-        ttlSeconds: Number(request.query.ttlSeconds ?? 300),
-      },
-    ),
-  }));
+      body: bytes,
+    };
+  });
   router.register('GET', '/api/v1/photo-approvals', controllers.listPhotoApprovals);
   router.register('GET', '/api/v1/photo-approvals/:id', controllers.getPhotoApproval);
   router.register('POST', '/api/v1/photo-approvals/:id/approve', controllers.approvePhotoApproval);
