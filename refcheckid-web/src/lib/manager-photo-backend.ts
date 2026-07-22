@@ -15,7 +15,7 @@ export interface ManagerPhotoState {
 
 interface SignedReadResponse {
   signedUrl?: { url?: string };
-  version?: { status?: string };
+  version?: { id?: string; status?: string };
 }
 interface UploadIntentResponse {
   intent: {
@@ -102,7 +102,9 @@ export async function readBackendPhotoState(
           `/registrations/${encodeURIComponent(registrationId)}/season-photo?rendition=normalized&ttlSeconds=300`,
         )
       : await readSubjectPhoto(subjectKind, subjectId);
-    const currentPhotoUrl = normalizeBrowserPhotoUrl(signed.signedUrl?.url);
+    const currentPhotoUrl =
+      normalizeBrowserPhotoUrl(signed.signedUrl?.url) ??
+      photoVersionContentUrl(signed.version?.id);
     const currentStatus =
       signed.version?.status === "suspended"
         ? "suspended"
@@ -219,6 +221,11 @@ async function readSubjectPhoto(
   return request<SignedReadResponse>(
     `/${endpoint}/${encodeURIComponent(subjectId)}/photo?rendition=normalized&ttlSeconds=300`,
   );
+}
+
+function photoVersionContentUrl(versionId: string | undefined): string | null {
+  if (!versionId) return null;
+  return `/api/v1/photos/versions/${encodeURIComponent(versionId)}/content?rendition=normalized`;
 }
 
 function normalizeBrowserPhotoUrl(value: unknown): string | null {

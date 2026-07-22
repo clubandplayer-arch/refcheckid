@@ -144,7 +144,7 @@ describe("unit: frontend API client", () => {
           status: 200,
           json: async () => ({
             signedUrl: { url: "https://photos.example/home.jpg" },
-            version: { status: "active" },
+            version: { id: "version-home", status: "active" },
           }),
         };
       }
@@ -226,7 +226,7 @@ describe("unit: frontend API client", () => {
             signedUrl: {
               url: "file:///workspaces/refcheckid/refcheckid-backend/storage/refcheckid-photos-dev/photo.png",
             },
-            version: { status: "active" },
+            version: { id: "version-local", status: "active" },
           }),
         };
       }
@@ -250,9 +250,11 @@ describe("unit: frontend API client", () => {
     await expect(fetchPlayers()).resolves.toMatchObject([
       {
         id: "player-home",
-        photoUrl: null,
+        photoUrl:
+          "/api/v1/photos/versions/version-local/content?rendition=normalized",
         photo: {
-          currentPhotoUrl: null,
+          currentPhotoUrl:
+            "/api/v1/photos/versions/version-local/content?rendition=normalized",
           status: "active",
         },
       },

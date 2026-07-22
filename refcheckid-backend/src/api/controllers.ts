@@ -71,17 +71,15 @@ export function createControllers(container: ApplicationContainer): Record<strin
       if (!subject) return json(404, { error: 'PHOTO_NOT_FOUND' });
       const global = await container.repositories.globalOfficialPhotos.findBySubject(subject.id);
       if (!global?.currentVersionId) return json(404, { error: 'PHOTO_NOT_FOUND' });
-      return json(
-        200,
-        await container.services.photos.createSignedReadUrl(
-          global.currentVersionId,
-          photoContext(request, request.query),
-          {
-            rendition: request.query.rendition as never,
-            ttlSeconds: Number(request.query.ttlSeconds ?? 300),
-          },
-        ),
+      const read = await container.services.photos.createSignedReadUrl(
+        global.currentVersionId,
+        photoContext(request, request.query),
+        {
+          rendition: request.query.rendition as never,
+          ttlSeconds: Number(request.query.ttlSeconds ?? 300),
+        },
       );
+      return json(200, withBrowserPhotoContentUrl(read));
     },
     getStaffMemberPhoto: async (request) => {
       const subject = (await container.repositories.photoSubjects.list()).find(
@@ -92,37 +90,33 @@ export function createControllers(container: ApplicationContainer): Record<strin
       if (!subject) return json(404, { error: 'PHOTO_NOT_FOUND' });
       const global = await container.repositories.globalOfficialPhotos.findBySubject(subject.id);
       if (!global?.currentVersionId) return json(404, { error: 'PHOTO_NOT_FOUND' });
-      return json(
-        200,
-        await container.services.photos.createSignedReadUrl(
-          global.currentVersionId,
-          photoContext(request, request.query),
-          {
-            rendition: request.query.rendition as never,
-            ttlSeconds: Number(request.query.ttlSeconds ?? 300),
-          },
-        ),
+      const read = await container.services.photos.createSignedReadUrl(
+        global.currentVersionId,
+        photoContext(request, request.query),
+        {
+          rendition: request.query.rendition as never,
+          ttlSeconds: Number(request.query.ttlSeconds ?? 300),
+        },
       );
+      return json(200, withBrowserPhotoContentUrl(read));
     },
     getRegistrationSeasonPhoto: async (request) => {
       const photo = (await container.repositories.seasonRegistrationPhotos.list()).find(
         (row) => row.registrationId === requireUuid(request.params.id, 'id'),
       );
       if (!photo) return json(404, { error: 'PHOTO_NOT_FOUND' });
-      return json(
-        200,
-        await container.services.photos.createSignedReadUrl(
-          photo.effectiveVersionId,
-          photoContext(request, {
-            ...request.query,
-            registrationClubId: await findRegistrationClubId(container, photo.registrationId),
-          }),
-          {
-            rendition: request.query.rendition as never,
-            ttlSeconds: Number(request.query.ttlSeconds ?? 300),
-          },
-        ),
+      const read = await container.services.photos.createSignedReadUrl(
+        photo.effectiveVersionId,
+        photoContext(request, {
+          ...request.query,
+          registrationClubId: await findRegistrationClubId(container, photo.registrationId),
+        }),
+        {
+          rendition: request.query.rendition as never,
+          ttlSeconds: Number(request.query.ttlSeconds ?? 300),
+        },
       );
+      return json(200, withBrowserPhotoContentUrl(read));
     },
     createPhotoUploadIntent: async (request) => {
       const body = requireBodyObject(request.body);
@@ -292,14 +286,12 @@ export function createControllers(container: ApplicationContainer): Record<strin
       const subjects = await Promise.all(
         snapshotRows.map(async (snapshot) => {
           const context = photoContext(request, { matchId });
-          const signed =
-            snapshot.photoVersionId === null
-              ? null
-              : await container.services.photos.createSignedReadUrl(
-                  snapshot.photoVersionId,
-                  context,
-                  { rendition: 'normalized', ttlSeconds: 900 },
-                );
+          if (snapshot.photoVersionId !== null) {
+            await container.services.photos.createSignedReadUrl(snapshot.photoVersionId, context, {
+              rendition: 'normalized',
+              ttlSeconds: 900,
+            });
+          }
           await container.services.photos.auditSnapshotServed(context, snapshot);
           const manifest = snapshot.renditionManifest;
           return {
@@ -311,7 +303,10 @@ export function createControllers(container: ApplicationContainer): Record<strin
             teamName: typeof manifest.teamName === 'string' ? manifest.teamName : 'Distinta gara',
             roleLabel: typeof manifest.roleLabel === 'string' ? manifest.roleLabel : 'Tesserato',
             subjectKind: manifest.subjectKind === 'staff' ? 'staff' : 'player',
-            photoUrl: signed?.signedUrl.url ?? null,
+            photoUrl:
+              snapshot.photoVersionId === null
+                ? null
+                : photoVersionContentUrl(snapshot.photoVersionId),
             photoStatus: snapshot.photoStatus,
             photoEtag: snapshot.photoEtag ?? `snapshot:${snapshot.registrationId}:${snapshot.photoStatus}`,
             manifestSource: 'frozen_snapshot',
@@ -762,7 +757,25 @@ async function enrichPhotoApproval(
 async function createApprovalPreviewUrl(container: ApplicationContainer, versionId: string) {
   const version = await container.repositories.photoVersions.findById(versionId as never);
   if (version === null) return null;
+  return photoVersionContentUrl(versionId);
+}
+
+function photoVersionContentUrl(versionId: string): string {
   return `/api/v1/photos/versions/${versionId}/content?rendition=normalized`;
+}
+
+function withBrowserPhotoContentUrl<T extends {
+  readonly signedUrl?: { readonly url?: string };
+  readonly version?: { readonly id?: string };
+}>(read: T): T {
+  if (!read.version?.id) return read;
+  return {
+    ...read,
+    signedUrl: {
+      ...read.signedUrl,
+      url: photoVersionContentUrl(read.version.id),
+    },
+  };
 }
 
 function requireFederationRejectReasonCode(value: unknown) {
