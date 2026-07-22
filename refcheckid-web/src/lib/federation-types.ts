@@ -73,4 +73,6 @@ export interface FederationHistoryItem {
   refereeName: string;
   reportId: string;
   auditSummary: readonly string[];
+  eventCategory: "photo" | "match";
+  eventDescription: string;
 }

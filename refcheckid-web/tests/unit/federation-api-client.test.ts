@@ -211,6 +211,53 @@ describe("regression: federation report reception", () => {
     expect(reports).toEqual([]);
   });
 
+  it("renders federation history with explicit photo subject and action labels", async () => {
+    vi.mocked(request).mockImplementation(async (path: string) => {
+      if (path === "/audit/by-action?action=MATCH_ARCHIVED") return [];
+      if (path === "/photos/audit") {
+        return [
+          {
+            actorRole: "federation",
+            eventType: "photo.approved",
+            id: "audit-photo-1",
+            photoVersionId: "photo-version-123456789999",
+            registrationId: "registration-1",
+          },
+        ];
+      }
+      if (path === "/players") {
+        return [{ firstName: "Mario", id: "player-1", lastName: "Rossi" }];
+      }
+      if (path === "/player-registrations") {
+        return [
+          {
+            clubId: "70000000-0000-4000-8000-000000000003",
+            id: "registration-1",
+            playerId: "player-1",
+          },
+        ];
+      }
+      if (path === "/staff-members" || path === "/staff-registrations")
+        return [];
+      return [];
+    });
+
+    const history = await fetchFederationHistory();
+
+    expect(history[0]).toMatchObject({
+      eventCategory: "photo",
+      eventDescription: "approvata dalla Federazione",
+      matchLabel: "Foto tessera · approvata dalla Federazione",
+      refereeName: "Federazione",
+      auditSummary: expect.arrayContaining([
+        "Tesserato: Mario Rossi · Atletico Aurora",
+        "Evento: approvata dalla Federazione",
+        "ID registrazione: registration-1",
+        "Versione foto: 123456789999",
+      ]),
+    });
+  });
+
   it("shows a backend-submitted report without reading local browser storage", async () => {
     vi.mocked(fetchMatchReports).mockResolvedValue({
       id: "backend-report-1",

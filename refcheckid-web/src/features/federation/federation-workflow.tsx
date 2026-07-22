@@ -485,13 +485,18 @@ function PhotoRequestsPanel() {
             }
             value={statusFilter}
           >
-            {["all", "pending", "approved", "rejected", "cancelled", "expired"].map(
-              (status) => (
-                <option key={status} value={status}>
-                  {formatStatusLabel(status)}
-                </option>
-              ),
-            )}
+            {[
+              "all",
+              "pending",
+              "approved",
+              "rejected",
+              "cancelled",
+              "expired",
+            ].map((status) => (
+              <option key={status} value={status}>
+                {formatStatusLabel(status)}
+              </option>
+            ))}
           </select>
         </label>
         <label className="space-y-1 text-sm font-medium">
@@ -665,7 +670,7 @@ function HistoryPanel() {
     () =>
       (historyQuery.data ?? []).filter((item) => {
         const searchable =
-          `${item.matchLabel} ${item.clubNames.join(" ")} ${item.refereeName}`.toLowerCase();
+          `${item.matchLabel} ${item.clubNames.join(" ")} ${item.refereeName} ${item.auditSummary.join(" ")}`.toLowerCase();
         return searchable.includes(query.toLowerCase());
       }),
     [historyQuery.data, query],
@@ -698,7 +703,8 @@ function HistoryPanel() {
       <div>
         <h2 className="text-xl font-bold">Storico</h2>
         <p className="text-sm text-slate-500">
-          Ricerca gara, società o arbitro e accedi a referto e audit sintetico.
+          Consulta eventi foto e archiviazioni referto con tesserato, società e
+          azione eseguita.
         </p>
       </div>
       <Input
@@ -745,9 +751,14 @@ function HistoryCard({
   return (
     <div className="rounded-xl border p-4">
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-        <div>
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase text-primary">
+            {item.eventCategory === "photo" ? "Workflow foto" : "Workflow gara"}
+          </p>
           <h3 className="font-bold">{item.matchLabel}</h3>
-          <p className="text-sm text-slate-500">Arbitro: {item.refereeName}</p>
+          <p className="text-sm text-slate-500">
+            Attore: {item.refereeName} · Azione: {item.eventDescription}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2 md:justify-end">
           {item.reportId ? (
@@ -794,7 +805,8 @@ function AuditSummaryPanel({
         <p className="text-sm font-semibold text-primary">Audit sintetico</p>
         <h3 className="text-xl font-bold">{item.matchLabel}</h3>
         <p className="text-sm text-slate-500">
-          Attore evento: {item.refereeName || "Arbitro Demo"}
+          Attore evento: {item.refereeName || "Arbitro Demo"} · Categoria:{" "}
+          {item.eventCategory === "photo" ? "foto tessera" : "gara/referto"}
         </p>
       </div>
       <ol className="space-y-2 text-sm">
@@ -856,7 +868,15 @@ function formatStatusLabel(status: string): string {
 
 function statusBadgeClass(status: string): string {
   if (
-    ["submitted", "reviewed", "completed", "approved", "ok", "on_track", "closed"].includes(status)
+    [
+      "submitted",
+      "reviewed",
+      "completed",
+      "approved",
+      "ok",
+      "on_track",
+      "closed",
+    ].includes(status)
   ) {
     return "bg-green-100 text-green-800";
   }
@@ -874,7 +894,9 @@ function statusBadgeClass(status: string): string {
   ) {
     return "bg-amber-100 text-amber-900";
   }
-  if (["failed", "rejected", "cancelled", "expired", "overdue"].includes(status))
+  if (
+    ["failed", "rejected", "cancelled", "expired", "overdue"].includes(status)
+  )
     return "bg-red-100 text-red-800";
   return "bg-muted text-slate-700";
 }
