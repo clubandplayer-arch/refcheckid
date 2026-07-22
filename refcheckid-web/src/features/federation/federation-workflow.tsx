@@ -39,6 +39,7 @@ const reportStatuses: readonly ("all" | FederationReportStatus)[] = [
   "all",
   "missing",
   "draft",
+  "in_compilation",
   "submitted",
   "reviewed",
 ];
@@ -284,7 +285,7 @@ function ReportList({
   onSelect: (id: string) => void;
 }>) {
   if (reports.length === 0) {
-    return <EmptyState message="Nessun referto ricevuto." />;
+    return <EmptyState message="Nessun referto inviato alla Federazione." />;
   }
 
   return (
@@ -749,13 +750,15 @@ function HistoryCard({
           <p className="text-sm text-slate-500">Arbitro: {item.refereeName}</p>
         </div>
         <div className="flex flex-wrap gap-2 md:justify-end">
-          <Button
-            className="h-10 min-w-[120px] rounded-md px-4 text-center leading-none"
-            onClick={onOpenReport}
-            type="button"
-          >
-            Apri referto
-          </Button>
+          {item.reportId ? (
+            <Button
+              className="h-10 min-w-[120px] rounded-md px-4 text-center leading-none"
+              onClick={onOpenReport}
+              type="button"
+            >
+              Apri referto
+            </Button>
+          ) : null}
           <Button
             className="h-10 min-w-[130px] rounded-md bg-slate-700 px-4 text-center leading-none"
             onClick={onOpenAudit}
@@ -835,6 +838,7 @@ function formatStatusLabel(status: string): string {
       draft: "Bozza",
       expired: "Scaduta",
       failed: "Errore",
+      in_compilation: "In compilazione",
       in_progress: "In corso",
       missing: "Mancante",
       not_set: "Non impostato",
@@ -862,6 +866,7 @@ function statusBadgeClass(status: string): string {
       "pending",
       "missing",
       "draft",
+      "in_compilation",
       "in_progress",
       "warning",
       "not_set",

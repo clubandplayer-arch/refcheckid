@@ -90,12 +90,13 @@ describe("regression: federation report reception", () => {
     });
   });
 
-  it("maps known club identifiers to team names in the federation calendar", async () => {
+  it("maps known club and referee identifiers in the federation calendar", async () => {
     vi.mocked(fetchMatches).mockResolvedValue([
       {
         ...match,
         awayClubId: "70000000-0000-4000-8000-000000000004",
         homeClubId: "70000000-0000-4000-8000-000000000003",
+        refereeId: "70000000-0000-4000-8000-000000000005",
       },
     ]);
 
@@ -104,6 +105,7 @@ describe("regression: federation report reception", () => {
     expect(matches[0]).toMatchObject({
       awayTeam: "Sporting Litorale",
       homeTeam: "Atletico Aurora",
+      refereeName: "Arbitro Demo",
     });
   });
 
@@ -160,6 +162,17 @@ describe("regression: federation report reception", () => {
             slaStatus: "overdue",
             photoEtag: "photo:version-new:etag",
           },
+          {
+            id: "approval-2",
+            photoVersionId: "version-approved",
+            federationId: "fed-1",
+            seasonId: "2026",
+            registrationId: "registration-2",
+            requestedAt: "2026-07-14T12:30:00.000Z",
+            status: "approved",
+            decisionReasonCode: null,
+            decisionNotes: null,
+          },
         ];
       }
       return [];
@@ -168,7 +181,34 @@ describe("regression: federation report reception", () => {
     const dashboard = await fetchFederationDashboard();
 
     expect(dashboard.pendingPhotoRequests).toBe(1);
+    expect(dashboard.notifications).toContain("1 richieste foto in attesa");
+    expect(dashboard.notifications).not.toContain("2 richieste foto");
     expect(request).toHaveBeenCalledWith("/photo-approvals");
+  });
+
+  it("keeps in-compilation reports visible as pending calendar work", async () => {
+    vi.mocked(fetchMatchReports).mockResolvedValue({
+      id: "backend-report-draft",
+      matchId: "match-1",
+      refereeId: "70000000-0000-4000-8000-000000000005",
+      status: "in_compilation",
+      submittedAt: null,
+      summary: null,
+    });
+
+    const [dashboard, matches, reports] = await Promise.all([
+      fetchFederationDashboard(),
+      fetchFederationMatches(),
+      fetchFederationReports(),
+    ]);
+
+    expect(dashboard.reportsReceived).toBe(0);
+    expect(dashboard.matchesPending).toBe(1);
+    expect(matches[0]).toMatchObject({
+      refereeName: "Arbitro Demo",
+      reportStatus: "in_compilation",
+    });
+    expect(reports).toEqual([]);
   });
 
   it("shows a backend-submitted report without reading local browser storage", async () => {

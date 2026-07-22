@@ -24,16 +24,18 @@ export async function fetchFederationDashboard(): Promise<FederationDashboard> {
     (match) =>
       match.reportStatus !== "submitted" && match.reportStatus !== "reviewed",
   ).length;
+  const pendingPhotoRequests = photos.filter(
+    (photo) => photo.status === "pending",
+  ).length;
   return {
     matchesPending: pendingMatches,
     reportsReceived: reports.length,
-    pendingPhotoRequests: photos.filter((photo) => photo.status === "pending")
-      .length,
+    pendingPhotoRequests,
     syncStatus: "ok",
     notifications: [
       `${reports.length} referti ricevuti`,
       `${pendingMatches} gare in attesa`,
-      `${photos.length} richieste foto`,
+      `${pendingPhotoRequests} richieste foto in attesa`,
     ],
   };
 }
@@ -216,7 +218,7 @@ function toFederationMatch(
           ? "in_progress"
           : "scheduled",
     matchday: new Date(match.scheduledAt).getUTCDate(),
-    refereeName: match.refereeId ?? "Da assegnare",
+    refereeName: formatRefereeName(match.refereeId),
     reportStatus: normalizedReportStatus,
     scheduledAt: match.scheduledAt,
   };
@@ -229,9 +231,18 @@ function formatClubName(clubIdOrName: string): string {
   return club?.label ?? clubIdOrName;
 }
 
+function formatRefereeName(refereeIdOrName: string | null | undefined): string {
+  if (!refereeIdOrName) return "Da assegnare";
+  if (refereeIdOrName === "70000000-0000-4000-8000-000000000005") {
+    return "Arbitro Demo";
+  }
+  return refereeIdOrName;
+}
+
 function normalizeReportStatus(status?: string) {
   if (status === "submitted" || status === "reviewed") return status;
   if (status === "draft") return "draft";
+  if (status === "in_compilation") return "in_compilation";
   return "missing";
 }
 
@@ -275,7 +286,7 @@ function toFederationReport(
     homeTeam: fallbackTeams.homeTeam,
     awayTeam: fallbackTeams.awayTeam,
     matchId: report.matchId,
-    refereeName: report.refereeId,
+    refereeName: formatRefereeName(report.refereeId),
     refereeNotes: report.summary ?? "Referto ricevuto.",
     result: { awayGoals: 0, homeGoals: 0 },
     substitutions: [],
