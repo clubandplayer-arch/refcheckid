@@ -11,3 +11,4 @@ export * from './reports-repository.js';
 export * from './events-repository.js';
 export * from './photos-repository.js';
 export * from './audit-repository.js';
+export * from './federation-imports-repository.js';

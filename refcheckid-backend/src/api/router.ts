@@ -46,6 +46,14 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('POST', '/api/v1/auth/logout', logoutHandler);
 
   router.register('POST', '/api/v1/federation-sync', controllers.syncFederation);
+  router.register('POST', '/api/v1/federation-imports', controllers.createFederationImport);
+  router.register('GET', '/api/v1/federation-imports', controllers.listFederationImports);
+  router.register('GET', '/api/v1/federation-imports/:id', controllers.getFederationImport);
+  router.register(
+    'GET',
+    '/api/v1/federation-imports/:id/rows',
+    controllers.listFederationImportRows,
+  );
   router.register('GET', '/api/v1/federations', controllers.listFederations);
   router.register('GET', '/api/v1/federations/:id', controllers.getFederation);
   router.register('GET', '/api/v1/clubs', controllers.listClubs);

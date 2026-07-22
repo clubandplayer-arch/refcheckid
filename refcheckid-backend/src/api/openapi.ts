@@ -130,6 +130,36 @@ export function createOpenApiDocument(): OpenApiDocument {
         responses: { '202': { description: 'Synchronization accepted.' } },
       },
     },
+    '/api/v1/federation-imports': {
+      get: {
+        tags: ['FederationImport'],
+        operationId: 'listFederationImports',
+        'x-implementation-status': 'implemented',
+        responses: { '200': { description: 'Federation import staging batches.' } },
+      },
+      post: {
+        tags: ['FederationImport'],
+        operationId: 'createFederationImport',
+        'x-implementation-status': 'implemented',
+        responses: { '202': { description: 'Federation import batch staged.' } },
+      },
+    },
+    '/api/v1/federation-imports/{id}': {
+      get: {
+        tags: ['FederationImport'],
+        operationId: 'getFederationImport',
+        'x-implementation-status': 'implemented',
+        responses: { '200': { description: 'Federation import staging batch detail.' } },
+      },
+    },
+    '/api/v1/federation-imports/{id}/rows': {
+      get: {
+        tags: ['FederationImport'],
+        operationId: 'listFederationImportRows',
+        'x-implementation-status': 'implemented',
+        responses: { '200': { description: 'Federation import staging rows.' } },
+      },
+    },
   };
 
   for (const [tag, path] of domainRoutes) {

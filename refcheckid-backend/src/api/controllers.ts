@@ -1,5 +1,11 @@
 import type { ApplicationContainer } from '../config/application-container.js';
-import type { MatchSheet, MatchStatus, PhotoApproval } from '../domain/index.js';
+import type {
+  FederationImportStatus,
+  FederationImportType,
+  MatchSheet,
+  MatchStatus,
+  PhotoApproval,
+} from '../domain/index.js';
 import type { ApiHandler } from './http.js';
 import { json } from './http.js';
 import { optionalString, requireBodyObject, requireString, requireUuid } from './validation.js';
@@ -21,6 +27,88 @@ export function createControllers(container: ApplicationContainer): Record<strin
         200,
         await container.repositories.federations.findById(requireUuid(request.params.id, 'id')),
       ),
+    createFederationImport: async (request) => {
+      const body = requireBodyObject(request.body);
+      const federationId = requireUuid(String(body.federationId), 'federationId');
+      const context = federationImportContext(request);
+      if (!canAccessFederationImport(context, federationId)) {
+        return json(403, { error: 'FORBIDDEN', message: 'Federation imports require federation/admin scope.' });
+      }
+      const sourceSystem = optionalString(body.sourceSystem, 'sourceSystem');
+      return json(
+        202,
+        {
+          importBatch: await container.services.federationImports.createBatch({
+            federationId,
+            importType: requireFederationImportType(body.importType),
+            originalFilename: requireString(body.originalFilename, 'originalFilename'),
+            mimeType: requireString(body.mimeType, 'mimeType'),
+            fileSizeBytes: Number(body.fileSizeBytes ?? 0),
+            sha256: requireString(body.sha256, 'sha256'),
+            ...(sourceSystem === null ? {} : { sourceSystem }),
+            context,
+          }),
+        },
+      );
+    },
+    listFederationImports: async (request) => {
+      const filter = {
+        ...(request.query.federationId === undefined
+          ? {}
+          : { federationId: requireUuid(request.query.federationId, 'federationId') }),
+        ...(request.query.importType === undefined
+          ? {}
+          : { importType: requireFederationImportType(request.query.importType) }),
+        ...(request.query.status === undefined
+          ? {}
+          : { status: requireFederationImportStatus(request.query.status) }),
+      };
+      const context = federationImportContext(request);
+      if (!canAccessFederationImport(context, filter.federationId)) {
+        return json(403, { error: 'FORBIDDEN', message: 'Federation imports require federation/admin scope.' });
+      }
+      return json(
+        200,
+        paginate(
+          await container.services.federationImports.listBatches(
+            context,
+            filter,
+          ),
+          request.query,
+        ),
+      );
+    },
+    getFederationImport: async (request) => {
+      const context = federationImportContext(request);
+      if (!canAccessFederationImport(context)) {
+        return json(403, { error: 'FORBIDDEN', message: 'Federation imports require federation/admin scope.' });
+      }
+      const batch = await container.services.federationImports.getBatch(
+        context,
+        requireUuid(request.params.id, 'id'),
+      );
+      return batch === null
+        ? json(404, { error: 'FEDERATION_IMPORT_NOT_FOUND' })
+        : json(200, batch);
+    },
+    listFederationImportRows: async (request) =>
+      {
+        const context = federationImportContext(request);
+        if (!canAccessFederationImport(context)) {
+          return json(403, { error: 'FORBIDDEN', message: 'Federation imports require federation/admin scope.' });
+        }
+        return json(
+          200,
+          paginate(
+            await container.services.federationImports.listRows(
+              context,
+              requireUuid(request.params.id, 'id'),
+              {},
+            ),
+            request.query,
+          ),
+        );
+      },
     listClubs: async () => json(200, await container.repositories.clubs.list()),
     getClub: async (request) =>
       json(200, await container.repositories.clubs.findById(requireUuid(request.params.id, 'id'))),
@@ -819,6 +907,58 @@ function requireFederationRejectReasonCode(value: unknown) {
     throw new Error(`Invalid federation reject reasonCode: ${reasonCode}`);
   }
   return reasonCode;
+}
+
+function federationImportContext(request: Parameters<ApiHandler>[0]) {
+  return {
+    actorId: request.auth?.actorId ?? '00000000-0000-4000-8000-000000000000',
+    roles: request.auth?.roles ?? [],
+    federationIds: request.auth?.federationIds ?? [],
+  };
+}
+
+function canAccessFederationImport(
+  context: ReturnType<typeof federationImportContext>,
+  federationId?: string,
+): boolean {
+  if (context.roles.includes('admin')) return true;
+  if (!context.roles.includes('federation')) return false;
+  if (federationId === undefined) return (context.federationIds?.length ?? 0) > 0;
+  return context.federationIds?.includes(federationId) ?? false;
+}
+
+function requireFederationImportType(value: unknown): FederationImportType {
+  const importType = requireString(value, 'importType');
+  const allowed: readonly FederationImportType[] = [
+    'clubs',
+    'players_general',
+    'players_by_club',
+    'staff',
+    'referees',
+    'calendar',
+    'designations',
+  ];
+  if (!allowed.includes(importType as FederationImportType)) {
+    throw new Error(`Invalid federation importType: ${importType}`);
+  }
+  return importType as FederationImportType;
+}
+
+function requireFederationImportStatus(value: unknown): FederationImportStatus {
+  const status = requireString(value, 'status');
+  const allowed: readonly FederationImportStatus[] = [
+    'uploaded',
+    'parsed',
+    'mapped',
+    'validated',
+    'ready_to_commit',
+    'committed',
+    'failed',
+  ];
+  if (!allowed.includes(status as FederationImportStatus)) {
+    throw new Error(`Invalid federation import status: ${status}`);
+  }
+  return status as FederationImportStatus;
 }
 
 function paginate<T>(items: readonly T[], query: Record<string, unknown>): readonly T[] {

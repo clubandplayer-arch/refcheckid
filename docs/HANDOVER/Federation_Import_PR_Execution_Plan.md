@@ -24,8 +24,8 @@ Regola di lavoro:
 
 | Ordine | PR | Tema | Perché | Stato | Check prima della prossima PR |
 | ------ | -- | ---- | ------ | ----- | ----------------------------- |
-| 1 | PR 1 | Template e specifica finale | Evita di scrivere codice su formato non confermato | In verifica | Sì: conferma template e colonne da parte prodotto/Federazione |
-| 2 | PR 2 | Backend import batch/staging | Crea base sicura | Da fare | Sì: verifica che upload/staging non scriva nei dati finali |
+| 1 | PR 1 | Template e specifica finale | Evita di scrivere codice su formato non confermato | Eseguita | Sì: conferma template e colonne da parte prodotto/Federazione |
+| 2 | PR 2 | Backend import batch/staging | Crea base sicura | In verifica | Sì: verifica che upload/staging non scriva nei dati finali |
 | 3 | PR 3 | Parser + riconoscimento + mapping | Risolve file federali diversi | Da fare | Sì: verifica riconoscimento file e mapping colonne con esempi realistici |
 | 4 | PR 4 | Validazione + preview + report | Evita import ciechi | Da fare | Sì: verifica preview, warning, errori bloccanti e report |
 | 5 | PR 5 | Commit società/tesserati/staff | Primo valore reale per dirigente | Da fare | Sì: verifica import reale, reimport idempotente e cambio società |
@@ -299,7 +299,8 @@ Ripetere gli scenari CSV principali con file XLSX:
 | 2026-07-22 | PR 1 | In verifica | Aggiunti specifica finale e template CSV per società, tesserati, staff, arbitri, calendario e designazioni. | Sì | In attesa conferma template |
 | 2026-07-22 | PR 1 UI check | In verifica | Aggiunta area Federazione `Import dati` per scaricare e verificare i template PR 1 prima della PR 2. | Sì | In attesa conferma template da UI |
 | 2026-07-22 | PR 1 UI preview | In verifica | Aggiunta anteprima tabellare leggibile dei template perché il CSV scaricato può essere poco comprensibile per utenti non tecnici. | Sì | In attesa conferma anteprima/template |
-| 2026-07-22 | PR 1 large import UX | In verifica | Chiarito che la UI PR 1 mostra solo esempi e che gli import reali con migliaia di righe dovranno usare staging, riepiloghi, filtri, paginazione e download errori/warning. | Sì | In attesa conferma strategia grandi volumi |
+| 2026-07-22 | PR 1 large import UX | Eseguita | Chiarito che la UI PR 1 mostra solo esempi e che gli import reali con migliaia di righe dovranno usare staging, riepiloghi, filtri, paginazione e download errori/warning. | Sì | Confermata: si procede a PR 2 |
+| 2026-07-22 | PR 2 | In verifica | Implementato backend import batch/staging con migrazione, dominio, repository, servizio, endpoint e test. | Sì | In attesa verifica staging senza commit dati finali |
 
 ## Decisione finale
 
