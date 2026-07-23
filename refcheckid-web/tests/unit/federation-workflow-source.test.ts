@@ -59,12 +59,14 @@ describe("regression: federation history actions", () => {
 
   it("exposes PR1 import templates for federation product verification", () => {
     expect(source).toContain("ImportTemplatesPanel");
-    expect(source).toContain("PR 1 · Verifica template CSV");
+    expect(source).toContain("PR 1 · Template per import CSV");
     expect(source).toContain("Anteprima limitata");
     expect(source).toContain("PR 2–4: staging e paginazione");
+    expect(source).toContain("Questi file sono template di import");
+    expect(source).toContain("non export dei dati già");
     expect(source).toContain("Anteprima leggibile — solo righe esempio");
     expect(source).toContain("previewRows");
-    expect(source).toContain("Scarica CSV");
+    expect(source).toContain("Scarica template CSV");
     expect(source).toContain("/federation-import-templates/");
     expect(source).toContain("societa.csv");
     expect(source).toContain("tesserati_generale.csv");
@@ -73,6 +75,6 @@ describe("regression: federation history actions", () => {
     expect(source).toContain("arbitri.csv");
     expect(source).toContain("calendario.csv");
     expect(source).toContain("designazioni.csv");
-    expect(source).toContain("Check richiesto prima della PR 2");
+    expect(source).toContain("Perché ci sono CSV scaricabili in Import dati?");
   });
 });

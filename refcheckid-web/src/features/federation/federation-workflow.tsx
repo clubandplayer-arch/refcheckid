@@ -50,7 +50,12 @@ const importTemplates = [
       "Confermare che codice società, stagione, categoria/campionato/girone e contatti siano campi realistici.",
     description: "Crea o aggiorna società/squadre gestite dalla Federazione.",
     fileName: "societa.csv",
-    previewColumns: ["codice_societa", "nome_societa", "stagione", "campionato"],
+    previewColumns: [
+      "codice_societa",
+      "nome_societa",
+      "stagione",
+      "campionato",
+    ],
     previewRows: [
       ["CLUB001", "ASD Atletico Aurora", "2026/2027", "Campionato Demo"],
       ["CLUB002", "ASD Sporting Litorale", "2026/2027", "Campionato Demo"],
@@ -139,13 +144,7 @@ const importTemplates = [
       "Confermare che codice gara, società casa/ospite, stagione e campionato distinguano univocamente la gara.",
     description: "Crea o aggiorna il calendario ufficiale gare.",
     fileName: "calendario.csv",
-    previewColumns: [
-      "codice_gara",
-      "data",
-      "ora",
-      "casa",
-      "ospite",
-    ],
+    previewColumns: ["codice_gara", "data", "ora", "casa", "ospite"],
     previewRows: [
       ["GARA001", "2026-09-20", "15:00", "CLUB001", "CLUB002"],
       ["GARA002", "2026-09-27", "15:00", "CLUB002", "CLUB001"],
@@ -279,32 +278,36 @@ function ImportTemplatesPanel() {
     <Card className="space-y-5">
       <div>
         <p className="text-sm font-semibold text-primary">
-          PR 1 · Verifica template CSV
+          PR 1 · Template per import CSV
         </p>
-        <h2 className="text-xl font-bold">Import dati federali</h2>
+        <h2 className="text-xl font-bold">Preparazione import dati federali</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Scarica i template e conferma se colonne obbligatorie, codici esterni
-          e campi competizione sono coerenti con gli export reali della
-          Federazione. Questa schermata è solo di verifica: non importa ancora
-          dati.
+          Qui non stai esportando dati da RefCheckID: stai scaricando modelli
+          CSV di esempio da compilare con gli export della Federazione e poi
+          ricaricare nelle prossime fasi di import. Questa schermata è solo di
+          preparazione: non importa ancora dati.
         </p>
       </div>
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        <p className="font-semibold">Check richiesto prima della PR 2</p>
+        <p className="font-semibold">
+          Perché ci sono CSV scaricabili in Import dati?
+        </p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
-          <li>I template rappresentano dati federali realistici.</li>
-          <li>Le colonne obbligatorie sono disponibili nei database federali.</li>
           <li>
-            I codici esterni sono realistici: società, tessera, staff, arbitro e
-            gara.
+            Questi file sono template di import, non export dei dati già
+            presenti.
           </li>
           <li>
-            Società e squadra possono coincidere nel MVP oppure serve entità
-            separata.
+            Servono a indicare alla Federazione quali colonne preparare nei
+            propri export.
           </li>
           <li>
-            Stagione, campionato, categoria e girone bastano a distinguere le
-            competizioni.
+            La Federazione scarica il modello, lo compila/esporta dal proprio
+            gestionale e poi lo ricarica nel flusso import.
+          </li>
+          <li>
+            Le prossime schermate useranno staging, validazione, preview e
+            conferma prima del commit finale.
           </li>
         </ul>
       </div>
@@ -333,20 +336,21 @@ function ImportTemplatesPanel() {
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         {importTemplates.map((template) => (
-          <div className="space-y-3 rounded-xl border p-4" key={template.fileName}>
+          <div
+            className="space-y-3 rounded-xl border p-4"
+            key={template.fileName}
+          >
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <h3 className="font-bold">{template.title}</h3>
-                <p className="text-sm text-slate-500">
-                  {template.description}
-                </p>
+                <p className="text-sm text-slate-500">{template.description}</p>
               </div>
               <a
                 className="inline-flex min-h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white"
                 download
                 href={`/federation-import-templates/${template.fileName}`}
               >
-                Scarica CSV
+                Scarica template CSV
               </a>
             </div>
             <div>
