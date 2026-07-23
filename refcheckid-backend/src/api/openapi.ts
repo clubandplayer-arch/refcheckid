@@ -170,6 +170,16 @@ export function createOpenApiDocument(): OpenApiDocument {
         },
       },
     },
+    '/api/v1/federation-imports/{id}/commit': {
+      post: {
+        tags: ['FederationImport'],
+        operationId: 'commitFederationImport',
+        'x-implementation-status': 'implemented',
+        responses: {
+          '200': { description: 'Federation import committed to supported domain tables.' },
+        },
+      },
+    },
     '/api/v1/federation-imports/{id}/rows': {
       get: {
         tags: ['FederationImport'],

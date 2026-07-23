@@ -1,15 +1,23 @@
 import type {
+  Club,
   FederationImportBatch,
   FederationImportRow,
   FederationImportStatus,
   FederationImportType,
   ISODateTime,
+  Player,
+  PlayerRegistration,
+  StaffMember,
+  StaffRegistration,
   UUID,
 } from '../domain/index.js';
 import type {
   FederationImportBatchFilter,
   FederationImportBatchRepository,
   FederationImportRowRepository,
+  ClubRepository,
+  PlayerRepository,
+  RegistrationRepository,
 } from '../repositories/index.js';
 
 export class FederationImportAuthorizationError extends Error {
@@ -35,7 +43,25 @@ export interface FederationImportActorContext {
 export interface FederationImportServiceDependencies {
   readonly importBatches: FederationImportBatchRepository;
   readonly importRows: FederationImportRowRepository;
+  readonly clubs?: ClubRepository;
+  readonly players?: PlayerRepository;
+  readonly registrations?: RegistrationRepository;
   readonly now?: () => ISODateTime;
+}
+
+export interface CommitFederationImportBatchCommand {
+  readonly batchId: UUID;
+  readonly context: FederationImportActorContext;
+}
+
+export interface FederationImportCommitResult {
+  readonly importBatch: FederationImportBatch;
+  readonly committedRows: number;
+  readonly createdRows: number;
+  readonly updatedRows: number;
+  readonly skippedRows: number;
+  readonly rows: readonly FederationImportRow[];
+  readonly report: Record<string, unknown>;
 }
 
 export interface ValidateFederationImportBatchCommand {
@@ -242,6 +268,223 @@ export class FederationImportService {
     return { importBatch: updatedBatch, rows: updatedRows, report };
   }
 
+  async commitBatch(
+    command: CommitFederationImportBatchCommand,
+  ): Promise<FederationImportCommitResult> {
+    const batch = await this.getBatch(command.context, command.batchId);
+    if (batch === null) throw new FederationImportInvariantError('Import batch was not found.');
+    if (batch.status !== 'validated') {
+      throw new FederationImportInvariantError('Import batch must be validated before commit.');
+    }
+    if (batch.errorRows > 0) {
+      throw new FederationImportInvariantError('Import batch has blocking validation errors.');
+    }
+    const importType = batch.detectedType ?? batch.importType;
+    if (!['clubs', 'players_general', 'players_by_club', 'staff'].includes(importType)) {
+      throw new FederationImportInvariantError(
+        `Commit for import type ${importType} is scheduled for PR6.`,
+      );
+    }
+    const rows = await this.dependencies.importRows.listByBatch(batch.id);
+    const eligibleRows = rows.filter((row) => row.status === 'valid' || row.status === 'warning');
+    const commitResult = await this.commitRows(batch, importType, eligibleRows);
+    const committedRows: FederationImportRow[] = [];
+    for (const row of eligibleRows) {
+      committedRows.push(
+        await this.dependencies.importRows.update(row.id, { status: 'committed' }),
+      );
+    }
+    const previousReport = recordValue(batch.report);
+    const report = {
+      ...previousReport,
+      phase: 'commit_complete',
+      commitSummary: {
+        committedRows: commitResult.committedRows,
+        createdRows: commitResult.createdRows,
+        updatedRows: commitResult.updatedRows,
+        skippedRows: rows.length - eligibleRows.length,
+        importType,
+      },
+    };
+    const updatedBatch = await this.dependencies.importBatches.update(batch.id, {
+      status: 'committed',
+      committedRows: commitResult.committedRows,
+      report,
+    });
+    return {
+      importBatch: updatedBatch,
+      committedRows: commitResult.committedRows,
+      createdRows: commitResult.createdRows,
+      updatedRows: commitResult.updatedRows,
+      skippedRows: rows.length - eligibleRows.length,
+      rows: committedRows,
+      report,
+    };
+  }
+
+  private async commitRows(
+    batch: FederationImportBatch,
+    importType: FederationImportType,
+    rows: readonly FederationImportRow[],
+  ): Promise<CommitRowsResult> {
+    switch (importType) {
+      case 'clubs':
+        return this.commitClubs(batch, rows);
+      case 'players_general':
+        return this.commitPlayersGeneral(batch, rows);
+      case 'players_by_club':
+        return this.commitPlayerRegistrations(batch, rows);
+      case 'staff':
+        return this.commitStaff(batch, rows);
+      default:
+        throw new FederationImportInvariantError(
+          `Commit for import type ${importType} is not supported in PR5.`,
+        );
+    }
+  }
+
+  private async commitClubs(
+    batch: FederationImportBatch,
+    rows: readonly FederationImportRow[],
+  ): Promise<CommitRowsResult> {
+    const clubs = this.dependencies.clubs ?? (await commitNotConfigured());
+    let createdRows = 0;
+    let updatedRows = 0;
+    for (const row of rows) {
+      const data = stringRecord(row.normalizedData ?? {});
+      const id = uuidFromKey('club', batch.federationId, data.codice_societa, data.stagione);
+      const existing = await clubs.findById(id);
+      const entity: Club = {
+        id,
+        federationId: batch.federationId,
+        name: data.nome_societa,
+        fiscalCode: data.codice_fiscale || null,
+        status: lifecycleStatus(data.stato),
+        createdAt: existing?.createdAt ?? this.now(),
+        updatedAt: this.now(),
+        deletedAt: null,
+      };
+      await clubs.upsert(entity);
+      if (existing === null) createdRows += 1;
+      else updatedRows += 1;
+    }
+    return { committedRows: rows.length, createdRows, updatedRows };
+  }
+
+  private async commitPlayersGeneral(
+    batch: FederationImportBatch,
+    rows: readonly FederationImportRow[],
+  ): Promise<CommitRowsResult> {
+    const players = this.dependencies.players ?? (await commitNotConfigured());
+    let createdRows = 0;
+    let updatedRows = 0;
+    for (const row of rows) {
+      const data = stringRecord(row.normalizedData ?? {});
+      const id = uuidFromKey('player', batch.federationId, data.codice_tessera);
+      const existing = await players.findById(id);
+      const entity: Player = {
+        id,
+        federationId: batch.federationId,
+        firstName: data.nome,
+        lastName: data.cognome,
+        birthDate: data.data_nascita,
+        birthPlace: data.luogo_nascita || null,
+        fiscalCode: data.codice_fiscale || null,
+        status: lifecycleStatus(data.stato_tesserato),
+        createdAt: existing?.createdAt ?? this.now(),
+        updatedAt: this.now(),
+        deletedAt: null,
+      };
+      await players.upsert(entity);
+      if (existing === null) createdRows += 1;
+      else updatedRows += 1;
+    }
+    return { committedRows: rows.length, createdRows, updatedRows };
+  }
+
+  private async commitPlayerRegistrations(
+    batch: FederationImportBatch,
+    rows: readonly FederationImportRow[],
+  ): Promise<CommitRowsResult> {
+    const registrations = this.dependencies.registrations ?? (await commitNotConfigured());
+    let createdRows = 0;
+    let updatedRows = 0;
+    for (const row of rows) {
+      const data = stringRecord(row.normalizedData ?? {});
+      const clubId = uuidFromKey('club', batch.federationId, data.codice_societa, data.stagione);
+      const playerId = uuidFromKey('player', batch.federationId, data.codice_tessera);
+      const id = uuidFromKey('player-registration', clubId, playerId, data.stagione);
+      const existing = await registrations.findById(id);
+      const entity: PlayerRegistration = {
+        id,
+        playerId,
+        clubId,
+        season: data.stagione,
+        registrationNumber: data.codice_tessera,
+        status: registrationStatus(data.stato_posizione),
+        registeredAt: existing?.registeredAt ?? this.now(),
+        createdAt: existing?.createdAt ?? this.now(),
+        updatedAt: this.now(),
+        deletedAt: null,
+      };
+      await registrations.upsert(entity);
+      if (existing === null) createdRows += 1;
+      else updatedRows += 1;
+    }
+    return { committedRows: rows.length, createdRows, updatedRows };
+  }
+
+  private async commitStaff(
+    batch: FederationImportBatch,
+    rows: readonly FederationImportRow[],
+  ): Promise<CommitRowsResult> {
+    const registrations = this.dependencies.registrations ?? (await commitNotConfigured());
+    let createdRows = 0;
+    let updatedRows = 0;
+    for (const row of rows) {
+      const data = stringRecord(row.normalizedData ?? {});
+      const staffMemberId = uuidFromKey('staff', batch.federationId, data.codice_staff);
+      const registrationId = uuidFromKey(
+        'staff-registration',
+        batch.federationId,
+        data.codice_societa,
+        data.codice_staff,
+        data.stagione,
+      );
+      const existingStaffMember = await registrations.findStaffMemberById(staffMemberId);
+      const existing = await registrations.findStaffRegistrationById(registrationId);
+      const staffMember: StaffMember = {
+        id: staffMemberId,
+        federationId: batch.federationId,
+        firstName: data.nome,
+        lastName: data.cognome,
+        birthDate: data.data_nascita || null,
+        fiscalCode: data.codice_fiscale || null,
+        status: lifecycleStatus(data.stato_posizione),
+        createdAt: existingStaffMember?.createdAt ?? this.now(),
+        updatedAt: this.now(),
+        deletedAt: null,
+      };
+      const staffRegistration: StaffRegistration = {
+        id: registrationId,
+        staffMemberId,
+        clubId: uuidFromKey('club', batch.federationId, data.codice_societa, data.stagione),
+        season: data.stagione,
+        role: data.ruolo,
+        registrationNumber: data.codice_staff,
+        status: registrationStatus(data.stato_posizione),
+        createdAt: existing?.createdAt ?? this.now(),
+        updatedAt: this.now(),
+        deletedAt: null,
+      };
+      await registrations.syncStaffMember(staffMember);
+      await registrations.syncStaffRegistration(staffRegistration);
+      if (existing === null) createdRows += 1;
+      else updatedRows += 1;
+    }
+    return { committedRows: rows.length, createdRows, updatedRows };
+  }
+
   async transitionBatchStatus(
     context: FederationImportActorContext,
     batchId: UUID,
@@ -272,6 +515,18 @@ export class FederationImportService {
       return;
     throw new FederationImportAuthorizationError();
   }
+}
+
+interface CommitRowsResult {
+  readonly committedRows: number;
+  readonly createdRows: number;
+  readonly updatedRows: number;
+}
+
+async function commitNotConfigured(): Promise<never> {
+  throw new FederationImportInvariantError(
+    'Federation import commit dependencies are not configured.',
+  );
 }
 
 interface ParsedCsv {
@@ -685,6 +940,32 @@ function isIsoDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
+}
+
+function recordValue(value: Record<string, unknown> | null): Record<string, unknown> {
+  return value ?? {};
+}
+
+function lifecycleStatus(value: string | undefined): 'active' | 'inactive' {
+  return value === 'inactive' ? 'inactive' : 'active';
+}
+
+function registrationStatus(value: string | undefined): 'active' | 'suspended' | 'ended' {
+  if (value === 'suspended' || value === 'ended') return value;
+  if (value === 'inactive') return 'ended';
+  return 'active';
+}
+
+function uuidFromKey(...parts: readonly string[]): UUID {
+  let hash = 0x811c9dc5;
+  const input = parts.join('|');
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  const hex = Math.abs(hash).toString(16).padStart(8, '0').slice(0, 8);
+  const tail = `${hex}${hex}`.slice(0, 12);
+  return `${hex}-0000-4000-8000-${tail}`;
 }
 
 function normalizeColumnName(value: string): string {

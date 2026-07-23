@@ -338,6 +338,155 @@ describe('federation import batch/staging parser flow', () => {
     });
   });
 
+  it('commits clubs, players, player positions and staff after validation', async () => {
+    const container = createApplicationContainer();
+    const router = createRestApiRouter(container);
+    const headers = await federationHeaders();
+
+    async function stageParseValidateCommit(
+      importType: string,
+      originalFilename: string,
+      csvContent: string,
+    ) {
+      const created = await router.handle({
+        method: 'POST',
+        path: '/api/v1/federation-imports',
+        headers,
+        query: {},
+        body: { ...stagedImportBody, importType, originalFilename },
+      });
+      const id = (created.body as { importBatch: { id: string } }).importBatch.id;
+      await router.handle({
+        method: 'POST',
+        path: `/api/v1/federation-imports/${id}/parse`,
+        headers,
+        query: {},
+        body: { csvContent },
+      });
+      await router.handle({
+        method: 'POST',
+        path: `/api/v1/federation-imports/${id}/validate`,
+        headers,
+        query: {},
+        body: {},
+      });
+      return router.handle({
+        method: 'POST',
+        path: `/api/v1/federation-imports/${id}/commit`,
+        headers,
+        query: {},
+        body: {},
+      });
+    }
+
+    await expect(
+      stageParseValidateCommit(
+        'clubs',
+        'societa.csv',
+        'codice_societa,nome_societa,stato,stagione,codice_fiscale\nCLUB001,ASD Atletico Aurora,active,2026/2027,12345678901\nCLUB002,ASD Sporting Litorale,active,2026/2027,12345678902',
+      ),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: { importBatch: { status: 'committed', committedRows: 2 }, createdRows: 2 },
+    });
+
+    await expect(
+      stageParseValidateCommit(
+        'players_general',
+        'tesserati_generale.csv',
+        'codice_tessera,nome,cognome,data_nascita,stato_tesserato\nTESS001,Marco,Rossi,2006-04-12,active\nTESS002,Luca,Bianchi,2006-09-03,active',
+      ),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: { importBatch: { status: 'committed', committedRows: 2 }, createdRows: 2 },
+    });
+
+    await expect(
+      stageParseValidateCommit(
+        'players_by_club',
+        'tesserati_societa.csv',
+        'codice_societa,codice_tessera,stagione,stato_posizione\nCLUB001,TESS001,2026/2027,active\nCLUB001,TESS002,2026/2027,active',
+      ),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: { importBatch: { status: 'committed', committedRows: 2 }, createdRows: 2 },
+    });
+
+    await expect(
+      stageParseValidateCommit(
+        'staff',
+        'staff.csv',
+        'codice_societa,codice_staff,nome,cognome,ruolo,stagione,stato_posizione\nCLUB001,STAFF001,Giovanni,Neri,allenatore,2026/2027,active',
+      ),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: { importBatch: { status: 'committed', committedRows: 1 }, createdRows: 1 },
+    });
+
+    await expect(
+      container.repositories.clubs.listByFederation(pilotIds.federation),
+    ).resolves.toHaveLength(2);
+    await expect(
+      container.repositories.players.listByFederation(pilotIds.federation),
+    ).resolves.toHaveLength(2);
+    await expect(container.repositories.registrations.list()).resolves.toHaveLength(2);
+    await expect(container.repositories.registrations.listStaffMembers()).resolves.toHaveLength(1);
+
+    await expect(
+      stageParseValidateCommit(
+        'clubs',
+        'societa-reimport.csv',
+        'codice_societa,nome_societa,stato,stagione,codice_fiscale\nCLUB001,ASD Atletico Aurora,active,2026/2027,12345678901\nCLUB002,ASD Sporting Litorale,active,2026/2027,12345678902',
+      ),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: { importBatch: { status: 'committed', committedRows: 2 }, updatedRows: 2 },
+    });
+    await expect(
+      container.repositories.clubs.listByFederation(pilotIds.federation),
+    ).resolves.toHaveLength(2);
+  });
+
+  it('blocks commit when validation has errors', async () => {
+    const router = createRestApiRouter(createApplicationContainer());
+    const headers = await federationHeaders();
+    const created = await router.handle({
+      method: 'POST',
+      path: '/api/v1/federation-imports',
+      headers,
+      query: {},
+      body: { ...stagedImportBody, importType: 'players_general', originalFilename: 'bad.csv' },
+    });
+    const id = (created.body as { importBatch: { id: string } }).importBatch.id;
+    await router.handle({
+      method: 'POST',
+      path: `/api/v1/federation-imports/${id}/parse`,
+      headers,
+      query: {},
+      body: {
+        csvContent:
+          'codice_tessera,nome,cognome,data_nascita,stato_tesserato\nTESS001,Marco,Rossi,not-a-date,active',
+      },
+    });
+    await router.handle({
+      method: 'POST',
+      path: `/api/v1/federation-imports/${id}/validate`,
+      headers,
+      query: {},
+      body: {},
+    });
+
+    await expect(
+      router.handle({
+        method: 'POST',
+        path: `/api/v1/federation-imports/${id}/commit`,
+        headers,
+        query: {},
+        body: {},
+      }),
+    ).resolves.toMatchObject({ status: 409, body: { error: 'FederationImportInvariantError' } });
+  });
+
   it('forbids manager import creation', async () => {
     const router = createRestApiRouter(createApplicationContainer());
 
@@ -361,6 +510,7 @@ describe('federation import batch/staging parser flow', () => {
     });
     expect(document.paths['/api/v1/federation-imports/{id}/parse']).toBeDefined();
     expect(document.paths['/api/v1/federation-imports/{id}/validate']).toBeDefined();
+    expect(document.paths['/api/v1/federation-imports/{id}/commit']).toBeDefined();
     expect(document.paths['/api/v1/federation-imports/{id}/rows']).toBeDefined();
   });
 });

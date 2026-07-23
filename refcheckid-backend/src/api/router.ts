@@ -60,6 +60,11 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
     controllers.validateFederationImport,
   );
   router.register(
+    'POST',
+    '/api/v1/federation-imports/:id/commit',
+    controllers.commitFederationImport,
+  );
+  router.register(
     'GET',
     '/api/v1/federation-imports/:id/rows',
     controllers.listFederationImportRows,

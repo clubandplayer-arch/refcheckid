@@ -129,6 +129,9 @@ export function createApplicationContainer(): ApplicationContainer {
     federationImports: new FederationImportService({
       importBatches: repositories.federationImportBatches,
       importRows: repositories.federationImportRows,
+      clubs: repositories.clubs,
+      players: repositories.players,
+      registrations: repositories.registrations,
     }),
     federationSync: new FederationSyncService({
       clubsRepository: repositories.clubs,

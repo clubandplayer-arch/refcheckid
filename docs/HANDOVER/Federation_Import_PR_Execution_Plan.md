@@ -27,8 +27,8 @@ Regola di lavoro:
 | 1      | PR 1 | Template e specifica finale                         | Evita di scrivere codice su formato non confermato | Eseguita    | Sì: conferma template e colonne da parte prodotto/Federazione               |
 | 2      | PR 2 | Backend import batch/staging                        | Crea base sicura                                   | Eseguita    | Sì: verifica che upload/staging non scriva nei dati finali                  |
 | 3      | PR 3 | Parser + riconoscimento + mapping                   | Risolve file federali diversi                      | Eseguita    | Sì: verifica riconoscimento file e mapping colonne con esempi realistici    |
-| 4      | PR 4 | Validazione + preview + report                      | Evita import ciechi                                | In verifica | Sì: verifica preview, warning, errori bloccanti e report                    |
-| 5      | PR 5 | Commit società/tesserati/staff                      | Primo valore reale per dirigente                   | Da fare     | Sì: verifica import reale, reimport idempotente e cambio società            |
+| 4      | PR 4 | Validazione + preview + report                      | Evita import ciechi                                | Eseguita    | Sì: verifica preview, warning, errori bloccanti e report                    |
+| 5      | PR 5 | Commit società/tesserati/staff                      | Primo valore reale per dirigente                   | In verifica | Sì: verifica import reale, reimport idempotente e cambio società            |
 | 6      | PR 6 | Commit arbitri/calendario/designazioni              | Primo valore reale per arbitro                     | Da fare     | Sì: verifica calendario, designazioni e visibilità arbitro                  |
 | 7      | PR 7 | UI Federazione import                               | Rende usabile il sistema                           | Da fare     | Sì: verifica guidata end-to-end da UI Federazione                           |
 | 8      | PR 8 | Collegamento flussi reali + rimozione demo/fallback | Chiude il cerchio                                  | Da fare     | Sì: verifica ciclo completo Federazione → Dirigente → Arbitro → Federazione |
@@ -163,6 +163,15 @@ Scrivere nei dati finali le anagrafiche e posizioni necessarie al dirigente.
 - Report finale.
 - Audit import commit.
 
+### Output PR 5 implementato
+
+- Endpoint `POST /api/v1/federation-imports/{id}/commit`.
+- Commit idempotente per `clubs`, `players_general`, `players_by_club` e `staff`.
+- Blocco commit se il batch non è validato o contiene errori bloccanti.
+- Upsert su società, tesserati, posizioni tesserati, anagrafica staff e posizioni staff.
+- Report finale con conteggi `committedRows`, `createdRows`, `updatedRows` e `skippedRows`.
+- Esclusione esplicita di `referees`, `calendar` e `designations`, rinviati alla PR 6.
+
 ### Check richiesto
 
 Verificare:
@@ -293,17 +302,18 @@ Ripetere gli scenari CSV principali con file XLSX:
 
 ## Registro avanzamento
 
-| Data       | PR                    | Stato       | Note                                                                                                                                                                       | Check richiesto | Esito check                                                     |
-| ---------- | --------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------- |
-| 2026-07-22 | Piano iniziale        | Eseguita    | Creato tracker operativo con sequenza PR approvata.                                                                                                                        | No              | n/d                                                             |
-| 2026-07-22 | PR 1                  | In verifica | Aggiunti specifica finale e template CSV per società, tesserati, staff, arbitri, calendario e designazioni.                                                                | Sì              | In attesa conferma template                                     |
-| 2026-07-22 | PR 1 UI check         | In verifica | Aggiunta area Federazione `Import dati` per scaricare e verificare i template PR 1 prima della PR 2.                                                                       | Sì              | In attesa conferma template da UI                               |
-| 2026-07-22 | PR 1 UI preview       | In verifica | Aggiunta anteprima tabellare leggibile dei template perché il CSV scaricato può essere poco comprensibile per utenti non tecnici.                                          | Sì              | In attesa conferma anteprima/template                           |
-| 2026-07-22 | PR 1 large import UX  | Eseguita    | Chiarito che la UI PR 1 mostra solo esempi e che gli import reali con migliaia di righe dovranno usare staging, riepiloghi, filtri, paginazione e download errori/warning. | Sì              | Confermata: si procede a PR 2                                   |
-| 2026-07-22 | PR 2                  | Eseguita    | Implementato backend import batch/staging con migrazione, dominio, repository, servizio, endpoint e test.                                                                  | Sì              | Confermata: si procede a PR 3                                   |
-| 2026-07-22 | PR 3                  | Eseguita    | Implementato parser CSV, riconoscimento tipo file, mapping automatico colonne e salvataggio righe normalizzate in staging.                                                 | Sì              | Confermata: si procede a PR 4                                   |
-| 2026-07-22 | PR 4                  | In verifica | Implementata validazione righe, stati valid/warning/error, preview report con conteggi, duplicati e commitBlocked.                                                         | Sì              | In attesa verifica report/errori/warning con CSV realistici     |
-| 2026-07-23 | PR 1/4 UX chiarimento | In verifica | Chiarita la schermata `Import dati`: i CSV scaricabili sono template di import da compilare/ricaricare, non export dei dati presenti in RefCheckID.                        | Sì              | Verificare che copy e pulsanti non sembrino una funzione export |
+| Data       | PR                    | Stato       | Note                                                                                                                                                                       | Check richiesto | Esito check                                               |
+| ---------- | --------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------- |
+| 2026-07-22 | Piano iniziale        | Eseguita    | Creato tracker operativo con sequenza PR approvata.                                                                                                                        | No              | n/d                                                       |
+| 2026-07-22 | PR 1                  | In verifica | Aggiunti specifica finale e template CSV per società, tesserati, staff, arbitri, calendario e designazioni.                                                                | Sì              | In attesa conferma template                               |
+| 2026-07-22 | PR 1 UI check         | In verifica | Aggiunta area Federazione `Import dati` per scaricare e verificare i template PR 1 prima della PR 2.                                                                       | Sì              | In attesa conferma template da UI                         |
+| 2026-07-22 | PR 1 UI preview       | In verifica | Aggiunta anteprima tabellare leggibile dei template perché il CSV scaricato può essere poco comprensibile per utenti non tecnici.                                          | Sì              | In attesa conferma anteprima/template                     |
+| 2026-07-22 | PR 1 large import UX  | Eseguita    | Chiarito che la UI PR 1 mostra solo esempi e che gli import reali con migliaia di righe dovranno usare staging, riepiloghi, filtri, paginazione e download errori/warning. | Sì              | Confermata: si procede a PR 2                             |
+| 2026-07-22 | PR 2                  | Eseguita    | Implementato backend import batch/staging con migrazione, dominio, repository, servizio, endpoint e test.                                                                  | Sì              | Confermata: si procede a PR 3                             |
+| 2026-07-22 | PR 3                  | Eseguita    | Implementato parser CSV, riconoscimento tipo file, mapping automatico colonne e salvataggio righe normalizzate in staging.                                                 | Sì              | Confermata: si procede a PR 4                             |
+| 2026-07-22 | PR 4                  | Eseguita    | Implementata validazione righe, stati valid/warning/error, preview report con conteggi, duplicati e commitBlocked.                                                         | Sì              | Confermata: si procede a PR 5                             |
+| 2026-07-23 | PR 1/4 UX chiarimento | Eseguita    | Chiarita la schermata `Import dati`: i CSV scaricabili sono template di import da compilare/ricaricare, non export dei dati presenti in RefCheckID.                        | Sì              | Confermata: si procede a PR 5                             |
+| 2026-07-23 | PR 5                  | In verifica | Implementato commit backend per società, tesserati generale, tesserati per società e staff con upsert idempotente e blocco su errori validazione.                          | Sì              | In attesa verifica import reale/reimport prima della PR 6 |
 
 ## Decisione finale
 
