@@ -147,6 +147,7 @@ function SheetVerificationStep({
   );
   const mutation = useMutation({
     mutationFn: () => lockSubmittedSheetsAndStartRecognition(matchId),
+    onSuccess: () => onStart(effectiveStartTeam),
   });
   const sheets = query.data ?? [];
   const homeSheet = sheets.find((sheet) => sheet.team === "home");
@@ -205,16 +206,23 @@ function SheetVerificationStep({
         avviare.
       </p>
       <Button
-        disabled={!canStart}
-        onClick={() => {
-          onStart(effectiveStartTeam);
-          mutation.mutate();
-        }}
+        disabled={!canStart || mutation.isPending}
+        onClick={() => mutation.mutate()}
         type="button"
       >
-        Inizia riconoscimento{" "}
-        {effectiveStartTeam ? `con ${effectiveStartTeam}` : ""}
+        {mutation.isPending
+          ? "Preparazione riconoscimento..."
+          : "Inizia riconoscimento"}{" "}
+        {!mutation.isPending && effectiveStartTeam
+          ? `con ${effectiveStartTeam}`
+          : ""}
       </Button>
+      {mutation.isError ? (
+        <ErrorState
+          message={mutation.error.message}
+          onRetry={() => mutation.mutate()}
+        />
+      ) : null}
     </Card>
   );
 }
