@@ -136,13 +136,25 @@ export function MatchSheetWorkflow() {
 
   const fetchedPlayers = playersQuery.data ?? EMPTY_PLAYERS;
   const fetchedStaff = staffQuery.data ?? EMPTY_STAFF;
+  const matchSheetStatus = sheetsQuery.data?.[0]?.status ?? "draft";
+  const isReadOnly = matchSheetStatus !== "draft";
   const players = useMemo(
-    () => (selectedPlayers.length > 0 ? selectedPlayers : fetchedPlayers),
-    [fetchedPlayers, selectedPlayers],
+    () =>
+      isReadOnly
+        ? fetchedPlayers
+        : selectedPlayers.length > 0
+          ? selectedPlayers
+          : fetchedPlayers,
+    [fetchedPlayers, isReadOnly, selectedPlayers],
   );
   const staff = useMemo(
-    () => (selectedStaff.length > 0 ? selectedStaff : fetchedStaff),
-    [fetchedStaff, selectedStaff],
+    () =>
+      isReadOnly
+        ? fetchedStaff
+        : selectedStaff.length > 0
+          ? selectedStaff
+          : fetchedStaff,
+    [fetchedStaff, isReadOnly, selectedStaff],
   );
   const filteredPlayers = useMemo(
     () =>
@@ -158,9 +170,6 @@ export function MatchSheetWorkflow() {
   const calledPlayers = players.filter((player) => player.selected);
   const orderedCalledPlayers = players.filter((player) => player.selected);
   const calledStaff = staff.filter((staffMember) => staffMember.selected);
-  const matchSheetStatus = sheetsQuery.data?.[0]?.status ?? "draft";
-  const isReadOnly = matchSheetStatus !== "draft";
-
   function setPlayerList(
     updater: (current: readonly PlayerListItem[]) => readonly PlayerListItem[],
   ) {
@@ -213,7 +222,9 @@ export function MatchSheetWorkflow() {
       );
       return;
     }
-    throw new Error("Upload foto ufficiale non disponibile: il fallback locale legacy è stato disabilitato dalla Recovery-4.");
+    throw new Error(
+      "Upload foto ufficiale non disponibile: il fallback locale legacy è stato disabilitato dalla Recovery-4.",
+    );
   }
   async function updateStaffPhoto(staffId: string, photoUrl: string) {
     const staffMember = staff.find((item) => item.id === staffId);
@@ -255,7 +266,9 @@ export function MatchSheetWorkflow() {
       );
       return;
     }
-    throw new Error("Upload foto ufficiale staff non disponibile: il fallback locale legacy è stato disabilitato dalla Recovery-4.");
+    throw new Error(
+      "Upload foto ufficiale staff non disponibile: il fallback locale legacy è stato disabilitato dalla Recovery-4.",
+    );
   }
   function handlePhotoSelected(
     subjectKind: PhotoErrorState["subjectKind"],
@@ -683,8 +696,10 @@ function SubjectPhotoThumbnail({
   photo: PlayerListItem["photo"] | StaffListItem["photo"];
   photoUrl: string | null;
 }>) {
-  const displayPhotoUrl = photo?.proposedPhotoUrl ?? photo?.currentPhotoUrl ?? photoUrl;
-  const isPending = photo?.status === "pending" && photo?.proposedPhotoUrl !== null;
+  const displayPhotoUrl =
+    photo?.proposedPhotoUrl ?? photo?.currentPhotoUrl ?? photoUrl;
+  const isPending =
+    photo?.status === "pending" && photo?.proposedPhotoUrl !== null;
   return (
     <div className="flex items-start gap-3 md:block">
       {displayPhotoUrl ? (

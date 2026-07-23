@@ -32,7 +32,9 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("5 * 1024 * 1024");
     expect(source).toContain("Conferma una preview prima del salvataggio");
     expect(source).toContain("Conferma caricamento");
-    expect(source).toContain("fallback locale legacy è stato disabilitato dalla Recovery-4");
+    expect(source).toContain(
+      "fallback locale legacy è stato disabilitato dalla Recovery-4",
+    );
     expect(source).toContain("Foto ufficiale corrente");
     expect(source).toContain("Missing");
     expect(source).toContain("backend è la Source of Truth");
@@ -84,5 +86,9 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("isSmokeResetAvailable");
     expect(source).toContain("resetSmokeMatchSheet");
     expect(source).toContain("Distinta inviata: non puoi più modificarla");
+  });
+  it("uses refreshed backend photos when the match sheet is read-only", () => {
+    expect(source).toContain("isReadOnly\n        ? fetchedPlayers");
+    expect(source).toContain("isReadOnly\n        ? fetchedStaff");
   });
 });
