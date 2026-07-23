@@ -243,3 +243,9 @@ La prossima cosa giusta da fare è una chiusura ordinata in quattro passi:
 Il lavoro principale del workflow foto web è sostanzialmente fatto. La domanda ora non è “quale bottone manca?”, ma “come rendiamo questo flusso sicuro, ripetibile, testato e pronto per mobile/arbitro/produzione?”.
 
 La mia raccomandazione è: **chiudere formalmente la fase web, fare regression, poi aprire una milestone separata per production hardening + mobile/arbitro/offline**.
+
+## Nota operativa aggiunta — 2026-07-23
+
+Durante le verifiche locali non bisogna cancellare `refcheckid-backend/storage/refcheckid-photos-dev`: nel Codespace di sviluppo quella directory è il bucket locale delle foto caricate/proposte. Se viene rimossa, i metadati possono restare in memoria o nel repository runtime, ma i file immagine non sono più leggibili e lato dirigente/arbitro ricompaiono i placeholder.
+
+Da PR correttiva 2026-07-23, i test automatici usano un percorso temporaneo quando `NODE_ENV=test` o `VITEST=true`, così le suite non scrivono più nel bucket foto del runtime di sviluppo.
