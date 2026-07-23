@@ -10,8 +10,8 @@ describe('database migration runner', () => {
     const output = execFileSync(process.execPath, [runner, 'status'], { encoding: 'utf8' });
 
     expect(output).toContain('Migration source:');
-    expect(output).toContain('Migration count: 19');
-    expect(output).toContain('0018_create_arch1_photo_model.sql');
+    expect(output).toContain('Migration count: 20');
+    expect(output).toContain('0020_create_federation_import_staging.sql');
   });
 
   it('validates migrations in dry-run mode without requiring database credentials', () => {
@@ -20,7 +20,7 @@ describe('database migration runner', () => {
       env: { ...process.env, DATABASE_URL: '', SUPABASE_DB_URL: '' },
     });
 
-    expect(output).toContain('Dry run: 19 migrations are valid and ready for Supabase CLI.');
+    expect(output).toContain('Dry run: 20 migrations are valid and ready for Supabase CLI.');
   });
 
   it('prepares a temporary Supabase CLI workdir from canonical migrations', () => {

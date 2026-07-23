@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { UUID } from '../domain/index.js';
 
@@ -54,7 +55,7 @@ export interface PhotoObjectStore {
 }
 
 export class LocalPhotoObjectStore implements PhotoObjectStore {
-  constructor(private readonly root = join(process.cwd(), 'storage', 'refcheckid-photos-dev')) {}
+  constructor(private readonly root = defaultPhotoObjectStoreRoot()) {}
 
   async createUploadIntent(input: PhotoUploadIntentInput): Promise<PhotoUploadIntent> {
     const uploadId = randomUUID();
@@ -119,6 +120,15 @@ export class LocalPhotoObjectStore implements PhotoObjectStore {
   private pathFor(objectKey: string): string {
     return join(this.root, objectKey);
   }
+}
+
+function defaultPhotoObjectStoreRoot(): string {
+  const configuredRoot = process.env.REFCHECKID_PHOTO_STORAGE_ROOT;
+  if (configuredRoot && configuredRoot.length > 0) return configuredRoot;
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') {
+    return join(tmpdir(), 'refcheckid-photos-test');
+  }
+  return join(process.cwd(), 'storage', 'refcheckid-photos-dev');
 }
 
 export class StubPhotoObjectStore extends LocalPhotoObjectStore {}

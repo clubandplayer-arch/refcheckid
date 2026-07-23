@@ -3,6 +3,8 @@ import {
   AuditRepository,
   ClubRepository,
   FederationRepository,
+  FederationImportBatchRepository,
+  FederationImportRowRepository,
   MatchReportRepository,
   MatchSheetPlayerRepository,
   MatchRepository,
@@ -25,6 +27,7 @@ import {
 } from '../repositories/index.js';
 import {
   AuditService,
+  FederationImportService,
   FederationSyncService,
   MatchReportService,
   MatchService,
@@ -41,6 +44,8 @@ export interface ApplicationContainer {
     readonly audit: AuditRepository;
     readonly clubs: ClubRepository;
     readonly federations: FederationRepository;
+    readonly federationImportBatches: FederationImportBatchRepository;
+    readonly federationImportRows: FederationImportRowRepository;
     readonly matches: MatchRepository;
     readonly matchReports: MatchReportRepository;
     readonly matchSheets: MatchSheetRepository;
@@ -63,6 +68,7 @@ export interface ApplicationContainer {
   };
   readonly services: {
     readonly audit: AuditService;
+    readonly federationImports: FederationImportService;
     readonly federationSync: FederationSyncService;
     readonly matches: MatchService;
     readonly matchReports: MatchReportService;
@@ -81,6 +87,8 @@ export function createApplicationContainer(): ApplicationContainer {
     audit: new AuditRepository(),
     clubs: new ClubRepository(),
     federations: new FederationRepository(),
+    federationImportBatches: new FederationImportBatchRepository(),
+    federationImportRows: new FederationImportRowRepository(),
     matches: new MatchRepository(pilotMatches),
     matchReports: new MatchReportRepository(pilotMatchReports),
     matchSheets: new MatchSheetRepository(pilotMatchSheets),
@@ -118,6 +126,13 @@ export function createApplicationContainer(): ApplicationContainer {
 
   const services = {
     audit: new AuditService({ auditRepository: repositories.audit, eventPublisher: events }),
+    federationImports: new FederationImportService({
+      importBatches: repositories.federationImportBatches,
+      importRows: repositories.federationImportRows,
+      clubs: repositories.clubs,
+      players: repositories.players,
+      registrations: repositories.registrations,
+    }),
     federationSync: new FederationSyncService({
       clubsRepository: repositories.clubs,
       eventPublisher: events,

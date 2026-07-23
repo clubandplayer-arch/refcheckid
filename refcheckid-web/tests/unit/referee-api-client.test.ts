@@ -143,7 +143,7 @@ describe("unit: referee workflow API client", () => {
     ]);
   });
 
-  it("locks every unlocked sheet before starting recognition", async () => {
+  it("refreshes snapshots for every available sheet before starting recognition", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/match-sheets?")) {
@@ -177,9 +177,9 @@ describe("unit: referee workflow API client", () => {
       expect.stringContaining("/match-sheets/sheet-away/lock"),
       expect.anything(),
     );
-    expect(fetchMock).not.toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/match-sheets/sheet-locked/lock"),
-      expect.anything(),
+      expect.objectContaining({ method: "POST" }),
     );
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/recognitions/start"),

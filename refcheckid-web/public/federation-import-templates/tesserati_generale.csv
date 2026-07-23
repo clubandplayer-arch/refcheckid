@@ -1,0 +1,3 @@
+codice_tessera,nome,cognome,data_nascita,codice_fiscale,luogo_nascita,stato_tesserato
+TESS001,Marco,Rossi,2006-04-12,RSSMRC06D12H501Z,Roma,active
+TESS002,Luca,Bianchi,2006-09-03,BNCLCU06P03H501X,Roma,active

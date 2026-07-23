@@ -46,6 +46,29 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('POST', '/api/v1/auth/logout', logoutHandler);
 
   router.register('POST', '/api/v1/federation-sync', controllers.syncFederation);
+  router.register('POST', '/api/v1/federation-imports', controllers.createFederationImport);
+  router.register('GET', '/api/v1/federation-imports', controllers.listFederationImports);
+  router.register('GET', '/api/v1/federation-imports/:id', controllers.getFederationImport);
+  router.register(
+    'POST',
+    '/api/v1/federation-imports/:id/parse',
+    controllers.parseFederationImport,
+  );
+  router.register(
+    'POST',
+    '/api/v1/federation-imports/:id/validate',
+    controllers.validateFederationImport,
+  );
+  router.register(
+    'POST',
+    '/api/v1/federation-imports/:id/commit',
+    controllers.commitFederationImport,
+  );
+  router.register(
+    'GET',
+    '/api/v1/federation-imports/:id/rows',
+    controllers.listFederationImportRows,
+  );
   router.register('GET', '/api/v1/federations', controllers.listFederations);
   router.register('GET', '/api/v1/federations/:id', controllers.getFederation);
   router.register('GET', '/api/v1/clubs', controllers.listClubs);
@@ -86,7 +109,11 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/photos/:id', controllers.arch1DefinedEndpoint);
   router.register('GET', '/api/v1/photos/:id/versions', controllers.arch1DefinedEndpoint);
   router.register('POST', '/api/v1/players/:id/photo-requests', controllers.arch1DefinedEndpoint);
-  router.register('POST', '/api/v1/staff-members/:id/photo-requests', controllers.arch1DefinedEndpoint);
+  router.register(
+    'POST',
+    '/api/v1/staff-members/:id/photo-requests',
+    controllers.arch1DefinedEndpoint,
+  );
   router.register('GET', '/api/v1/photo-requests/:id', controllers.arch1DefinedEndpoint);
   router.register('DELETE', '/api/v1/photo-requests/:id', controllers.arch1DefinedEndpoint);
   router.register(
@@ -131,7 +158,10 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
       return {
         status: 501,
         headers: { 'content-type': 'application/json' },
-        body: { error: 'PHOTO_CONTENT_UNAVAILABLE', message: 'Photo content streaming is unavailable.' },
+        body: {
+          error: 'PHOTO_CONTENT_UNAVAILABLE',
+          message: 'Photo content streaming is unavailable.',
+        },
       };
     }
 
@@ -163,7 +193,11 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/photos/sync-manifest', controllers.arch1DefinedEndpoint);
   router.register('POST', '/api/v1/photos/sync-ack', controllers.arch1DefinedEndpoint);
   router.register('GET', '/api/v1/photos/changes', controllers.arch1DefinedEndpoint);
-  router.register('POST', '/api/v1/photos/versions/:id/quarantine', controllers.arch1DefinedEndpoint);
+  router.register(
+    'POST',
+    '/api/v1/photos/versions/:id/quarantine',
+    controllers.arch1DefinedEndpoint,
+  );
   router.register('POST', '/api/v1/photos/versions/:id/restore', controllers.arch1DefinedEndpoint);
   router.register('POST', '/api/v1/photos/versions/:id/archive', controllers.arch1DefinedEndpoint);
   router.register('DELETE', '/api/v1/photos/versions/:id', controllers.arch1DefinedEndpoint);

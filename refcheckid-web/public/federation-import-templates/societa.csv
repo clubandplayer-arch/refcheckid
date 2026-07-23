@@ -1,0 +1,3 @@
+codice_societa,nome_societa,stato,stagione,codice_fiscale,email_referente,telefono,indirizzo,comune,provincia,categoria,campionato,girone
+CLUB001,ASD Atletico Aurora,active,2026/2027,12345678901,segreteria@atleticoaurora.example,+390612345001,"Via Roma 1",Roma,RM,Juniores,Campionato Demo,A
+CLUB002,ASD Sporting Litorale,active,2026/2027,12345678902,segreteria@sportinglitorale.example,+390612345002,"Via Mare 10",Ostia,RM,Juniores,Campionato Demo,A

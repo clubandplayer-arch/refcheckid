@@ -11,3 +11,4 @@ export type * from './report/types.js';
 export type * from './event/types.js';
 export type * from './photo/types.js';
 export type * from './audit/types.js';
+export type * from './federation-import-types.js';
