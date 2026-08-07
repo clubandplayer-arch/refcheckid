@@ -261,6 +261,15 @@ export class MatchSheetPhotoSnapshotRepository extends PersistentPhotoRepository
       ),
     );
   }
+
+  async deleteByMatchSheet(matchSheetId: UUID): Promise<void> {
+    const deletedAt = new Date().toISOString();
+    await Promise.all(
+      this.values()
+        .filter((snapshot) => snapshot.matchSheetId === matchSheetId && snapshot.deletedAt === null)
+        .map((snapshot) => this.update(snapshot.id, { deletedAt })),
+    );
+  }
 }
 
 export class PhotoAccessGrantRepository extends PersistentPhotoRepository<PhotoAccessGrant> {

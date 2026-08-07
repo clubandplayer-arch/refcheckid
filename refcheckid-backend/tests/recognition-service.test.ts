@@ -203,6 +203,10 @@ describe('RecognitionService', () => {
         playerRegistrationId: coveredRegistrationId,
         role: 'starter',
         shirtNumber: 9,
+        lineupOrder: 0,
+        isGoalkeeper: true,
+        isCaptain: true,
+        isViceCaptain: false,
         status: 'listed',
       },
       {
@@ -210,6 +214,10 @@ describe('RecognitionService', () => {
         playerRegistrationId: missingRegistrationId,
         role: 'bench',
         shirtNumber: 18,
+        lineupOrder: 1,
+        isGoalkeeper: false,
+        isCaptain: false,
+        isViceCaptain: true,
         status: 'listed',
       },
     ]);

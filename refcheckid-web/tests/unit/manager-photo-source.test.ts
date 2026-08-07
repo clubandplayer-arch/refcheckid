@@ -82,7 +82,7 @@ describe("regression: manager photo capture flow", () => {
   });
 
   it("exposes a smoke-only reset for submitted sheets", () => {
-    expect(source).toContain("Ripristina distinta di prova");
+    expect(source).toContain("Ripristina partita demo");
     expect(source).toContain("isSmokeResetAvailable");
     expect(source).toContain("resetSmokeMatchSheet");
     expect(source).toContain(
@@ -98,8 +98,12 @@ describe("regression: manager photo capture flow", () => {
     expect(photoSelectionHandler).toContain("reader.readAsDataURL(file)");
     expect(photoSelectionHandler).not.toContain("if (isReadOnly) return");
   });
-  it("uses refreshed backend photos when the match sheet is read-only", () => {
-    expect(source).toContain("isReadOnly\n        ? fetchedPlayers");
-    expect(source).toContain("isReadOnly\n        ? fetchedStaff");
+  it("rebuilds the submitted lineup without discarding refreshed backend photos", () => {
+    expect(source).toContain("submittedSheet?.players");
+    expect(source).toContain("line.playerRegistrationId");
+    expect(source).toContain("selected: true");
+    expect(source).toContain("shirtNumber: line.shirtNumber");
+    expect(source).toContain("isGoalkeeper: line.isGoalkeeper");
+    expect(source).toContain("submittedSheet?.staff");
   });
 });

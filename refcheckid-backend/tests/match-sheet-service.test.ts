@@ -6,6 +6,8 @@ import {
   MatchSheetNotFoundError,
   MatchSheetService,
 } from '../src/services/index.js';
+import { createApplicationContainer } from '../src/config/application-container.js';
+import { pilotIds } from '../src/config/pilot-data.js';
 
 const matchSheetId = '10000000-0000-0000-0000-000000000001';
 const matchId = '10000000-0000-0000-0000-000000000002';
@@ -140,5 +142,51 @@ describe('MatchSheetService', () => {
     await expect(service.submitMatchSheet(matchSheetId)).rejects.toBeInstanceOf(
       MatchSheetNotFoundError,
     );
+  });
+
+  it('fully resets the demo match workflow instead of only reopening one sheet', async () => {
+    const container = createApplicationContainer();
+    await container.repositories.matchSheets.updateStatus(pilotIds.homeSheet, 'locked');
+    await container.repositories.matchSheets.updateStatus(pilotIds.awaySheet, 'locked');
+    await container.repositories.matchSheetPlayers.replaceByMatchSheet(pilotIds.homeSheet, [
+      {
+        matchSheetId: pilotIds.homeSheet,
+        playerRegistrationId: '10000000-0000-0000-0000-000000000010',
+        shirtNumber: 1,
+        role: 'starter',
+        lineupOrder: 0,
+        isGoalkeeper: true,
+        isCaptain: true,
+        isViceCaptain: false,
+        status: 'listed',
+      },
+    ]);
+    await container.repositories.recognitions.updateWorkflowStatus(pilotIds.match, 'locked');
+    await container.repositories.matches.updateStatus(pilotIds.match, 'completed');
+
+    await container.services.matchSheets.resetSmokeMatchSheet(pilotIds.homeSheet);
+
+    await expect(
+      container.repositories.matchSheets.findById(pilotIds.homeSheet),
+    ).resolves.toMatchObject({
+      status: 'draft',
+    });
+    await expect(
+      container.repositories.matchSheets.findById(pilotIds.awaySheet),
+    ).resolves.toMatchObject({
+      status: 'draft',
+    });
+    await expect(
+      container.repositories.matchSheetPlayers.listByMatchSheet(pilotIds.homeSheet),
+    ).resolves.toEqual([]);
+    await expect(
+      container.repositories.recognitions.getWorkflowByMatch(pilotIds.match),
+    ).resolves.toEqual({
+      matchId: pilotIds.match,
+      status: 'not_started',
+    });
+    await expect(container.repositories.matches.findById(pilotIds.match)).resolves.toMatchObject({
+      status: 'scheduled',
+    });
   });
 });

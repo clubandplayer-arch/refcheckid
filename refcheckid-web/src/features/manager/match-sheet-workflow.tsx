@@ -96,10 +96,14 @@ export function MatchSheetWorkflow() {
       return submitMatchSheet(firstSheet.id, {
         players: calledPlayers
           .filter((player) => player.registrationId)
-          .map((player) => ({
+          .map((player, lineupOrder) => ({
             playerRegistrationId: player.registrationId as string,
             role: player.role,
             shirtNumber: player.shirtNumber,
+            lineupOrder,
+            isGoalkeeper: player.isGoalkeeper,
+            isCaptain: player.isCaptain,
+            isViceCaptain: player.isViceCaptain,
           })),
         staff: calledStaff
           .filter((staffMember) => staffMember.registrationId)
@@ -126,7 +130,10 @@ export function MatchSheetWorkflow() {
       return resetSmokeMatchSheet(firstSheet.id);
     },
     onSuccess() {
-      notify("Distinta di prova ripristinata", "success");
+      notify(
+        "Partita demo ripristinata: distinte e riconoscimento sono nuovamente disponibili",
+        "success",
+      );
       void queryClient.invalidateQueries({ queryKey: queryKeys.matchSheets });
     },
     onError(error) {
@@ -138,24 +145,54 @@ export function MatchSheetWorkflow() {
   const fetchedStaff = staffQuery.data ?? EMPTY_STAFF;
   const matchSheetStatus = sheetsQuery.data?.[0]?.status ?? "draft";
   const isReadOnly = matchSheetStatus !== "draft";
-  const players = useMemo(
-    () =>
-      isReadOnly
-        ? fetchedPlayers
-        : selectedPlayers.length > 0
-          ? selectedPlayers
-          : fetchedPlayers,
-    [fetchedPlayers, isReadOnly, selectedPlayers],
-  );
-  const staff = useMemo(
-    () =>
-      isReadOnly
-        ? fetchedStaff
-        : selectedStaff.length > 0
-          ? selectedStaff
-          : fetchedStaff,
-    [fetchedStaff, isReadOnly, selectedStaff],
-  );
+  const submittedSheet = sheetsQuery.data?.[0];
+  const players = useMemo(() => {
+    if (!isReadOnly) {
+      return selectedPlayers.length > 0 ? selectedPlayers : fetchedPlayers;
+    }
+    const lineupByRegistration = new Map(
+      (submittedSheet?.players ?? []).map((line) => [
+        line.playerRegistrationId,
+        line,
+      ]),
+    );
+    return fetchedPlayers
+      .map((player) => {
+        const line = player.registrationId
+          ? lineupByRegistration.get(player.registrationId)
+          : undefined;
+        return line
+          ? {
+              ...player,
+              selected: true,
+              shirtNumber: line.shirtNumber,
+              role: (line.role === "reserve"
+                ? "reserve"
+                : "starter") as PlayerLineupRole,
+              isGoalkeeper: line.isGoalkeeper,
+              isCaptain: line.isCaptain,
+              isViceCaptain: line.isViceCaptain,
+              lineupOrder: line.lineupOrder,
+            }
+          : { ...player, lineupOrder: Number.MAX_SAFE_INTEGER };
+      })
+      .sort((left, right) => left.lineupOrder - right.lineupOrder)
+      .map(({ lineupOrder: _lineupOrder, ...player }) => player);
+  }, [fetchedPlayers, isReadOnly, selectedPlayers, submittedSheet?.players]);
+  const staff = useMemo(() => {
+    if (!isReadOnly) {
+      return selectedStaff.length > 0 ? selectedStaff : fetchedStaff;
+    }
+    const submittedRegistrationIds = new Set(
+      (submittedSheet?.staff ?? []).map((line) => line.staffRegistrationId),
+    );
+    return fetchedStaff.map((member) => ({
+      ...member,
+      selected:
+        member.registrationId !== null &&
+        submittedRegistrationIds.has(member.registrationId),
+    }));
+  }, [fetchedStaff, isReadOnly, selectedStaff, submittedSheet?.staff]);
   const filteredPlayers = useMemo(
     () =>
       players
@@ -475,7 +512,7 @@ export function MatchSheetWorkflow() {
             onClick={() => resetSmokeMutation.mutate()}
             type="button"
           >
-            Ripristina distinta di prova
+            Ripristina partita demo
           </Button>
         ) : null}
       </div>

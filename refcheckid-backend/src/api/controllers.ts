@@ -749,6 +749,10 @@ function parseMatchSheetLineup(body: unknown) {
       playerRegistrationId: string;
       shirtNumber: number | null;
       role: string;
+      lineupOrder: number;
+      isGoalkeeper: boolean;
+      isCaptain: boolean;
+      isViceCaptain: boolean;
     }[];
     staff?: {
       staffRegistrationId: string;
@@ -756,7 +760,7 @@ function parseMatchSheetLineup(body: unknown) {
     }[];
   } = {};
   if (Array.isArray(parsed.players)) {
-    lineup.players = parsed.players.map((player) => {
+    lineup.players = parsed.players.map((player, index) => {
       const row = requireBodyObject(player);
       return {
         playerRegistrationId: requireUuid(
@@ -768,6 +772,13 @@ function parseMatchSheetLineup(body: unknown) {
             ? null
             : Number(row.shirtNumber),
         role: requireString(row.role, 'role'),
+        lineupOrder:
+          typeof row.lineupOrder === 'number' && Number.isInteger(row.lineupOrder)
+            ? row.lineupOrder
+            : index,
+        isGoalkeeper: row.isGoalkeeper === true,
+        isCaptain: row.isCaptain === true,
+        isViceCaptain: row.isViceCaptain === true,
       };
     });
   }
@@ -797,12 +808,19 @@ async function enrichMatchSheetsForReferee(
   sheets: readonly MatchSheet[],
 ) {
   return Promise.all(
-    sheets.map(async (sheet) => ({
-      ...sheet,
-      playerCount: (await container.repositories.matchSheetPlayers.listByMatchSheet(sheet.id))
-        .length,
-      staffCount: (await container.repositories.matchSheetStaff.listByMatchSheet(sheet.id)).length,
-    })),
+    sheets.map(async (sheet) => {
+      const [players, staff] = await Promise.all([
+        container.repositories.matchSheetPlayers.listByMatchSheet(sheet.id),
+        container.repositories.matchSheetStaff.listByMatchSheet(sheet.id),
+      ]);
+      return {
+        ...sheet,
+        playerCount: players.length,
+        staffCount: staff.length,
+        players: [...players].sort((left, right) => left.lineupOrder - right.lineupOrder),
+        staff,
+      };
+    }),
   );
 }
 
