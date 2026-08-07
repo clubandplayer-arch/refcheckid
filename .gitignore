@@ -4,6 +4,8 @@
 **/dist/
 **/coverage/
 *.log
+refcheckid-backend/storage/refcheckid-photo-metadata-dev/
+refcheckid-backend/storage/refcheckid-photos-dev/
 .env
 .env.local
 .env.*.local
