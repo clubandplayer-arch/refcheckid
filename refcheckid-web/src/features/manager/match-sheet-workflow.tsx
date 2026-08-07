@@ -275,7 +275,6 @@ export function MatchSheetWorkflow() {
     subjectId: string,
     file: File | null,
   ) {
-    if (isReadOnly) return;
     setPhotoError((current) =>
       current?.subjectKind === subjectKind && current.subjectId === subjectId
         ? null
@@ -464,8 +463,9 @@ export function MatchSheetWorkflow() {
         </p>
         {isReadOnly ? (
           <p className="mt-1 text-slate-600">
-            Distinta inviata: non puoi più modificarla. Se serve correggere
-            qualcosa, avvisa l’arbitro o la segreteria.
+            Distinta inviata: convocazioni, ordine e staff non sono più
+            modificabili. Le foto ufficiali dei tesserati restano aggiornabili;
+            per correggere la distinta, avvisa l’arbitro o la segreteria.
           </p>
         ) : null}
         {isSmokeResetAvailable() ? (
