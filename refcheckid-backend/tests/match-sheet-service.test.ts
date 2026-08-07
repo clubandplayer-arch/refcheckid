@@ -3,6 +3,7 @@ import type { MatchSheet, MatchSheetStatus, UUID } from '../src/domain/index.js'
 import type { MatchSheetRepositoryPort } from '../src/repositories/index.js';
 import {
   LockedMatchSheetError,
+  MatchSheetPhotoManifestIncompleteError,
   MatchSheetNotFoundError,
   MatchSheetService,
 } from '../src/services/index.js';
@@ -114,6 +115,131 @@ describe('MatchSheetService', () => {
       status: 'locked',
     });
     expect(repository.statusUpdates).toEqual([{ id: matchSheet.id, status: 'locked' }]);
+  });
+
+  it('rebuilds a partial persisted photo manifest when an already locked sheet is locked again', async () => {
+    const container = createApplicationContainer();
+    const now = '2026-08-07T12:00:00.000Z';
+    const playerIds = [
+      '10000000-0000-4000-8000-000000000101',
+      '10000000-0000-4000-8000-000000000102',
+    ];
+    const registrationIds = [
+      '10000000-0000-4000-8000-000000000201',
+      '10000000-0000-4000-8000-000000000202',
+    ];
+
+    for (const [index, playerId] of playerIds.entries()) {
+      await container.repositories.players.upsert({
+        id: playerId,
+        federationId: pilotIds.federation,
+        firstName: `Player ${index + 1}`,
+        lastName: 'Restart',
+        birthDate: '2000-01-01',
+        birthPlace: null,
+        fiscalCode: null,
+        status: 'active',
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      });
+      await container.repositories.registrations.upsert({
+        id: registrationIds[index],
+        playerId,
+        clubId: pilotIds.homeClub,
+        season: '2026',
+        registrationNumber: `RESTART-${index + 1}`,
+        status: 'active',
+        registeredAt: now,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      });
+    }
+
+    await container.repositories.matchSheetPlayers.replaceByMatchSheet(pilotIds.homeSheet, [
+      {
+        matchSheetId: pilotIds.homeSheet,
+        playerRegistrationId: registrationIds[0],
+        shirtNumber: 1,
+        role: 'starter',
+        lineupOrder: 0,
+        isGoalkeeper: true,
+        isCaptain: false,
+        isViceCaptain: false,
+        status: 'listed',
+      },
+      {
+        matchSheetId: pilotIds.homeSheet,
+        playerRegistrationId: registrationIds[1],
+        shirtNumber: 2,
+        role: 'starter',
+        lineupOrder: 1,
+        isGoalkeeper: false,
+        isCaptain: true,
+        isViceCaptain: false,
+        status: 'listed',
+      },
+    ]);
+    await container.repositories.matchSheets.updateStatus(pilotIds.homeSheet, 'locked');
+    const staleSnapshot = await container.repositories.matchSheetPhotoSnapshots.create({
+      matchSheetId: pilotIds.homeSheet,
+      matchId: pilotIds.match,
+      registrationId: registrationIds[0],
+      seasonRegistrationPhotoId: null,
+      photoSubjectId: null,
+      globalOfficialPhotoId: null,
+      photoVersionId: null,
+      photoEtag: null,
+      photoStatus: 'missing',
+      renditionManifest: {},
+      frozenAt: now,
+      frozenByUserId: pilotIds.federation,
+      freezeReason: 'match_sheet_locked',
+      auditCorrelationId: '10000000-0000-4000-8000-000000000301',
+    });
+
+    await container.services.matchSheets.lockMatchSheet(pilotIds.homeSheet);
+
+    const activeSnapshots = await container.repositories.matchSheetPhotoSnapshots.listByMatchSheet(
+      pilotIds.homeSheet,
+    );
+    expect(activeSnapshots.map((snapshot) => snapshot.registrationId).sort()).toEqual(
+      [...registrationIds].sort(),
+    );
+    expect(activeSnapshots).toHaveLength(2);
+    const archivedSnapshot = await container.repositories.matchSheetPhotoSnapshots.findById(
+      staleSnapshot.id,
+    );
+    expect(typeof archivedSnapshot?.deletedAt).toBe('string');
+  });
+
+  it('preserves persisted snapshots when the runtime lineup is unexpectedly empty', async () => {
+    const container = createApplicationContainer();
+    await container.repositories.matchSheets.updateStatus(pilotIds.homeSheet, 'locked');
+    const persistedSnapshot = await container.repositories.matchSheetPhotoSnapshots.create({
+      matchSheetId: pilotIds.homeSheet,
+      matchId: pilotIds.match,
+      registrationId: '10000000-0000-4000-8000-000000000401',
+      seasonRegistrationPhotoId: null,
+      photoSubjectId: null,
+      globalOfficialPhotoId: null,
+      photoVersionId: null,
+      photoEtag: null,
+      photoStatus: 'active',
+      renditionManifest: {},
+      frozenAt: '2026-08-07T12:00:00.000Z',
+      frozenByUserId: pilotIds.federation,
+      freezeReason: 'match_sheet_locked',
+      auditCorrelationId: '10000000-0000-4000-8000-000000000402',
+    });
+
+    await expect(
+      container.services.matchSheets.lockMatchSheet(pilotIds.homeSheet),
+    ).rejects.toBeInstanceOf(MatchSheetPhotoManifestIncompleteError);
+    await expect(
+      container.repositories.matchSheetPhotoSnapshots.listByMatchSheet(pilotIds.homeSheet),
+    ).resolves.toEqual([persistedSnapshot]);
   });
 
   it('returns the current match sheet when status is unchanged', async () => {

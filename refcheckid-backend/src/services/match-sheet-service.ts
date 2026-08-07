@@ -48,6 +48,23 @@ export class LockedMatchSheetError extends Error {
   }
 }
 
+export class MatchSheetPhotoManifestIncompleteError extends Error {
+  constructor(
+    matchSheetId: UUID,
+    readonly expectedRegistrationIds: readonly UUID[],
+    readonly actualRegistrationIds: readonly UUID[],
+  ) {
+    const actual = new Set(actualRegistrationIds);
+    const missing = expectedRegistrationIds.filter((registrationId) => !actual.has(registrationId));
+    super(
+      `Match sheet ${matchSheetId} photo manifest is incomplete: expected ` +
+        `${expectedRegistrationIds.length} snapshots, found ${actualRegistrationIds.length}; ` +
+        `missing registrations: ${missing.join(', ') || 'none'}.`,
+    );
+    this.name = 'MatchSheetPhotoManifestIncompleteError';
+  }
+}
+
 export interface MatchSheetServiceDependencies {
   readonly eventPublisher?: EventPublisher;
   readonly matchSheetsRepository: MatchSheetRepositoryPort;
@@ -211,7 +228,8 @@ export class MatchSheetService {
       this.dependencies.matchSheetStaffRepository === undefined ||
       this.dependencies.photosService === undefined ||
       this.dependencies.playersRepository === undefined ||
-      this.dependencies.registrationsRepository === undefined
+      this.dependencies.registrationsRepository === undefined ||
+      this.dependencies.matchSheetPhotoSnapshotsRepository === undefined
     ) {
       return;
     }
@@ -221,14 +239,33 @@ export class MatchSheetService {
       photosService,
       playersRepository,
       registrationsRepository,
+      matchSheetPhotoSnapshotsRepository,
     } = this.dependencies;
-    const existingSnapshots = await photosService.listMatchSheetPhotoSnapshots(matchSheet.id);
-    if (existingSnapshots.length > 0) return;
 
     const [players, staff] = await Promise.all([
       matchSheetPlayersRepository.listByMatchSheet(matchSheet.id),
       matchSheetStaffRepository.listByMatchSheet(matchSheet.id),
     ]);
+
+    const expectedRegistrationIds = [
+      ...players.map((player) => player.playerRegistrationId),
+      ...staff.map((staffMember) => staffMember.staffRegistrationId),
+    ];
+    const existingSnapshots = await photosService.listMatchSheetPhotoSnapshots(matchSheet.id);
+    if (hasExactSnapshotCoverage(expectedRegistrationIds, existingSnapshots)) return;
+
+    if (expectedRegistrationIds.length === 0) {
+      throw new MatchSheetPhotoManifestIncompleteError(
+        matchSheet.id,
+        expectedRegistrationIds,
+        existingSnapshots.map((snapshot) => snapshot.registrationId),
+      );
+    }
+
+    // Photo metadata survives process restarts while the demo lineup repositories do not.
+    // Rebuild an incomplete or stale manifest from the current locked lineup instead of treating
+    // the presence of any old snapshot as proof that the manifest is ready.
+    await matchSheetPhotoSnapshotsRepository.deleteByMatchSheet(matchSheet.id);
 
     await Promise.all([
       ...players.map(async (player) => {
@@ -274,6 +311,15 @@ export class MatchSheetService {
         });
       }),
     ]);
+
+    const rebuiltSnapshots = await photosService.listMatchSheetPhotoSnapshots(matchSheet.id);
+    if (!hasExactSnapshotCoverage(expectedRegistrationIds, rebuiltSnapshots)) {
+      throw new MatchSheetPhotoManifestIncompleteError(
+        matchSheet.id,
+        expectedRegistrationIds,
+        rebuiltSnapshots.map((snapshot) => snapshot.registrationId),
+      );
+    }
   }
 
   private async freezeRegistrationPhoto(input: {
@@ -365,6 +411,22 @@ export class MatchSheetService {
       auditCorrelationId: randomUUID(),
     });
   }
+}
+
+function hasExactSnapshotCoverage(
+  expectedRegistrationIds: readonly UUID[],
+  snapshots: readonly MatchSheetPhotoSnapshot[],
+): boolean {
+  if (expectedRegistrationIds.length !== snapshots.length) return false;
+  const expected = new Set(expectedRegistrationIds);
+  const actual = new Set(snapshots.map((snapshot) => snapshot.registrationId));
+  if (expected.size !== expectedRegistrationIds.length || actual.size !== snapshots.length) {
+    return false;
+  }
+  return (
+    expected.size === actual.size &&
+    [...expected].every((registrationId) => actual.has(registrationId))
+  );
 }
 
 function toMatchSheetPlayerRoleLabel(role: string): string {

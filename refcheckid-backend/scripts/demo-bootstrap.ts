@@ -473,10 +473,11 @@ async function submitAndLockMatchSheet(
       lineup,
       accessToken,
     );
-    await postJson<MatchSheet>(`${apiBaseUrl}/match-sheets/${matchSheetId}/lock`, {}, accessToken);
-  } else if (matchSheet.status === 'submitted') {
-    await postJson<MatchSheet>(`${apiBaseUrl}/match-sheets/${matchSheetId}/lock`, {}, accessToken);
   }
+
+  // Lock is intentionally idempotent. Calling it for an already locked sheet lets the backend
+  // reconcile a persisted photo manifest with lineups recreated after a process restart.
+  await postJson<MatchSheet>(`${apiBaseUrl}/match-sheets/${matchSheetId}/lock`, {}, accessToken);
 
   const locked = await getJson<MatchSheet>(
     `${apiBaseUrl}/match-sheets/${matchSheetId}`,
