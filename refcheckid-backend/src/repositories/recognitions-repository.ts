@@ -4,7 +4,13 @@ import type {
   RecognitionWorkflowStatus,
   UUID,
 } from '../domain/index.js';
-import { DrizzleRepository } from './base-repository.js';
+import { join } from 'node:path';
+import {
+  loadRuntimeState,
+  persistRuntimeState,
+  PersistentRuntimeRepository,
+  resolveRuntimeStateRoot,
+} from './runtime-state-repository.js';
 
 export interface RecognitionRepositoryPort {
   findById(id: UUID): Promise<Recognition | null>;
@@ -17,13 +23,24 @@ export interface RecognitionRepositoryPort {
 }
 
 export class RecognitionRepository
-  extends DrizzleRepository<Recognition>
+  extends PersistentRuntimeRepository<Recognition>
   implements RecognitionRepositoryPort
 {
   private readonly workflows = new Map<UUID, RecognitionWorkflow>();
+  private readonly workflowsPath: string | null;
 
-  constructor(initialRows: readonly Recognition[] = []) {
-    super({ tableName: 'recognitions', initialRows });
+  constructor(
+    initialRows: readonly Recognition[] = [],
+    persistenceRoot = resolveRuntimeStateRoot(),
+  ) {
+    super('recognitions', 'recognitions.json', initialRows, persistenceRoot);
+    this.workflowsPath =
+      persistenceRoot === null ? null : join(persistenceRoot, 'recognition-workflows.json');
+    if (this.workflowsPath !== null) {
+      for (const workflow of loadRuntimeState<RecognitionWorkflow>(this.workflowsPath, [])) {
+        this.workflows.set(workflow.matchId, workflow);
+      }
+    }
   }
 
   listByMatch(matchId: UUID): Promise<readonly Recognition[]> {
@@ -40,6 +57,9 @@ export class RecognitionRepository
   ): Promise<RecognitionWorkflow> {
     const workflow = { matchId, status };
     this.workflows.set(matchId, workflow);
+    if (this.workflowsPath !== null) {
+      persistRuntimeState(this.workflowsPath, [...this.workflows.values()]);
+    }
 
     return Promise.resolve(workflow);
   }

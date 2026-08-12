@@ -1,5 +1,5 @@
 import type { MatchReport, MatchReportStatus, UUID } from '../domain/index.js';
-import { DrizzleRepository } from './base-repository.js';
+import { PersistentRuntimeRepository } from './runtime-state-repository.js';
 
 export interface CreateMatchReportInput {
   matchId: UUID;
@@ -20,11 +20,11 @@ export interface MatchReportRepositoryPort {
 }
 
 export class MatchReportRepository
-  extends DrizzleRepository<MatchReport, CreateMatchReportInput, Partial<MatchReport>>
+  extends PersistentRuntimeRepository<MatchReport, CreateMatchReportInput, Partial<MatchReport>>
   implements MatchReportRepositoryPort
 {
-  constructor(initialRows: readonly MatchReport[] = []) {
-    super({ tableName: 'match_reports', initialRows });
+  constructor(initialRows: readonly MatchReport[] = [], persistenceRoot?: string | null) {
+    super('match_reports', 'match-reports.json', initialRows, persistenceRoot);
   }
 
   findByMatch(matchId: UUID): Promise<MatchReport | null> {

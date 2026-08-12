@@ -6,6 +6,7 @@
 *.log
 refcheckid-backend/storage/refcheckid-photo-metadata-dev/
 refcheckid-backend/storage/refcheckid-photos-dev/
+refcheckid-backend/storage/refcheckid-runtime-state-dev/
 .env
 .env.local
 .env.*.local

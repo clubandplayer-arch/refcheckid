@@ -1,5 +1,11 @@
-import type { MatchSheet, MatchSheetPlayer, MatchSheetStaff, MatchSheetStatus, UUID } from '../domain/index.js';
-import { DrizzleRepository } from './base-repository.js';
+import type {
+  MatchSheet,
+  MatchSheetPlayer,
+  MatchSheetStaff,
+  MatchSheetStatus,
+  UUID,
+} from '../domain/index.js';
+import { PersistentRuntimeRepository } from './runtime-state-repository.js';
 
 export interface MatchSheetRepositoryPort {
   findById(id: UUID): Promise<MatchSheet | null>;
@@ -25,11 +31,11 @@ export interface MatchSheetStaffRepositoryPort {
 }
 
 export class MatchSheetRepository
-  extends DrizzleRepository<MatchSheet>
+  extends PersistentRuntimeRepository<MatchSheet>
   implements MatchSheetRepositoryPort
 {
-  constructor(initialRows: readonly MatchSheet[] = []) {
-    super({ tableName: 'match_sheets', initialRows });
+  constructor(initialRows: readonly MatchSheet[] = [], persistenceRoot?: string | null) {
+    super('match_sheets', 'match-sheets.json', initialRows, persistenceRoot);
   }
 
   listByMatch(matchId: UUID): Promise<readonly MatchSheet[]> {
@@ -44,7 +50,7 @@ export class MatchSheetRepository
     const existing = await this.findById(id);
     const submittedAt =
       status === 'submitted' || status === 'locked'
-        ? existing?.submittedAt ?? new Date().toISOString()
+        ? (existing?.submittedAt ?? new Date().toISOString())
         : null;
     return this.update(id, { status, submittedAt } as Partial<MatchSheet>);
   }
@@ -57,11 +63,11 @@ export class MatchSheetRepository
 export class MatchSheetsRepository extends MatchSheetRepository {}
 
 export class MatchSheetPlayerRepository
-  extends DrizzleRepository<MatchSheetPlayer>
+  extends PersistentRuntimeRepository<MatchSheetPlayer>
   implements MatchSheetPlayerRepositoryPort
 {
-  constructor(initialRows: readonly MatchSheetPlayer[] = []) {
-    super({ tableName: 'match_sheet_players', initialRows });
+  constructor(initialRows: readonly MatchSheetPlayer[] = [], persistenceRoot?: string | null) {
+    super('match_sheet_players', 'match-sheet-players.json', initialRows, persistenceRoot);
   }
 
   async replaceByMatchSheet(
@@ -71,7 +77,9 @@ export class MatchSheetPlayerRepository
     const existing = this.values().filter((player) => player.matchSheetId === matchSheetId);
     await Promise.all(
       existing.map((player) =>
-        this.update(player.id, { deletedAt: new Date().toISOString() } as Partial<MatchSheetPlayer>),
+        this.update(player.id, {
+          deletedAt: new Date().toISOString(),
+        } as Partial<MatchSheetPlayer>),
       ),
     );
     return Promise.all(players.map((player) => this.create(player)));
@@ -79,27 +87,33 @@ export class MatchSheetPlayerRepository
 
   listByMatchSheet(matchSheetId: UUID): Promise<readonly MatchSheetPlayer[]> {
     return Promise.resolve(
-      this.values().filter((player) => player.matchSheetId === matchSheetId && player.deletedAt === null),
+      this.values().filter(
+        (player) => player.matchSheetId === matchSheetId && player.deletedAt === null,
+      ),
     );
   }
 }
 
 export class MatchSheetStaffRepository
-  extends DrizzleRepository<MatchSheetStaff>
+  extends PersistentRuntimeRepository<MatchSheetStaff>
   implements MatchSheetStaffRepositoryPort
 {
-  constructor(initialRows: readonly MatchSheetStaff[] = []) {
-    super({ tableName: 'match_sheet_staff', initialRows });
+  constructor(initialRows: readonly MatchSheetStaff[] = [], persistenceRoot?: string | null) {
+    super('match_sheet_staff', 'match-sheet-staff.json', initialRows, persistenceRoot);
   }
 
   async replaceByMatchSheet(
     matchSheetId: UUID,
     staff: readonly Omit<MatchSheetStaff, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>[],
   ): Promise<readonly MatchSheetStaff[]> {
-    const existing = this.values().filter((staffMember) => staffMember.matchSheetId === matchSheetId);
+    const existing = this.values().filter(
+      (staffMember) => staffMember.matchSheetId === matchSheetId,
+    );
     await Promise.all(
       existing.map((staffMember) =>
-        this.update(staffMember.id, { deletedAt: new Date().toISOString() } as Partial<MatchSheetStaff>),
+        this.update(staffMember.id, {
+          deletedAt: new Date().toISOString(),
+        } as Partial<MatchSheetStaff>),
       ),
     );
     return Promise.all(staff.map((staffMember) => this.create(staffMember)));
@@ -107,7 +121,10 @@ export class MatchSheetStaffRepository
 
   listByMatchSheet(matchSheetId: UUID): Promise<readonly MatchSheetStaff[]> {
     return Promise.resolve(
-      this.values().filter((staffMember) => staffMember.matchSheetId === matchSheetId && staffMember.deletedAt === null),
+      this.values().filter(
+        (staffMember) =>
+          staffMember.matchSheetId === matchSheetId && staffMember.deletedAt === null,
+      ),
     );
   }
 }

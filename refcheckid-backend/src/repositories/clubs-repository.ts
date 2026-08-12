@@ -1,9 +1,9 @@
 import type { Club, UUID } from '../domain/index.js';
-import { DrizzleRepository } from './base-repository.js';
+import { PersistentRuntimeRepository } from './runtime-state-repository.js';
 
-export class ClubRepository extends DrizzleRepository<Club> {
-  constructor(initialRows: readonly Club[] = []) {
-    super({ tableName: 'clubs', initialRows });
+export class ClubRepository extends PersistentRuntimeRepository<Club> {
+  constructor(initialRows: readonly Club[] = [], persistenceRoot?: string | null) {
+    super('clubs', 'clubs.json', initialRows, persistenceRoot);
   }
 
   listByFederation(federationId: UUID): Promise<readonly Club[]> {
