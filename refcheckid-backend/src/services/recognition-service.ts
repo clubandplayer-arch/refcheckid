@@ -86,8 +86,12 @@ export class RecognitionService {
       return workflow;
     }
 
+    // Starting is an idempotent command. The demo bootstrap may have already completed the
+    // workflow before the referee opens the page (and that state can also be restored after a
+    // process restart). Returning the terminal workflow lets the referee reopen the frozen
+    // manifest instead of surfacing a misleading HTTP 409.
     if (workflow.status === 'locked') {
-      throw new CompletedRecognitionError(matchId);
+      return workflow;
     }
 
     return this.transitionRecognitionWorkflow(matchId, workflow.status, 'in_progress');
