@@ -523,9 +523,11 @@ interface CommitRowsResult {
   readonly updatedRows: number;
 }
 
-async function commitNotConfigured(): Promise<never> {
-  throw new FederationImportInvariantError(
-    'Federation import commit dependencies are not configured.',
+function commitNotConfigured(): Promise<never> {
+  return Promise.reject(
+    new FederationImportInvariantError(
+      'Federation import commit dependencies are not configured.',
+    ),
   );
 }
 

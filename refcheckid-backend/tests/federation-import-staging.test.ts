@@ -156,6 +156,8 @@ describe('federation import batch/staging parser flow', () => {
           expect.objectContaining({
             rowNumber: 2,
             status: 'pending',
+            // Vitest asymmetric matchers are typed as `any` even though the response is unknown.
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             normalizedData: expect.objectContaining({ codice_tessera: 'TESS001' }),
           }),
           expect.objectContaining({ rowNumber: 3 }),
@@ -327,6 +329,8 @@ describe('federation import batch/staging parser flow', () => {
           }),
           expect.objectContaining({
             status: 'error',
+            // Vitest asymmetric matchers are typed as `any` even though the response is unknown.
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             errors: expect.arrayContaining([
               expect.stringContaining('Invalid ISO date data'),
               expect.stringContaining('Invalid time ora'),
