@@ -93,11 +93,11 @@ export function createApplicationContainer(
   const events = new EventDispatcher();
   const runtimeStateRoot = options.runtimeStateRoot;
   const repositories = {
-    audit: new AuditRepository(),
+    audit: new AuditRepository([], runtimeStateRoot),
     clubs: new ClubRepository([], runtimeStateRoot),
     federations: new FederationRepository([], runtimeStateRoot),
-    federationImportBatches: new FederationImportBatchRepository(),
-    federationImportRows: new FederationImportRowRepository(),
+    federationImportBatches: new FederationImportBatchRepository([], runtimeStateRoot),
+    federationImportRows: new FederationImportRowRepository([], runtimeStateRoot),
     matches: new MatchRepository(pilotMatches, runtimeStateRoot),
     matchReports: new MatchReportRepository(pilotMatchReports, runtimeStateRoot),
     matchSheets: new MatchSheetRepository(pilotMatchSheets, runtimeStateRoot),

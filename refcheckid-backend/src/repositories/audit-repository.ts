@@ -1,5 +1,5 @@
 import type { AuditLog, UUID } from '../domain/index.js';
-import { DrizzleRepository } from './base-repository.js';
+import { PersistentRuntimeRepository } from './runtime-state-repository.js';
 
 export type AuditActor = Readonly<{
   actorFederationId?: UUID | null;
@@ -44,11 +44,11 @@ export interface AuditRepositoryPort {
 }
 
 export class AuditRepository
-  extends DrizzleRepository<AuditLog, CreateAuditLogInput>
+  extends PersistentRuntimeRepository<AuditLog, CreateAuditLogInput>
   implements AuditRepositoryPort
 {
-  constructor(initialRows: readonly AuditLog[] = []) {
-    super({ tableName: 'audit_logs', initialRows });
+  constructor(initialRows: readonly AuditLog[] = [], persistenceRoot?: string | null) {
+    super('audit_logs', 'audit-logs.json', initialRows, persistenceRoot);
   }
 
   createAuditLog(input: CreateAuditLogInput): Promise<AuditLog> {
