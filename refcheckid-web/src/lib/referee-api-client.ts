@@ -1,4 +1,5 @@
 import {
+  ApiRequestError,
   completeRecognition,
   fetchMatches,
   fetchMatchPhotoManifest,
@@ -90,7 +91,18 @@ export async function lockSubmittedSheetsAndStartRecognition(
       .filter((sheet) => sheet.status === "submitted")
       .map((sheet) => lockMatchSheet(sheet.id)),
   );
-  return startRecognition(matchId);
+  try {
+    return await startRecognition(matchId);
+  } catch (error) {
+    if (!(error instanceof ApiRequestError) || error.status !== 409) throw error;
+
+    // A restored/demo match can already have an active or completed recognition workflow.
+    // The frozen manifest is the durable prerequisite for reopening that workflow, so a
+    // conflict is resumable only when the backend still exposes a usable manifest.
+    const manifest = await fetchMatchPhotoManifest(matchId);
+    if (manifest.status !== "available" || manifest.subjects.length === 0) throw error;
+    return { status: "resumed" };
+  }
 }
 
 export { completeRecognition };

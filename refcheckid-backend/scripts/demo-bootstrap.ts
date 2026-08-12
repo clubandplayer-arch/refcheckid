@@ -170,7 +170,7 @@ async function main(): Promise<void> {
     dataset.federationSyncPayload,
     sessions.federation.accessToken,
   );
-  await uploadAndApproveDemoPhotos(options.apiBaseUrl, dataset, sessions);
+  const uploadedPhotos = await uploadAndApproveDemoPhotos(options.apiBaseUrl, dataset, sessions);
   await completeMatchWorkflow(
     options.apiBaseUrl,
     dataset.workflowPlan,
@@ -185,7 +185,8 @@ async function main(): Promise<void> {
       schemaVersion: dataset.schemaVersion,
       seasonId: dataset.seasonId,
       counts: syncResult,
-      uploadedPhotos: dataset.photoPlan.length,
+      uploadedPhotos,
+      reusedPhotos: dataset.photoPlan.length - uploadedPhotos,
       matchId: dataset.workflowPlan.matchId,
     },
   );
@@ -352,9 +353,13 @@ async function uploadAndApproveDemoPhotos(
   apiBaseUrl: string,
   dataset: DemoDataset,
   sessions: DemoSessions,
-): Promise<void> {
+): Promise<number> {
+  let uploadedPhotos = 0;
   for (const photo of dataset.photoPlan) {
     const session = sessions[photo.manager];
+    if (await registrationHasPhoto(apiBaseUrl, photo.registrationId, session.accessToken)) {
+      continue;
+    }
     const png = generateDemoPng(photo.generatedImage);
     const intent = await postJson<PhotoUploadIntentResponse>(
       `${apiBaseUrl}/photos/upload-intent`,
@@ -385,6 +390,7 @@ async function uploadAndApproveDemoPhotos(
       },
       session.accessToken,
     );
+    uploadedPhotos += 1;
   }
 
   const pending = await getJson<readonly PhotoApproval[]>(
@@ -396,12 +402,6 @@ async function uploadAndApproveDemoPhotos(
     (approval) =>
       approval.registrationId !== null && expectedRegistrationIds.has(approval.registrationId),
   );
-
-  if (approvalsToApprove.length !== dataset.photoPlan.length) {
-    throw new Error(
-      `Expected ${dataset.photoPlan.length} pending photo approvals, found ${approvalsToApprove.length}.`,
-    );
-  }
 
   for (const approval of approvalsToApprove) {
     await postJson<PhotoApproval>(
@@ -417,6 +417,22 @@ async function uploadAndApproveDemoPhotos(
   }
 
   await verifyApprovedPhotos(apiBaseUrl, dataset, sessions.federation.accessToken);
+  return uploadedPhotos;
+}
+
+async function registrationHasPhoto(
+  apiBaseUrl: string,
+  registrationId: string,
+  accessToken: string,
+): Promise<boolean> {
+  const url = `${apiBaseUrl}/registrations/${encodeURIComponent(registrationId)}/season-photo`;
+  const response = await fetch(url, { headers: authHeaders(accessToken) });
+  if (response.status === 404) return false;
+  if (!response.ok) {
+    const body: unknown = await response.json();
+    throw new Error(`Request failed GET ${url}: ${response.status} ${JSON.stringify(body)}`);
+  }
+  return true;
 }
 
 async function completeMatchWorkflow(
@@ -473,10 +489,11 @@ async function submitAndLockMatchSheet(
       lineup,
       accessToken,
     );
-    await postJson<MatchSheet>(`${apiBaseUrl}/match-sheets/${matchSheetId}/lock`, {}, accessToken);
-  } else if (matchSheet.status === 'submitted') {
-    await postJson<MatchSheet>(`${apiBaseUrl}/match-sheets/${matchSheetId}/lock`, {}, accessToken);
   }
+
+  // Lock is intentionally idempotent. Calling it for an already locked sheet lets the backend
+  // reconcile a persisted photo manifest with lineups recreated after a process restart.
+  await postJson<MatchSheet>(`${apiBaseUrl}/match-sheets/${matchSheetId}/lock`, {}, accessToken);
 
   const locked = await getJson<MatchSheet>(
     `${apiBaseUrl}/match-sheets/${matchSheetId}`,

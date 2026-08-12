@@ -53,7 +53,9 @@ describe("regression: referee smoke workflow", () => {
   });
 
   it("blocks report submission until both teams are recognized", () => {
-    expect(source).toContain("Riconoscimento non completato per entrambe le squadre");
+    expect(source).toContain(
+      "Riconoscimento non completato per entrambe le squadre",
+    );
     expect(source).toContain("Distinta ospite mancante");
     expect(source).toContain("fullRecognitionComplete");
     expect(source).toContain("hasHomeRecognition");
@@ -61,4 +63,9 @@ describe("regression: referee smoke workflow", () => {
     expect(source).toContain("blockingErrors");
   });
 
+  it("starts the recognition UI only after backend locking succeeds", () => {
+    expect(source).toContain("onSuccess: () => onStart(effectiveStartTeam)");
+    expect(source).toContain("disabled={!canStart || mutation.isPending}");
+    expect(source).toContain("Preparazione riconoscimento...");
+  });
 });

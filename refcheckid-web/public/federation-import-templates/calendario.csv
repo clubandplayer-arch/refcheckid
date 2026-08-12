@@ -1,0 +1,3 @@
+codice_gara,stagione,data,ora,codice_societa_casa,codice_societa_ospite,campo,comune,giornata,categoria,campionato,girone,stato_gara
+GARA001,2026/2027,2026-09-20,15:00,CLUB001,CLUB002,Campo Comunale,Roma,1,Juniores,Campionato Demo,A,scheduled
+GARA002,2026/2027,2026-09-27,15:00,CLUB002,CLUB001,Campo Litorale,Ostia,2,Juniores,Campionato Demo,A,scheduled

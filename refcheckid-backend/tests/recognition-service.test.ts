@@ -18,7 +18,6 @@ import {
   MatchSheetStaffRepository,
 } from '../src/repositories/index.js';
 import {
-  CompletedRecognitionError,
   InvalidRecognitionWorkflowTransitionError,
   MatchSheetsNotLockedError,
   RecognitionService,
@@ -203,6 +202,10 @@ describe('RecognitionService', () => {
         playerRegistrationId: coveredRegistrationId,
         role: 'starter',
         shirtNumber: 9,
+        lineupOrder: 0,
+        isGoalkeeper: true,
+        isCaptain: true,
+        isViceCaptain: false,
         status: 'listed',
       },
       {
@@ -210,6 +213,10 @@ describe('RecognitionService', () => {
         playerRegistrationId: missingRegistrationId,
         role: 'bench',
         shirtNumber: 18,
+        lineupOrder: 1,
+        isGoalkeeper: false,
+        isCaptain: false,
+        isViceCaptain: true,
         status: 'listed',
       },
     ]);
@@ -248,17 +255,23 @@ describe('RecognitionService', () => {
     expect(recognitionsRepository.workflowUpdates).toEqual([]);
   });
 
-  it('rejects starting locked recognition', async () => {
+  it('keeps locked recognition unchanged when the referee reopens it', async () => {
+    const recognitionsRepository = new FakeRecognitionRepository([], {
+      matchId,
+      status: 'locked',
+    });
     const service = new RecognitionService({
       matchSheetsRepository: new FakeMatchSheetRepository([
         buildMatchSheet('20000000-0000-0000-0000-000000000101'),
       ]),
-      recognitionsRepository: new FakeRecognitionRepository([], { matchId, status: 'locked' }),
+      recognitionsRepository,
     });
 
-    await expect(service.startRecognition(matchId)).rejects.toBeInstanceOf(
-      CompletedRecognitionError,
-    );
+    await expect(service.startRecognition(matchId)).resolves.toEqual({
+      matchId,
+      status: 'locked',
+    });
+    expect(recognitionsRepository.workflowUpdates).toEqual([]);
   });
 
   it('locks in-progress recognition', async () => {

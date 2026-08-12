@@ -15,6 +15,10 @@ export interface MatchSheetPlayer extends BaseEntity {
   playerRegistrationId: UUID;
   shirtNumber: number | null;
   role: string;
+  lineupOrder: number;
+  isGoalkeeper: boolean;
+  isCaptain: boolean;
+  isViceCaptain: boolean;
   status: MatchSheetPersonStatus;
 }
 

@@ -9,3 +9,4 @@ export * from './photo-state-machine.js';
 export * from './photo-object-store.js';
 export * from './photo-policy-engine.js';
 export * from './photo-validation-pipeline.js';
+export * from './federation-import-service.js';

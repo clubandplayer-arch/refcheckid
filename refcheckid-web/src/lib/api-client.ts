@@ -30,6 +30,19 @@ export interface ApiMatchSheet {
   status: "draft" | "submitted" | "locked";
   playerCount?: number;
   staffCount?: number;
+  players?: readonly {
+    playerRegistrationId: string;
+    shirtNumber: number | null;
+    role: string;
+    lineupOrder: number;
+    isGoalkeeper: boolean;
+    isCaptain: boolean;
+    isViceCaptain: boolean;
+  }[];
+  staff?: readonly {
+    staffRegistrationId: string;
+    role: string;
+  }[];
 }
 
 export interface ApiReport {
@@ -144,29 +157,28 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
   const registrationByPlayerId = new Map(
     registrations.map((registration) => [registration.playerId, registration]),
   );
-  const mappedPlayers: readonly PlayerListItem[] =
-    players.flatMap((player) => {
-          const registration = registrationByPlayerId.get(String(player.id));
-          if (!registration) return [];
-          return [
-            {
-              id: String(player.id),
-              firstName: String(player.firstName ?? player.first_name ?? ""),
-              lastName: String(player.lastName ?? player.last_name ?? ""),
-              photoUrl: normalizePhotoUrl(player.photoUrl ?? player.photo_url),
-              registrationId: registration.id,
-              season: registration.season,
-              warning: Boolean(player.warning ?? false),
-              suspended: Boolean(player.suspended ?? false),
-              selected: false,
-              shirtNumber: null,
-              role: "starter" as const,
-              isGoalkeeper: false,
-              isCaptain: false,
-              isViceCaptain: false,
-            },
-          ];
-        });
+  const mappedPlayers: readonly PlayerListItem[] = players.flatMap((player) => {
+    const registration = registrationByPlayerId.get(String(player.id));
+    if (!registration) return [];
+    return [
+      {
+        id: String(player.id),
+        firstName: String(player.firstName ?? player.first_name ?? ""),
+        lastName: String(player.lastName ?? player.last_name ?? ""),
+        photoUrl: normalizePhotoUrl(player.photoUrl ?? player.photo_url),
+        registrationId: registration.id,
+        season: registration.season,
+        warning: Boolean(player.warning ?? false),
+        suspended: Boolean(player.suspended ?? false),
+        selected: false,
+        shirtNumber: null,
+        role: "starter" as const,
+        isGoalkeeper: false,
+        isCaptain: false,
+        isViceCaptain: false,
+      },
+    ];
+  });
   return enrichPlayersWithBackendPhotos(managerTeam, mappedPlayers);
 }
 
@@ -184,26 +196,21 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
       registration,
     ]),
   );
-  const mappedStaff: readonly StaffListItem[] =
-    staff.flatMap((staffMember) => {
-          const registration = registrationByStaffId.get(
-            String(staffMember.id),
-          );
-          if (!registration) return [];
-          return [
-            {
-              id: String(staffMember.id),
-              fullName: formatPersonName(staffMember, String(staffMember.id)),
-              role: String(registration.role ?? staffMember.role ?? "staff"),
-              photoUrl: staffMember.photoUrl
-                ? String(staffMember.photoUrl)
-                : null,
-              registrationId: registration.id,
-              season: registration.season,
-              selected: false,
-            },
-          ];
-        });
+  const mappedStaff: readonly StaffListItem[] = staff.flatMap((staffMember) => {
+    const registration = registrationByStaffId.get(String(staffMember.id));
+    if (!registration) return [];
+    return [
+      {
+        id: String(staffMember.id),
+        fullName: formatPersonName(staffMember, String(staffMember.id)),
+        role: String(registration.role ?? staffMember.role ?? "staff"),
+        photoUrl: staffMember.photoUrl ? String(staffMember.photoUrl) : null,
+        registrationId: registration.id,
+        season: registration.season,
+        selected: false,
+      },
+    ];
+  });
   return enrichStaffWithBackendStatus(managerTeam, mappedStaff);
 }
 
@@ -310,6 +317,10 @@ export interface SubmitMatchSheetPayload {
     readonly playerRegistrationId: string;
     readonly shirtNumber: number | null;
     readonly role: string;
+    readonly lineupOrder?: number;
+    readonly isGoalkeeper?: boolean;
+    readonly isCaptain?: boolean;
+    readonly isViceCaptain?: boolean;
   }[];
   readonly staff?: readonly {
     readonly staffRegistrationId: string;
@@ -387,7 +398,14 @@ export async function request<TResponse>(
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}.`);
+    let serverMessage: string | undefined;
+    try {
+      const body = (await response.json()) as { message?: unknown };
+      if (typeof body.message === "string") serverMessage = body.message;
+    } catch {
+      // Some upstream failures do not include a JSON response body.
+    }
+    throw new ApiRequestError(response.status, serverMessage);
   }
 
   if (response.status === 204) {
@@ -395,6 +413,20 @@ export async function request<TResponse>(
   }
 
   return (await response.json()) as TResponse;
+}
+
+export class ApiRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly serverMessage?: string,
+  ) {
+    super(
+      serverMessage
+        ? `API request failed with status ${status}: ${serverMessage}`
+        : `API request failed with status ${status}.`,
+    );
+    this.name = "ApiRequestError";
+  }
 }
 
 async function resolveActiveSession() {

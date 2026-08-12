@@ -32,7 +32,9 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("5 * 1024 * 1024");
     expect(source).toContain("Conferma una preview prima del salvataggio");
     expect(source).toContain("Conferma caricamento");
-    expect(source).toContain("fallback locale legacy è stato disabilitato dalla Recovery-4");
+    expect(source).toContain(
+      "fallback locale legacy è stato disabilitato dalla Recovery-4",
+    );
     expect(source).toContain("Foto ufficiale corrente");
     expect(source).toContain("Missing");
     expect(source).toContain("backend è la Source of Truth");
@@ -80,9 +82,28 @@ describe("regression: manager photo capture flow", () => {
   });
 
   it("exposes a smoke-only reset for submitted sheets", () => {
-    expect(source).toContain("Ripristina distinta di prova");
+    expect(source).toContain("Ripristina partita demo");
     expect(source).toContain("isSmokeResetAvailable");
     expect(source).toContain("resetSmokeMatchSheet");
-    expect(source).toContain("Distinta inviata: non puoi più modificarla");
+    expect(source).toContain(
+      "Le foto ufficiali dei tesserati restano aggiornabili",
+    );
+  });
+  it("allows official photo selection after the match sheet is locked", () => {
+    const photoSelectionHandler = source.slice(
+      source.indexOf("function handlePhotoSelected"),
+      source.indexOf("async function confirmPhoto"),
+    );
+
+    expect(photoSelectionHandler).toContain("reader.readAsDataURL(file)");
+    expect(photoSelectionHandler).not.toContain("if (isReadOnly) return");
+  });
+  it("rebuilds the submitted lineup without discarding refreshed backend photos", () => {
+    expect(source).toContain("submittedSheet?.players");
+    expect(source).toContain("line.playerRegistrationId");
+    expect(source).toContain("selected: true");
+    expect(source).toContain("shirtNumber: line.shirtNumber");
+    expect(source).toContain("isGoalkeeper: line.isGoalkeeper");
+    expect(source).toContain("submittedSheet?.staff");
   });
 });

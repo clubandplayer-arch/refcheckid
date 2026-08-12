@@ -1,0 +1,3 @@
+codice_arbitro,nome,cognome,stato,codice_fiscale,email,sezione,qualifica
+ARB001,Giuseppe,Verdi,active,VRDGPP85A01H501K,giuseppe.verdi@example.test,Roma,arbitro_principale
+ARB002,Anna,Neri,active,NRENNA88B42H501J,anna.neri@example.test,Roma,arbitro_principale
