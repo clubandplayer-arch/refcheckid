@@ -87,9 +87,7 @@ export async function lockSubmittedSheetsAndStartRecognition(
   );
   await Promise.all(
     sheets
-      .filter(
-        (sheet) => sheet.status === "submitted" || sheet.status === "locked",
-      )
+      .filter((sheet) => sheet.status === "submitted")
       .map((sheet) => lockMatchSheet(sheet.id)),
   );
   return startRecognition(matchId);
