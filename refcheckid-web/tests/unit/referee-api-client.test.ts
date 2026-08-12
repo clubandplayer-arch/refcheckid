@@ -187,6 +187,42 @@ describe("unit: referee workflow API client", () => {
     );
   });
 
+  it("reopens an existing recognition when start conflicts but its frozen manifest is available", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/match-sheets?")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [{ id: "sheet-locked", status: "locked" }],
+        };
+      }
+      if (url.includes("/recognitions/start")) {
+        return {
+          ok: false,
+          status: 409,
+          json: async () => ({ message: "Recognition is already active." }),
+        };
+      }
+      if (url.includes("/photo-manifest")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            status: "available",
+            subjects: [{ id: "registration-1" }],
+          }),
+        };
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      lockSubmittedSheetsAndStartRecognition("match-1"),
+    ).resolves.toEqual({ status: "resumed" });
+  });
+
   it("does not synthesize recognition subjects from local snapshots or pilot data", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

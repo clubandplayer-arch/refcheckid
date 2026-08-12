@@ -398,7 +398,14 @@ export async function request<TResponse>(
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}.`);
+    let serverMessage: string | undefined;
+    try {
+      const body = (await response.json()) as { message?: unknown };
+      if (typeof body.message === "string") serverMessage = body.message;
+    } catch {
+      // Some upstream failures do not include a JSON response body.
+    }
+    throw new ApiRequestError(response.status, serverMessage);
   }
 
   if (response.status === 204) {
@@ -406,6 +413,20 @@ export async function request<TResponse>(
   }
 
   return (await response.json()) as TResponse;
+}
+
+export class ApiRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly serverMessage?: string,
+  ) {
+    super(
+      serverMessage
+        ? `API request failed with status ${status}: ${serverMessage}`
+        : `API request failed with status ${status}.`,
+    );
+    this.name = "ApiRequestError";
+  }
 }
 
 async function resolveActiveSession() {
