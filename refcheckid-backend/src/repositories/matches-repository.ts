@@ -1,5 +1,5 @@
 import type { Match, MatchStatus, UUID } from '../domain/index.js';
-import { DrizzleRepository } from './base-repository.js';
+import { PersistentRuntimeRepository } from './runtime-state-repository.js';
 
 export interface MatchRepositoryPort {
   findById(id: UUID): Promise<Match | null>;
@@ -9,9 +9,12 @@ export interface MatchRepositoryPort {
   updateStatus(id: UUID, status: MatchStatus): Promise<Match>;
 }
 
-export class MatchRepository extends DrizzleRepository<Match> implements MatchRepositoryPort {
-  constructor(initialRows: readonly Match[] = []) {
-    super({ tableName: 'matches', initialRows });
+export class MatchRepository
+  extends PersistentRuntimeRepository<Match>
+  implements MatchRepositoryPort
+{
+  constructor(initialRows: readonly Match[] = [], persistenceRoot?: string | null) {
+    super('matches', 'matches.json', initialRows, persistenceRoot);
   }
 
   listByFederation(federationId: UUID): Promise<readonly Match[]> {

@@ -1,16 +1,24 @@
 import type { PlayerRegistration, StaffMember, StaffRegistration, UUID } from '../domain/index.js';
-import { DrizzleRepository } from './base-repository.js';
+import { PersistentRuntimeRepository } from './runtime-state-repository.js';
 
-export class RegistrationRepository extends DrizzleRepository<PlayerRegistration> {
-  private readonly staffMembers = new DrizzleRepository<StaffMember>({
-    tableName: 'staff_members',
-  });
-  private readonly staffRegistrations = new DrizzleRepository<StaffRegistration>({
-    tableName: 'staff_registrations',
-  });
+export class RegistrationRepository extends PersistentRuntimeRepository<PlayerRegistration> {
+  private readonly staffMembers: PersistentRuntimeRepository<StaffMember>;
+  private readonly staffRegistrations: PersistentRuntimeRepository<StaffRegistration>;
 
-  constructor(initialRows: readonly PlayerRegistration[] = []) {
-    super({ tableName: 'player_registrations', initialRows });
+  constructor(initialRows: readonly PlayerRegistration[] = [], persistenceRoot?: string | null) {
+    super('player_registrations', 'player-registrations.json', initialRows, persistenceRoot);
+    this.staffMembers = new PersistentRuntimeRepository(
+      'staff_members',
+      'staff-members.json',
+      [],
+      persistenceRoot,
+    );
+    this.staffRegistrations = new PersistentRuntimeRepository(
+      'staff_registrations',
+      'staff-registrations.json',
+      [],
+      persistenceRoot,
+    );
   }
 
   listByClub(clubId: UUID): Promise<readonly PlayerRegistration[]> {

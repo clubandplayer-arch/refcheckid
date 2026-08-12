@@ -81,36 +81,50 @@ export interface ApplicationContainer {
   };
 }
 
-export function createApplicationContainer(): ApplicationContainer {
+export interface ApplicationContainerOptions {
+  readonly runtimeStateRoot?: string | null;
+  readonly photoMetadataRoot?: string | null;
+  readonly photoStorageRoot?: string;
+}
+
+export function createApplicationContainer(
+  options: ApplicationContainerOptions = {},
+): ApplicationContainer {
   const events = new EventDispatcher();
+  const runtimeStateRoot = options.runtimeStateRoot;
   const repositories = {
-    audit: new AuditRepository(),
-    clubs: new ClubRepository(),
-    federations: new FederationRepository(),
-    federationImportBatches: new FederationImportBatchRepository(),
-    federationImportRows: new FederationImportRowRepository(),
-    matches: new MatchRepository(pilotMatches),
-    matchReports: new MatchReportRepository(pilotMatchReports),
-    matchSheets: new MatchSheetRepository(pilotMatchSheets),
-    matchSheetPlayers: new MatchSheetPlayerRepository(),
-    matchSheetStaff: new MatchSheetStaffRepository(),
-    photos: new PhotoRepository(),
-    photoSubjects: new PhotoSubjectRepository(),
-    globalOfficialPhotos: new GlobalOfficialPhotoRepository(),
-    seasonRegistrationPhotos: new SeasonRegistrationPhotoRepository(),
-    photoVersions: new PhotoVersionRepository(),
-    photoApprovals: new PhotoApprovalRepository(),
-    matchSheetPhotoSnapshots: new MatchSheetPhotoSnapshotRepository(),
-    photoAccessGrants: new PhotoAccessGrantRepository(),
-    photoAuditEvents: new PhotoAuditEventRepository(),
-    photoSyncCursors: new PhotoSyncCursorRepository(),
-    players: new PlayerRepository(),
-    recognitions: new RecognitionRepository(),
-    referees: new RefereeRepository(),
-    registrations: new RegistrationRepository(),
+    audit: new AuditRepository([], runtimeStateRoot),
+    clubs: new ClubRepository([], runtimeStateRoot),
+    federations: new FederationRepository([], runtimeStateRoot),
+    federationImportBatches: new FederationImportBatchRepository([], runtimeStateRoot),
+    federationImportRows: new FederationImportRowRepository([], runtimeStateRoot),
+    matches: new MatchRepository(pilotMatches, runtimeStateRoot),
+    matchReports: new MatchReportRepository(pilotMatchReports, runtimeStateRoot),
+    matchSheets: new MatchSheetRepository(pilotMatchSheets, runtimeStateRoot),
+    matchSheetPlayers: new MatchSheetPlayerRepository([], runtimeStateRoot),
+    matchSheetStaff: new MatchSheetStaffRepository([], runtimeStateRoot),
+    photos: new PhotoRepository([], options.photoMetadataRoot),
+    photoSubjects: new PhotoSubjectRepository([], options.photoMetadataRoot),
+    globalOfficialPhotos: new GlobalOfficialPhotoRepository([], options.photoMetadataRoot),
+    seasonRegistrationPhotos: new SeasonRegistrationPhotoRepository([], options.photoMetadataRoot),
+    photoVersions: new PhotoVersionRepository([], options.photoMetadataRoot),
+    photoApprovals: new PhotoApprovalRepository([], options.photoMetadataRoot),
+    matchSheetPhotoSnapshots: new MatchSheetPhotoSnapshotRepository([], options.photoMetadataRoot),
+    photoAccessGrants: new PhotoAccessGrantRepository([], options.photoMetadataRoot),
+    photoAuditEvents: new PhotoAuditEventRepository([], options.photoMetadataRoot),
+    photoSyncCursors: new PhotoSyncCursorRepository([], options.photoMetadataRoot),
+    players: new PlayerRepository([], runtimeStateRoot),
+    recognitions: new RecognitionRepository([], runtimeStateRoot),
+    referees: new RefereeRepository([], runtimeStateRoot),
+    registrations: new RegistrationRepository([], runtimeStateRoot),
   };
 
-  const objectStores = { photos: new LocalPhotoObjectStore() };
+  const objectStores = {
+    photos:
+      options.photoStorageRoot === undefined
+        ? new LocalPhotoObjectStore()
+        : new LocalPhotoObjectStore(options.photoStorageRoot),
+  };
   const photosService = new PhotoService({
     objectStore: objectStores.photos,
     photoSubjects: repositories.photoSubjects,

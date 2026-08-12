@@ -12,3 +12,4 @@ export * from './events-repository.js';
 export * from './photos-repository.js';
 export * from './audit-repository.js';
 export * from './federation-imports-repository.js';
+export * from './runtime-state-repository.js';

@@ -1,9 +1,9 @@
 import type { Referee, UUID } from '../domain/index.js';
-import { DrizzleRepository } from './base-repository.js';
+import { PersistentRuntimeRepository } from './runtime-state-repository.js';
 
-export class RefereeRepository extends DrizzleRepository<Referee> {
-  constructor(initialRows: readonly Referee[] = []) {
-    super({ tableName: 'referees', initialRows });
+export class RefereeRepository extends PersistentRuntimeRepository<Referee> {
+  constructor(initialRows: readonly Referee[] = [], persistenceRoot?: string | null) {
+    super('referees', 'referees.json', initialRows, persistenceRoot);
   }
 
   listByFederation(federationId: UUID): Promise<readonly Referee[]> {

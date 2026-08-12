@@ -6,7 +6,7 @@ import type {
   FederationImportType,
   UUID,
 } from '../domain/index.js';
-import { DrizzleRepository } from './base-repository.js';
+import { PersistentRuntimeRepository } from './runtime-state-repository.js';
 
 export interface FederationImportBatchFilter {
   readonly federationId?: UUID;
@@ -18,14 +18,22 @@ export interface FederationImportRowFilter {
   readonly status?: FederationImportRowStatus;
 }
 
-export class FederationImportBatchRepository extends DrizzleRepository<FederationImportBatch> {
-  constructor(initialRows: readonly FederationImportBatch[] = []) {
-    super({ tableName: 'federation_import_batches', initialRows });
+export class FederationImportBatchRepository extends PersistentRuntimeRepository<FederationImportBatch> {
+  constructor(initialRows: readonly FederationImportBatch[] = [], persistenceRoot?: string | null) {
+    super(
+      'federation_import_batches',
+      'federation-import-batches.json',
+      initialRows,
+      persistenceRoot,
+    );
   }
 
-  async listByFilter(filter: FederationImportBatchFilter = {}): Promise<readonly FederationImportBatch[]> {
+  async listByFilter(
+    filter: FederationImportBatchFilter = {},
+  ): Promise<readonly FederationImportBatch[]> {
     return (await this.list()).filter((batch) => {
-      if (filter.federationId !== undefined && batch.federationId !== filter.federationId) return false;
+      if (filter.federationId !== undefined && batch.federationId !== filter.federationId)
+        return false;
       if (filter.status !== undefined && batch.status !== filter.status) return false;
       if (filter.importType !== undefined && batch.importType !== filter.importType) return false;
       return true;
@@ -33,9 +41,9 @@ export class FederationImportBatchRepository extends DrizzleRepository<Federatio
   }
 }
 
-export class FederationImportRowRepository extends DrizzleRepository<FederationImportRow> {
-  constructor(initialRows: readonly FederationImportRow[] = []) {
-    super({ tableName: 'federation_import_rows', initialRows });
+export class FederationImportRowRepository extends PersistentRuntimeRepository<FederationImportRow> {
+  constructor(initialRows: readonly FederationImportRow[] = [], persistenceRoot?: string | null) {
+    super('federation_import_rows', 'federation-import-rows.json', initialRows, persistenceRoot);
   }
 
   async listByBatch(
