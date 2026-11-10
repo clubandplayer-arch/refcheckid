@@ -67,3 +67,17 @@ it('fails closed on incomplete cloud configuration and unmarked preview data env
   vi.stubEnv('REFCHECKID_DEMO_AUTO_BOOTSTRAP', 'true');
   expect(validateCloudConfiguration).toThrow('bootstrap');
 });
+
+
+it('allows a dedicated staging project in the Vercel Production slot without allowing production data in previews', () => {
+  env(); vi.stubEnv('DATABASE_URL', 'postgresql://postgres:password@db.example.supabase.co/postgres?sslmode=verify-full');
+  vi.stubEnv('AUTH_SECRET', 's'.repeat(32)); vi.stubEnv('VERCEL_ENV', 'production');
+  vi.stubEnv('REFCHECKID_DATA_ENV', 'staging');
+  expect(validateCloudConfiguration).not.toThrow();
+  vi.stubEnv('REFCHECKID_DATA_ENV', '');
+  expect(validateCloudConfiguration).toThrow('explicit');
+  vi.stubEnv('REFCHECKID_DATA_ENV', 'production');
+  expect(validateCloudConfiguration).not.toThrow();
+  vi.stubEnv('VERCEL_ENV', 'preview');
+  expect(validateCloudConfiguration).toThrow('staging');
+});

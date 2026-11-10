@@ -20,7 +20,7 @@ it('saves partial lineup drafts without submitting and rejects draft edits after
     await app.services.matchSheets.submitMatchSheet(plan.homeSheetId, input);
     await app.services.matchSheets.lockMatchSheet(plan.homeSheetId);
     await expect(app.services.matchSheets.saveDraft(plan.homeSheetId, { players: [] })).rejects.toThrow('locked');
-  } finally { app.store.close(); }
+  } finally { await app.store.close(); }
 });
 
 it('imports legacy photo metadata only once and never uses stale JSON over the database', async () => {
@@ -30,12 +30,12 @@ it('imports legacy photo metadata only once and never uses stale JSON over the d
   vi.stubEnv('REFCHECKID_PHOTO_METADATA_ROOT', directory);
   writeFileSync(metadata, JSON.stringify([{ id: '90000000-0000-4000-8000-000000000199', createdAt: new Date().toISOString(), deletedAt: null, subjectKind: 'athlete', canonicalPersonId: 'person', dedupeKeyHash: 'person' }]));
   const app = createApplicationContainer({ databasePath: path });
-  app.store.close();
+  await app.store.close();
   writeFileSync(metadata, 'invalid legacy JSON that must not be reread');
   try {
     const restored = createApplicationContainer({ databasePath: path });
     expect(await restored.repositories.photoSubjects.values()).toHaveLength(1);
-    restored.store.close();
+    await restored.store.close();
   } finally { vi.unstubAllEnvs(); rmSync(directory, { recursive: true, force: true }); }
 });
 
@@ -56,7 +56,7 @@ it('rolls back the entire lock, including partially created snapshots, on storag
     vi.restoreAllMocks();
     await app.services.matchSheets.lockMatchSheet(plan.homeSheetId);
     expect(await app.repositories.matchSheetPhotoSnapshots.listByMatchSheet(plan.homeSheetId)).toHaveLength(22);
-  } finally { app.store.close(); }
+  } finally { await app.store.close(); }
 });
 
 it('rejects empty, duplicate, inactive and opposing-club lineup entries without changing the draft', async () => {
@@ -72,7 +72,7 @@ it('rejects empty, duplicate, inactive and opposing-club lineup entries without 
     await expect(app.services.matchSheets.submitMatchSheet(plan.homeSheetId, clean)).rejects.toThrow('not eligible');
     expect((await app.repositories.matchSheets.findById(plan.homeSheetId))?.status).toBe('draft');
     expect(await app.repositories.matchSheetPlayers.listByMatchSheet(plan.homeSheetId)).toEqual([]);
-  } finally { app.store.close(); }
+  } finally { await app.store.close(); }
 });
 
 it('rejects recognition with only one locked sheet, and snapshots from another match', async () => {
@@ -87,7 +87,7 @@ it('rejects recognition with only one locked sheet, and snapshots from another m
     await app.repositories.matchSheetPhotoSnapshots.update(snapshot.id, { matchId: '70000000-0000-4000-8000-000000000099' });
     await expect(app.services.recognitions.startRecognition(plan.matchId)).rejects.toThrow('frozen photo');
     expect((await app.repositories.recognitions.getWorkflowByMatch(plan.matchId)).status).toBe('not_started');
-  } finally { app.store.close(); }
+  } finally { await app.store.close(); }
 });
 
 it('requires explicit notes for missing photos and a decision for every participant', async () => {
@@ -100,7 +100,7 @@ it('requires explicit notes for missing photos and a decision for every particip
     await expect(app.services.recognitions.completeRecognition(plan.matchId)).rejects.toThrow('Every participant');
     await app.services.recognitions.recordDecision(plan.matchId, person.registrationId, 'pending', null, 'referee');
     expect(await app.repositories.recognitions.listByMatch(plan.matchId)).toEqual([]);
-  } finally { app.store.close(); }
+  } finally { await app.store.close(); }
 });
 
 it('restores lineups, snapshots, decisions, workflow and reports from a reopened database', async () => {
@@ -114,7 +114,7 @@ it('restores lineups, snapshots, decisions, workflow and reports from a reopened
   await app.services.matches.transitionMatchStatus(plan.matchId, 'in_progress');
   await app.services.matches.transitionMatchStatus(plan.matchId, 'completed');
   const report = await app.services.matchReports.createMatchReport({ matchId: plan.matchId, refereeId: dataset.workflowPlan.refereeId, summary: 'Persisted report' });
-  app.store.close();
+  await app.store.close();
   const restored = createApplicationContainer({ databasePath: path });
   try {
     expect(await restored.repositories.matchSheetPlayers.listByMatchSheet(plan.homeSheetId)).toHaveLength(18);
@@ -128,7 +128,7 @@ it('restores lineups, snapshots, decisions, workflow and reports from a reopened
     expect(await restored.repositories.recognitions.listByMatch(plan.matchId)).toEqual([]);
     expect((await restored.repositories.matches.findById(plan.matchId))?.status).toBe('scheduled');
     expect(await restored.repositories.registrations.list()).toHaveLength(36);
-  } finally { restored.store.close(); rmSync(directory, { recursive: true, force: true }); }
+  } finally { await restored.store.close(); rmSync(directory, { recursive: true, force: true }); }
 });
 
 it('revokes both session tokens on logout and rejects malformed tokens', async () => {
@@ -139,5 +139,5 @@ it('revokes both session tokens on logout and rejects malformed tokens', async (
     expect((await router.handle({ method: 'POST', path: '/api/v1/auth/logout', headers, query: {} })).status).toBe(204);
     expect((await router.handle({ method: 'GET', path: '/api/v1/auth/me', headers, query: {} })).status).toBe(401);
     expect((await router.handle({ method: 'GET', path: '/api/v1/auth/me', headers: { authorization: 'Bearer invalid.signature' }, query: {} })).status).toBe(401);
-  } finally { app.store.close(); }
+  } finally { await app.store.close(); }
 });

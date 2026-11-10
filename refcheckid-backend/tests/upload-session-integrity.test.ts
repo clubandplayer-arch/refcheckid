@@ -17,7 +17,7 @@ it('restores upload intents, rejects forged object ownership and completes exact
   const context = { actorRole: 'manager' as const, actorId: '90000000-0000-4000-8000-000000000001', clubId: person.clubId, registrationClubId: person.clubId, federationId: dataset.federationSyncPayload.federations[0].id };
   const intent = await first.services.photos.createUploadIntent({ subjectKind: 'athlete', subjectId: person.subjectId, registrationId: person.registrationId,
     federationId: context.federationId, seasonId: dataset.seasonId, mimeType: 'image/png', fileSizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), context });
-  first.store.close();
+  await first.store.close();
   const app = createApplicationContainer({ databasePath: path });
   const write = vi.spyOn(app.objectStores.photos, 'putObject');
   const complete = { uploadId: intent.uploadId, objectKey: intent.objectKey, contentBase64: bytes.toString('base64'), context };
@@ -31,5 +31,5 @@ it('restores upload intents, rejects forged object ownership and completes exact
     expect(await app.repositories.photoVersions.list()).toHaveLength(1);
     expect(await app.objectStores.photos.readObject(version.storageOriginalKey)).toEqual(bytes);
     expect(await app.repositories.photoApprovals.list()).toHaveLength(1);
-  } finally { write.mockRestore(); app.store.close(); vi.unstubAllEnvs(); rmSync(root, { recursive: true, force: true }); }
+  } finally { write.mockRestore(); await app.store.close(); vi.unstubAllEnvs(); rmSync(root, { recursive: true, force: true }); }
 });

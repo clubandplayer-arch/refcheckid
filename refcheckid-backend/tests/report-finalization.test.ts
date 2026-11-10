@@ -23,5 +23,5 @@ it('validates the score and recognized participants on the server and rolls back
     expect(content.goals[0].playerName).not.toBe('Client supplied identity');
     const report = response.body as { id: string };
     await expect(app.services.matchReports.updateMatchReport(report.id, { summary: 'changed' })).rejects.toThrow('submitted');
-  } finally { app.store.close(); }
+  } finally { await app.store.close(); }
 });

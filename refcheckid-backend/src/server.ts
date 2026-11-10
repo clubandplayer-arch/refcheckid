@@ -43,7 +43,9 @@ export function createRuntimeServer() {
       });
     });
   });
-  server.on('close', () => container.store.close());
+  server.on('close', () => {
+    void Promise.resolve(container.store.close()).catch(() => console.error('[RefCheckID] Store close failed'));
+  });
   server.requestTimeout = 30_000;
   server.headersTimeout = 15_000;
   return server;

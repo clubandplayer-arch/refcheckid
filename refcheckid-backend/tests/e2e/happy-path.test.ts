@@ -29,6 +29,6 @@ describe('complete role-separated public API workflow', () => {
       expect(JSON.parse(storedSummary)).toMatchObject({ homeTeam: 'ASD RefCheck Home', awayTeam: 'ASD RefCheck Away', result: { homeGoals: 0, awayGoals: 0 } });
       expect(await router.handle({ method: 'GET', path: '/api/v1/match-reports', headers: federation, query: { matchId: plan.matchId } })).toMatchObject({ status: 200, body: { status: 'submitted', summary: storedSummary } });
       expect((await app.repositories.audit.listByMatch(plan.matchId)).length).toBeGreaterThan(44);
-    } finally { app.store.close(); }
+    } finally { await app.store.close(); }
   });
 });

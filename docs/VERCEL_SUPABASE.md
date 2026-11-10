@@ -150,8 +150,11 @@ Root Directory: **refcheckid-web**; abilitare l'inclusione dei file esterni alla
 Root Directory. Framework Next.js; Node.js **24.x**. Install e build sono nel
 `refcheckid-web/vercel.json`. Il workspace include il backend come dipendenza.
 
-Usare il branch di integrazione per una Preview, con variabili **Preview** dello
-staging. Non fare merge su main e non collegare ancora il dominio pubblico.
+Il progetto dedicato `refcheckid-staging` può usare gli slot Vercel **Production
+and Preview**, entrambi con `REFCHECKID_DATA_ENV=staging` e credenziali del solo
+Supabase staging. Lo slot Vercel Production non indica l'ambiente dati reale.
+Dopo merge verificato della PR si può importare `main`; prima del merge usare il
+branch di integrazione. Non collegare ancora il dominio pubblico.
 Il codice rifiuta una Preview marcata come dati production; è comunque necessario
 controllare che le credenziali configurate puntino davvero al progetto staging.
 

@@ -13,5 +13,5 @@ it('enforces club ownership and referee-only recognition over the public API', a
     expect(await post(`/match-sheets/${plan.homeSheetId}/submit`, home, lineup('homeManager'))).toMatchObject({ status: 200 });
     expect(await post('/recognitions/start', home, { matchId: plan.matchId })).toMatchObject({ status: 403 });
     expect(await app.repositories.matchSheets.findById(plan.awaySheetId)).toMatchObject({ status: 'draft' });
-  } finally { app.store.close(); }
+  } finally { await app.store.close(); }
 });

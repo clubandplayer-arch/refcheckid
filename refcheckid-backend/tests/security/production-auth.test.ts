@@ -43,5 +43,5 @@ it('uses hashed configured users, disables demo identities, rotates refresh sess
     expect((await post('logout', {}, next.accessToken)).status).toBe(204);
     expect((await post('refresh', { refreshToken: next.refreshToken })).status).toBe(401);
     expect((await app.repositories.matches.list()).length).toBe(0);
-  } finally { app.store.close(); rmSync(root, { recursive: true, force: true }); }
+  } finally { await app.store.close(); rmSync(root, { recursive: true, force: true }); }
 });

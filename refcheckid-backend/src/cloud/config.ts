@@ -30,7 +30,7 @@ export function validateCloudConfiguration(): void {
   if (process.env.VERCEL_ENV === 'preview' && process.env.REFCHECKID_DATA_ENV !== 'staging') {
     throw new Error('Preview deployments require a separate staging data environment.');
   }
-  if (process.env.VERCEL_ENV === 'production' && process.env.REFCHECKID_DATA_ENV !== 'production') {
-    throw new Error('Production deployments require REFCHECKID_DATA_ENV=production.');
+  if (process.env.VERCEL_ENV === 'production' && !['staging', 'production'].includes(process.env.REFCHECKID_DATA_ENV ?? '')) {
+    throw new Error('Vercel Production requires an explicit staging or production data environment.');
   }
 }
