@@ -23,7 +23,7 @@ it('saves partial lineup drafts without submitting and rejects draft edits after
   } finally { app.store.close(); }
 });
 
-it('imports legacy photo metadata only once and never uses stale JSON over the database', () => {
+it('imports legacy photo metadata only once and never uses stale JSON over the database', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'refcheckid-import-'));
   const path = join(directory, 'state.sqlite');
   const metadata = join(directory, 'photo-subjects.json');
@@ -34,7 +34,7 @@ it('imports legacy photo metadata only once and never uses stale JSON over the d
   writeFileSync(metadata, 'invalid legacy JSON that must not be reread');
   try {
     const restored = createApplicationContainer({ databasePath: path });
-    expect(restored.repositories.photoSubjects.values()).toHaveLength(1);
+    expect(await restored.repositories.photoSubjects.values()).toHaveLength(1);
     restored.store.close();
   } finally { vi.unstubAllEnvs(); rmSync(directory, { recursive: true, force: true }); }
 });

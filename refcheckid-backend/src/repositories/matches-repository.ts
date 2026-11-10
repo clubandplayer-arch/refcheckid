@@ -14,21 +14,21 @@ export class MatchRepository extends DrizzleRepository<Match> implements MatchRe
     super({ tableName: 'matches', initialRows });
   }
 
-  listByFederation(federationId: UUID): Promise<readonly Match[]> {
-    return Promise.resolve(this.values().filter((match) => match.federationId === federationId));
+  async listByFederation(federationId: UUID): Promise<readonly Match[]> {
+    return Promise.resolve((await this.values()).filter((match) => match.federationId === federationId));
   }
 
-  listByClub(clubId: UUID): Promise<readonly Match[]> {
+  async listByClub(clubId: UUID): Promise<readonly Match[]> {
     return Promise.resolve(
-      this.values().filter((match) => match.homeClubId === clubId || match.awayClubId === clubId),
+      (await this.values()).filter((match) => match.homeClubId === clubId || match.awayClubId === clubId),
     );
   }
 
-  listByReferee(refereeId: UUID): Promise<readonly Match[]> {
-    return Promise.resolve(this.values().filter((match) => match.refereeId === refereeId));
+  async listByReferee(refereeId: UUID): Promise<readonly Match[]> {
+    return Promise.resolve((await this.values()).filter((match) => match.refereeId === refereeId));
   }
 
-  updateStatus(id: UUID, status: MatchStatus): Promise<Match> {
+  async updateStatus(id: UUID, status: MatchStatus): Promise<Match> {
     return this.update(id, { status } as Partial<Match>);
   }
 }

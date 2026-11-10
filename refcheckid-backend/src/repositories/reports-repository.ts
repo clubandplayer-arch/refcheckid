@@ -28,14 +28,14 @@ export class MatchReportRepository
     super({ tableName: 'match_reports', initialRows });
   }
 
-  findByMatch(matchId: UUID): Promise<MatchReport | null> {
+  async findByMatch(matchId: UUID): Promise<MatchReport | null> {
     return Promise.resolve(
-      [...this.values()].reverse().find((report) => report.matchId === matchId && report.deletedAt === null) ?? null,
+      [...(await this.values())].reverse().find((report) => report.matchId === matchId && report.deletedAt === null) ?? null,
     );
   }
 
   async resetByMatch(matchId: UUID): Promise<void> {
-    for (const row of this.values().filter((report) => report.matchId === matchId && report.deletedAt === null)) {
+    for (const row of (await this.values()).filter((report) => report.matchId === matchId && report.deletedAt === null)) {
       await this.update(row.id, { deletedAt: new Date().toISOString() });
     }
   }
@@ -45,15 +45,15 @@ export class MatchReportRepository
     return report?.deletedAt === null ? report : null;
   }
 
-  create(input: CreateMatchReportInput): Promise<MatchReport> {
+  async create(input: CreateMatchReportInput): Promise<MatchReport> {
     return super.create({ ...input, status: 'draft', submittedAt: null } as CreateMatchReportInput);
   }
 
-  updateContent(id: UUID, input: UpdateMatchReportInput): Promise<MatchReport> {
+  async updateContent(id: UUID, input: UpdateMatchReportInput): Promise<MatchReport> {
     return this.update(id, input);
   }
 
-  updateStatus(id: UUID, status: MatchReportStatus): Promise<MatchReport> {
+  async updateStatus(id: UUID, status: MatchReportStatus): Promise<MatchReport> {
     const submittedAt = status === 'submitted' ? new Date().toISOString() : undefined;
     return this.update(id, {
       status,

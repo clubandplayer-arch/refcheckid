@@ -335,7 +335,10 @@ export function createControllers(container: ApplicationContainer): Record<strin
         sha256: requireString(body.sha256, 'sha256'),
         context: photoContext(request, { registrationClubId }),
       });
-      return json(202, { intent });
+      return json(202, { intent: { ...intent, uploadUrl: {
+        url: intent.uploadUrl, method: intent.method,
+        headers: { 'content-type': String(body.mimeType) },
+      } } });
     },
     completePhotoUpload: async (request) => {
       const body = requireBodyObject(request.body);

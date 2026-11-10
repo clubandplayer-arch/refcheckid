@@ -37,29 +37,29 @@ abstract class PersistentPhotoRepository<
 
   override async create(input: Partial<TEntity>): Promise<TEntity> {
     const created = await super.create(input);
-    this.persist();
+    await this.persist();
     return created;
   }
 
   override async update(id: UUID, input: Partial<TEntity>): Promise<TEntity> {
     const updated = await super.update(id, input);
-    this.persist();
+    await this.persist();
     return updated;
   }
 
   override async upsert(entity: TEntity): Promise<TEntity> {
     const upserted = await super.upsert(entity);
-    this.persist();
+    await this.persist();
     return upserted;
   }
 
-  private persist(): void {
+  private async persist(): Promise<void> {
     if (this.store) return; // Legacy JSON is imported once; the database is now authoritative.
     if (this.persistencePath === null) return;
 
     mkdirSync(dirname(this.persistencePath), { recursive: true });
     const temporaryPath = `${this.persistencePath}.${process.pid}.tmp`;
-    writeFileSync(temporaryPath, `${JSON.stringify(this.values(), null, 2)}\n`, 'utf8');
+    writeFileSync(temporaryPath, `${JSON.stringify((await this.values()), null, 2)}\n`, 'utf8');
     renameSync(temporaryPath, this.persistencePath);
   }
 }
@@ -87,8 +87,8 @@ export class PhotoRepository extends PersistentPhotoRepository<Photo> {
     super('photos', 'photos.json', initialRows, persistenceRoot);
   }
 
-  listByMatch(matchId: UUID): Promise<readonly Photo[]> {
-    return Promise.resolve(this.values().filter((photo) => photo.matchId === matchId));
+  async listByMatch(matchId: UUID): Promise<readonly Photo[]> {
+    return Promise.resolve((await this.values()).filter((photo) => photo.matchId === matchId));
   }
 }
 
@@ -99,9 +99,9 @@ export class PhotoSubjectRepository extends PersistentPhotoRepository<PhotoSubje
     super('photo_subjects', 'photo-subjects.json', initialRows, persistenceRoot);
   }
 
-  findByDedupeKeyHash(dedupeKeyHash: string): Promise<PhotoSubject | null> {
+  async findByDedupeKeyHash(dedupeKeyHash: string): Promise<PhotoSubject | null> {
     return Promise.resolve(
-      this.values().find(
+      (await this.values()).find(
         (subject) => subject.dedupeKeyHash === dedupeKeyHash && subject.deletedAt === null,
       ) ?? null,
     );
@@ -113,17 +113,17 @@ export class GlobalOfficialPhotoRepository extends PersistentPhotoRepository<Glo
     super('global_official_photos', 'global-official-photos.json', initialRows, persistenceRoot);
   }
 
-  findBySubject(photoSubjectId: UUID): Promise<GlobalOfficialPhoto | null> {
+  async findBySubject(photoSubjectId: UUID): Promise<GlobalOfficialPhoto | null> {
     return Promise.resolve(
-      this.values().find(
+      (await this.values()).find(
         (photo) => photo.photoSubjectId === photoSubjectId && photo.deletedAt === null,
       ) ?? null,
     );
   }
 
-  listActiveBySubject(photoSubjectId: UUID): Promise<readonly GlobalOfficialPhoto[]> {
+  async listActiveBySubject(photoSubjectId: UUID): Promise<readonly GlobalOfficialPhoto[]> {
     return Promise.resolve(
-      this.values().filter(
+      (await this.values()).filter(
         (photo) =>
           photo.photoSubjectId === photoSubjectId &&
           photo.status === 'active' &&
@@ -146,12 +146,12 @@ export class SeasonRegistrationPhotoRepository extends PersistentPhotoRepository
     );
   }
 
-  findByRegistrationSeason(
+  async findByRegistrationSeason(
     registrationId: UUID,
     seasonId: string,
   ): Promise<SeasonRegistrationPhoto | null> {
     return Promise.resolve(
-      this.values().find(
+      (await this.values()).find(
         (photo) =>
           photo.registrationId === registrationId &&
           photo.seasonId === seasonId &&
@@ -160,17 +160,17 @@ export class SeasonRegistrationPhotoRepository extends PersistentPhotoRepository
     );
   }
 
-  listByFederation(federationId: UUID): Promise<readonly SeasonRegistrationPhoto[]> {
+  async listByFederation(federationId: UUID): Promise<readonly SeasonRegistrationPhoto[]> {
     return Promise.resolve(
-      this.values().filter(
+      (await this.values()).filter(
         (photo) => photo.federationId === federationId && photo.deletedAt === null,
       ),
     );
   }
 
-  listByVersion(photoVersionId: UUID): Promise<readonly SeasonRegistrationPhoto[]> {
+  async listByVersion(photoVersionId: UUID): Promise<readonly SeasonRegistrationPhoto[]> {
     return Promise.resolve(
-      this.values().filter(
+      (await this.values()).filter(
         (photo) => photo.effectiveVersionId === photoVersionId && photo.deletedAt === null,
       ),
     );
@@ -182,18 +182,18 @@ export class PhotoVersionRepository extends PersistentPhotoRepository<PhotoVersi
     super('photo_versions', 'photo-versions.json', initialRows, persistenceRoot);
   }
 
-  listByGlobalPhoto(globalOfficialPhotoId: UUID): Promise<readonly PhotoVersion[]> {
+  async listByGlobalPhoto(globalOfficialPhotoId: UUID): Promise<readonly PhotoVersion[]> {
     return Promise.resolve(
-      this.values().filter(
+      (await this.values()).filter(
         (version) =>
           version.globalOfficialPhotoId === globalOfficialPhotoId && version.deletedAt === null,
       ),
     );
   }
 
-  listActiveByGlobalPhoto(globalOfficialPhotoId: UUID): Promise<readonly PhotoVersion[]> {
+  async listActiveByGlobalPhoto(globalOfficialPhotoId: UUID): Promise<readonly PhotoVersion[]> {
     return Promise.resolve(
-      this.values().filter(
+      (await this.values()).filter(
         (version) =>
           version.globalOfficialPhotoId === globalOfficialPhotoId &&
           version.status === 'active' &&
@@ -208,12 +208,12 @@ export class PhotoApprovalRepository extends PersistentPhotoRepository<PhotoAppr
     super('photo_approvals', 'photo-approvals.json', initialRows, persistenceRoot);
   }
 
-  listPendingForRegistration(
+  async listPendingForRegistration(
     registrationId: UUID,
     seasonId: string,
   ): Promise<readonly PhotoApproval[]> {
     return Promise.resolve(
-      this.values().filter(
+      (await this.values()).filter(
         (approval) =>
           approval.registrationId === registrationId &&
           approval.seasonId === seasonId &&
@@ -223,9 +223,9 @@ export class PhotoApprovalRepository extends PersistentPhotoRepository<PhotoAppr
     );
   }
 
-  listPendingByRegistration(registrationId: UUID): Promise<readonly PhotoApproval[]> {
+  async listPendingByRegistration(registrationId: UUID): Promise<readonly PhotoApproval[]> {
     return Promise.resolve(
-      this.values().filter(
+      (await this.values()).filter(
         (approval) =>
           approval.registrationId === registrationId &&
           approval.status === 'pending' &&
@@ -234,9 +234,9 @@ export class PhotoApprovalRepository extends PersistentPhotoRepository<PhotoAppr
     );
   }
 
-  listByFederation(federationId: UUID): Promise<readonly PhotoApproval[]> {
+  async listByFederation(federationId: UUID): Promise<readonly PhotoApproval[]> {
     return Promise.resolve(
-      this.values().filter(
+      (await this.values()).filter(
         (approval) => approval.federationId === federationId && approval.deletedAt === null,
       ),
     );
@@ -256,9 +256,9 @@ export class MatchSheetPhotoSnapshotRepository extends PersistentPhotoRepository
     );
   }
 
-  listByMatchSheet(matchSheetId: UUID): Promise<readonly MatchSheetPhotoSnapshot[]> {
+  async listByMatchSheet(matchSheetId: UUID): Promise<readonly MatchSheetPhotoSnapshot[]> {
     return Promise.resolve(
-      this.values().filter(
+      (await this.values()).filter(
         (snapshot) => snapshot.matchSheetId === matchSheetId && snapshot.deletedAt === null,
       ),
     );
@@ -267,7 +267,7 @@ export class MatchSheetPhotoSnapshotRepository extends PersistentPhotoRepository
   async deleteByMatchSheet(matchSheetId: UUID): Promise<void> {
     const deletedAt = new Date().toISOString();
     await Promise.all(
-      this.values()
+      (await this.values())
         .filter((snapshot) => snapshot.matchSheetId === matchSheetId && snapshot.deletedAt === null)
         .map((snapshot) => this.update(snapshot.id, { deletedAt })),
     );
@@ -279,9 +279,9 @@ export class PhotoAccessGrantRepository extends PersistentPhotoRepository<PhotoA
     super('photo_access_grants', 'photo-access-grants.json', initialRows, persistenceRoot);
   }
 
-  listActiveByVersion(photoVersionId: UUID, now: string): Promise<readonly PhotoAccessGrant[]> {
+  async listActiveByVersion(photoVersionId: UUID, now: string): Promise<readonly PhotoAccessGrant[]> {
     return Promise.resolve(
-      this.values().filter(
+      (await this.values()).filter(
         (grant) =>
           grant.photoVersionId === photoVersionId &&
           grant.revokedAt === null &&
@@ -297,9 +297,9 @@ export class PhotoAuditEventRepository extends PersistentPhotoRepository<PhotoAu
     super('photo_audit_events', 'photo-audit-events.json', initialRows, persistenceRoot);
   }
 
-  listByVersion(photoVersionId: UUID): Promise<readonly PhotoAuditEvent[]> {
+  async listByVersion(photoVersionId: UUID): Promise<readonly PhotoAuditEvent[]> {
     return Promise.resolve(
-      this.values().filter(
+      (await this.values()).filter(
         (event) => event.photoVersionId === photoVersionId && event.deletedAt === null,
       ),
     );

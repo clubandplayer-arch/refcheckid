@@ -32,12 +32,12 @@ export class MatchSheetRepository
     super({ tableName: 'match_sheets', initialRows });
   }
 
-  listByMatch(matchId: UUID): Promise<readonly MatchSheet[]> {
-    return Promise.resolve(this.values().filter((matchSheet) => matchSheet.matchId === matchId));
+  async listByMatch(matchId: UUID): Promise<readonly MatchSheet[]> {
+    return Promise.resolve((await this.values()).filter((matchSheet) => matchSheet.matchId === matchId));
   }
 
-  listByClub(clubId: UUID): Promise<readonly MatchSheet[]> {
-    return Promise.resolve(this.values().filter((matchSheet) => matchSheet.clubId === clubId));
+  async listByClub(clubId: UUID): Promise<readonly MatchSheet[]> {
+    return Promise.resolve((await this.values()).filter((matchSheet) => matchSheet.clubId === clubId));
   }
 
   async updateStatus(id: UUID, status: MatchSheetStatus): Promise<MatchSheet> {
@@ -49,7 +49,7 @@ export class MatchSheetRepository
     return this.update(id, { status, submittedAt } as Partial<MatchSheet>);
   }
 
-  resetSmokeDraft(id: UUID): Promise<MatchSheet> {
+  async resetSmokeDraft(id: UUID): Promise<MatchSheet> {
     return this.update(id, { status: 'draft', submittedAt: null } as Partial<MatchSheet>);
   }
 }
@@ -68,7 +68,7 @@ export class MatchSheetPlayerRepository
     matchSheetId: UUID,
     players: readonly Omit<MatchSheetPlayer, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>[],
   ): Promise<readonly MatchSheetPlayer[]> {
-    const existing = this.values().filter((player) => player.matchSheetId === matchSheetId);
+    const existing = (await this.values()).filter((player) => player.matchSheetId === matchSheetId);
     await Promise.all(
       existing.map((player) =>
         this.update(player.id, { deletedAt: new Date().toISOString() } as Partial<MatchSheetPlayer>),
@@ -77,9 +77,9 @@ export class MatchSheetPlayerRepository
     return Promise.all(players.map((player) => this.create(player)));
   }
 
-  listByMatchSheet(matchSheetId: UUID): Promise<readonly MatchSheetPlayer[]> {
+  async listByMatchSheet(matchSheetId: UUID): Promise<readonly MatchSheetPlayer[]> {
     return Promise.resolve(
-      this.values().filter((player) => player.matchSheetId === matchSheetId && player.deletedAt === null),
+      (await this.values()).filter((player) => player.matchSheetId === matchSheetId && player.deletedAt === null),
     );
   }
 }
@@ -96,7 +96,7 @@ export class MatchSheetStaffRepository
     matchSheetId: UUID,
     staff: readonly Omit<MatchSheetStaff, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>[],
   ): Promise<readonly MatchSheetStaff[]> {
-    const existing = this.values().filter((staffMember) => staffMember.matchSheetId === matchSheetId);
+    const existing = (await this.values()).filter((staffMember) => staffMember.matchSheetId === matchSheetId);
     await Promise.all(
       existing.map((staffMember) =>
         this.update(staffMember.id, { deletedAt: new Date().toISOString() } as Partial<MatchSheetStaff>),
@@ -105,9 +105,9 @@ export class MatchSheetStaffRepository
     return Promise.all(staff.map((staffMember) => this.create(staffMember)));
   }
 
-  listByMatchSheet(matchSheetId: UUID): Promise<readonly MatchSheetStaff[]> {
+  async listByMatchSheet(matchSheetId: UUID): Promise<readonly MatchSheetStaff[]> {
     return Promise.resolve(
-      this.values().filter((staffMember) => staffMember.matchSheetId === matchSheetId && staffMember.deletedAt === null),
+      (await this.values()).filter((staffMember) => staffMember.matchSheetId === matchSheetId && staffMember.deletedAt === null),
     );
   }
 }

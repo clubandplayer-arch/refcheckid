@@ -29,8 +29,8 @@ export const loggingMiddleware: ApiMiddleware = (next) => async (request) => {
   };
 };
 
-export const authenticationMiddleware: ApiMiddleware = (next) => (request) => {
-  const bearerAuth = authenticateBearerToken(request.headers.authorization);
+export const authenticationMiddleware: ApiMiddleware = (next) => async (request) => {
+  const bearerAuth = await authenticateBearerToken(request.headers.authorization);
   if (bearerAuth !== null) {
     return next({ ...request, auth: bearerAuth });
   }
@@ -68,6 +68,9 @@ export const errorHandlingMiddleware: ApiMiddleware = (next) => async (request) 
     }
 
     if (error instanceof Error) {
+      if (process.env.REFCHECKID_RUNTIME === 'supabase' && ('severity' in error || error.name === 'SupabaseRequestError' || error.name === 'TypeError' || error.name === 'TimeoutError' || 'code' in error)) {
+        return json(503, { error: 'STORAGE_UNAVAILABLE', message: 'Service temporarily unavailable.' });
+      }
       if ('code' in error && typeof error.code === 'string' && error.code.startsWith('ERR_SQLITE')) return json(503, { error: 'STORAGE_UNAVAILABLE', message: 'Storage temporarily unavailable. No command changes were committed.' });
       return json(409, { error: error.name, message: error.message });
     }

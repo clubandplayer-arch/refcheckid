@@ -13,7 +13,7 @@ export interface RuntimeServerOptions {
 }
 
 export function createRuntimeServer() {
-  if (process.env.NODE_ENV === 'production' && ((process.env.AUTH_SECRET?.length ?? 0) < 32 || !process.env.AUTH_USERS_FILE || !process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '*')) {
+  if (process.env.REFCHECKID_RUNTIME !== 'supabase' && process.env.NODE_ENV === 'production' && ((process.env.AUTH_SECRET?.length ?? 0) < 32 || !process.env.AUTH_USERS_FILE || !process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '*')) {
     throw new Error('Production requires AUTH_SECRET (at least 32 characters), AUTH_USERS_FILE and an explicit CORS_ORIGIN.');
   }
   validateAuthConfiguration();

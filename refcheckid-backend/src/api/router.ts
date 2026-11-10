@@ -1,7 +1,8 @@
+import { cloudEnabled } from '../cloud/config.js';
 import type { ApplicationContainer } from '../config/application-container.js';
 import { authenticateBearerToken, loginHandler, logoutHandler, meHandler, refreshHandler } from './auth.js';
 import { createControllers } from './controllers.js';
-import { ApiRouter } from './http.js';
+import { ApiRouter, type ApiResponse } from './http.js';
 import {
   authenticationMiddleware,
   authorizationMiddleware,
@@ -24,7 +25,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
     const response = await next(request);
     if (response.status >= 400) {
       await container.store.transaction(async () => {
-        const auth = request.auth ?? requestContext.run({ store: container.store }, () => authenticateBearerToken(request.headers.authorization));
+        const auth = request.auth ?? await requestContext.run({ store: container.store }, () => authenticateBearerToken(request.headers.authorization));
         if (auth) await container.repositories.audit.createAuditLog({ action: 'command.rejected', occurredAt: new Date().toISOString(),
           metadata: { actorId: auth.actorId, method: request.method, path: request.path, status: response.status, correlationId: response.headers?.['x-correlation-id'] },
         });
@@ -174,7 +175,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
     headers: { 'content-type': 'application/json' },
     body: await container.repositories.photoVersions.findById(request.params.id as never),
   }));
-  router.register('GET', '/api/v1/photos/versions/:id/content', async (request) => {
+  router.register('GET', '/api/v1/photos/versions/:id/content', async (request): Promise<ApiResponse> => {
     const version = await container.repositories.photoVersions.findById(request.params.id as never);
     if (version === null) {
       return {
@@ -190,6 +191,11 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
         ? version.storageOriginalKey
         : (version.storageNormalizedKey ?? version.storageOriginalKey);
 
+    if (cloudEnabled()) {
+      const signed = await container.objectStores.photos.createSignedReadUrl({ objectKey, rendition,
+        ttlSeconds: 60, correlationId: request.correlationId ?? crypto.randomUUID() });
+      return { status: 302, headers: { location: signed.url, 'cache-control': 'private, no-store' }, body: '' };
+    }
     let bytes: Buffer | undefined;
     try {
       bytes = await container.objectStores.photos.readObject?.(objectKey);

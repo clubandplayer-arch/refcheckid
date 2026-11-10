@@ -1,6 +1,6 @@
 import type { ISODateTime, UUID } from '../domain/index.js';
 import { randomUUID } from 'node:crypto';
-import type { RuntimeStore } from './runtime-store.js';
+import type { RuntimePersistence } from './runtime-persistence.js';
 
 export interface RepositoryEntity {
   id: UUID;
@@ -42,10 +42,10 @@ export class DrizzleRepository<
   TUpdate = Partial<TEntity>,
 > implements BaseRepository<TEntity, TCreate, TUpdate> {
   private readonly rows = new Map<UUID, TEntity>();
-  protected store?: RuntimeStore;
+  protected store?: RuntimePersistence;
 
-  bindStore(store: RuntimeStore): void {
-    store.initialize(this.context.tableName, this.values());
+  bindStore(store: RuntimePersistence): void {
+    store.initialize(this.context.tableName, [...this.rows.values()]);
     this.store = store;
   }
   private readonly now: () => ISODateTime;
@@ -60,18 +60,18 @@ export class DrizzleRepository<
     }
   }
 
-  findById(id: UUID): Promise<TEntity | null> {
-    return Promise.resolve(this.store ? this.store.get<TEntity>(this.context.tableName, id) : this.rows.get(id) ?? null);
+  async findById(id: UUID): Promise<TEntity | null> {
+    return Promise.resolve(this.store ? await this.store.get<TEntity>(this.context.tableName, id) : this.rows.get(id) ?? null);
   }
 
-  list(query: RepositoryQuery = {}): Promise<readonly TEntity[]> {
+  async list(query: RepositoryQuery = {}): Promise<readonly TEntity[]> {
     const offset = query.offset ?? 0;
     const limit = query.limit ?? Number.POSITIVE_INFINITY;
 
-    return Promise.resolve(this.values().slice(offset, offset + limit));
+    return Promise.resolve((await this.values()).slice(offset, offset + limit));
   }
 
-  create(input: TCreate): Promise<TEntity> {
+  async create(input: TCreate): Promise<TEntity> {
     const timestamp = this.now();
     const row = {
       id: this.idFactory(),
@@ -81,13 +81,13 @@ export class DrizzleRepository<
       ...(input as Record<string, unknown>),
     } as TEntity;
 
-    this.save(row);
+    await this.save(row);
 
     return Promise.resolve(row);
   }
 
-  update(id: UUID, input: TUpdate): Promise<TEntity> {
-    const existing = this.store ? this.store.get<TEntity>(this.context.tableName, id) : this.rows.get(id);
+  async update(id: UUID, input: TUpdate): Promise<TEntity> {
+    const existing = this.store ? await this.store.get<TEntity>(this.context.tableName, id) : this.rows.get(id);
 
     if (existing == null) {
       throw new RepositoryEntityNotFoundError(this.context.tableName, id);
@@ -101,31 +101,31 @@ export class DrizzleRepository<
       ...('updatedAt' in existing ? { updatedAt: this.now() } : {}),
     } as TEntity;
 
-    this.save(updated);
+    await this.save(updated);
 
     return Promise.resolve(updated);
   }
 
-  upsert(entity: TEntity): Promise<TEntity> {
-    const existing = this.store ? this.store.get<TEntity>(this.context.tableName, entity.id) : this.rows.get(entity.id);
+  async upsert(entity: TEntity): Promise<TEntity> {
+    const existing = this.store ? await this.store.get<TEntity>(this.context.tableName, entity.id) : this.rows.get(entity.id);
 
     if (existing == null) {
-      this.save(entity);
+      await this.save(entity);
       return Promise.resolve(entity);
     }
 
     const updated = { ...existing, ...entity, id: existing.id };
-    this.save(updated);
+    await this.save(updated);
 
     return Promise.resolve(updated);
   }
 
-  values(): readonly TEntity[] {
+  async values(): Promise<readonly TEntity[]> {
     return this.store ? this.store.list<TEntity>(this.context.tableName) : [...this.rows.values()];
   }
 
-  private save(row: TEntity): void {
-    if (this.store) this.store.put(this.context.tableName, row);
+  private async save(row: TEntity): Promise<void> {
+    if (this.store) await this.store.put(this.context.tableName, row);
     else this.rows.set(row.id, row);
   }
 }

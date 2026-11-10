@@ -6,8 +6,8 @@ export class EventRepository extends DrizzleRepository<MatchEvent> {
     super({ tableName: 'match_events', initialRows });
   }
 
-  listByMatch(matchId: UUID): Promise<readonly MatchEvent[]> {
-    return Promise.resolve(this.values().filter((event) => event.matchId === matchId));
+  async listByMatch(matchId: UUID): Promise<readonly MatchEvent[]> {
+    return Promise.resolve((await this.values()).filter((event) => event.matchId === matchId));
   }
 }
 

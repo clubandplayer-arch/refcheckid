@@ -25,9 +25,11 @@ Legacy photo JSON files are imported once per repository and left unchanged.
 Photo objects remain in the configured filesystem store. Paths are independent
 of the shell's working directory. Do not delete the database to reset a match.
 
-This runtime is distinct from the PostgreSQL/Supabase schema and migration work;
-those migrations do not configure this SQLite adapter. Multi-instance PostgreSQL
-operation has not been implemented or validated by this change.
+For Vercel + Supabase staging, see [the deployment and migration guide](docs/VERCEL_SUPABASE.md).
+The opt-in `REFCHECKID_RUNTIME=supabase` adapter uses PostgreSQL command transactions,
+Supabase Auth and private Storage. Local development continues using SQLite.
+Remote deployment, data migration and load validation remain separate required steps;
+a successful local build is not evidence of production readiness.
 
 See [Operations](docs/OPERATIONS.md) for production configuration, secure user
 provisioning, backups and recovery, and [Release verification](docs/RELEASE_READINESS.md)

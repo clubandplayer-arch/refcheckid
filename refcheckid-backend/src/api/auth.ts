@@ -1,3 +1,5 @@
+import { cloudEnabled } from '../cloud/config.js';
+import { authenticateSupabaseToken, cloudSession, cloudMe, cloudLogout } from '../cloud/supabase-auth.js';
 import { readFileSync } from 'node:fs';
 import { requestContext } from './request-context.js';
 import { createHmac, randomUUID, timingSafeEqual, scryptSync } from 'node:crypto';
@@ -87,7 +89,8 @@ const demoUsers: readonly AuthUser[] = [
 const accessTokenTtlSeconds = 15 * 60;
 const refreshTokenTtlSeconds = 7 * 24 * 60 * 60;
 
-export const loginHandler: ApiHandler = (request) => {
+export const loginHandler: ApiHandler = async (request) => {
+  if (cloudEnabled()) return cloudSession(request, 'password');
   const credentials = parseCredentials(request.body);
   const user = getUsers().find((candidate) => candidate.email === credentials.email.toLowerCase());
 
@@ -105,12 +108,13 @@ export const loginHandler: ApiHandler = (request) => {
     return authError('INVALID_CREDENTIALS', 'Credenziali errate.');
   }
 
-  return json(200, createSessionResponse(user));
+  return json(200, await createSessionResponse(user));
 };
 
-export const refreshHandler: ApiHandler = (request) => {
+export const refreshHandler: ApiHandler = async (request) => {
+  if (cloudEnabled()) return cloudSession(request, 'refresh_token');
   const refreshToken = parseRefreshToken(request.body);
-  const payload = verifyToken(refreshToken, 'refresh');
+  const payload = await verifyToken(refreshToken, 'refresh');
 
   if (payload === null) {
     return authError('INVALID_CREDENTIALS', 'Sessione scaduta. Accedi di nuovo.');
@@ -125,11 +129,12 @@ export const refreshHandler: ApiHandler = (request) => {
     return authError('ACCOUNT_DISABLED', 'Account disabilitato.');
   }
 
-  if (payload.sid) requestContext.getStore()?.store?.put('auth_sessions', { id: payload.sid, revoked: true });
-  return json(200, createSessionResponse(user));
+  if (payload.sid) await requestContext.getStore()?.store?.put('auth_sessions', { id: payload.sid, revoked: true });
+  return json(200, await createSessionResponse(user));
 };
 
-export const meHandler: ApiHandler = (request) => {
+export const meHandler: ApiHandler = async (request) => {
+  if (cloudEnabled()) return cloudMe(request);
   if (request.auth === undefined) {
     return json(401, { error: 'UNAUTHENTICATED', message: 'Sessione richiesta.' });
   }
@@ -142,20 +147,22 @@ export const meHandler: ApiHandler = (request) => {
   return json(200, toPublicUser(user));
 };
 
-export const logoutHandler: ApiHandler = (request) => {
+export const logoutHandler: ApiHandler = async (request) => {
+  if (cloudEnabled()) return cloudLogout(request);
   const store = requestContext.getStore()?.store;
-  const refresh = verifyToken(parseRefreshToken(request.body), 'refresh');
+  const refresh = await verifyToken(parseRefreshToken(request.body), 'refresh');
   const id = request.auth?.sessionId ?? refresh?.sid;
-  if (id && store) store.put('auth_sessions', { id, revoked: true });
+  if (id && store) await store.put('auth_sessions', { id, revoked: true });
   return json(204, null);
 };
 
-export function authenticateBearerToken(authorizationHeader: string | undefined): AuthContext | null {
+export async function authenticateBearerToken(authorizationHeader: string | undefined): Promise<AuthContext | null> {
+  if (cloudEnabled()) return authenticateSupabaseToken(authorizationHeader);
   if (authorizationHeader === undefined || !authorizationHeader.startsWith('Bearer ')) {
     return null;
   }
 
-  const payload = verifyToken(authorizationHeader.slice('Bearer '.length), 'access');
+  const payload = await verifyToken(authorizationHeader.slice('Bearer '.length), 'access');
   if (payload === null) {
     return null;
   }
@@ -166,9 +173,9 @@ export function authenticateBearerToken(authorizationHeader: string | undefined)
   return { ...toAuthContext(user), ...(payload.sid ? { sessionId: payload.sid } : {}) };
 }
 
-function createSessionResponse(user: AuthUser) {
+async function createSessionResponse(user: AuthUser) {
   const sid = randomUUID();
-  requestContext.getStore()?.store?.put('auth_sessions', { id: sid, revoked: false, expiresAt: nowSeconds() + refreshTokenTtlSeconds });
+  await requestContext.getStore()?.store?.put('auth_sessions', { id: sid, revoked: false, expiresAt: nowSeconds() + refreshTokenTtlSeconds });
   const accessToken = signToken(user, 'access', accessTokenTtlSeconds, sid);
   const refreshToken = signToken(user, 'refresh', refreshTokenTtlSeconds, sid);
 
@@ -240,7 +247,7 @@ function signToken(user: AuthUser, type: TokenPayload['typ'], ttlSeconds: number
   return `${encodedPayload}.${signature}`;
 }
 
-function verifyToken(token: string, expectedType: TokenPayload['typ']): TokenPayload | null {
+async function verifyToken(token: string, expectedType: TokenPayload['typ']): Promise<TokenPayload | null> {
   try {
     const parts = token.split('.');
     if (parts.length !== 2) return null;
@@ -249,7 +256,7 @@ function verifyToken(token: string, expectedType: TokenPayload['typ']): TokenPay
     const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as TokenPayload;
     if (payload.typ !== expectedType || typeof payload.sub !== 'string' || !Number.isFinite(payload.exp) || payload.exp <= nowSeconds()) return null;
     const store = requestContext.getStore()?.store;
-    const session = payload.sid ? store?.get<{ revoked: boolean }>('auth_sessions', payload.sid) : null;
+    const session = payload.sid ? await store?.get<{ revoked: boolean }>('auth_sessions', payload.sid) : null;
     if (session?.revoked || (process.env.NODE_ENV === 'production' && store && !session)) return null;
     return payload;
   } catch { return null; }
@@ -294,6 +301,7 @@ function getUsers(): readonly AuthUser[] {
 }
 
 export function validateAuthConfiguration(): void {
+  if (cloudEnabled()) return;
   if (process.env.NODE_ENV === 'production' && getUsers().length === 0) throw new Error('At least one configured user is required.');
 }
 

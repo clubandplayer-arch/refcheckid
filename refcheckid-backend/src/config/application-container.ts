@@ -1,3 +1,8 @@
+import { cloudEnabled, validateCloudConfiguration } from '../cloud/config.js';
+import { PostgresStore } from '../cloud/postgres-store.js';
+import { SupabasePhotoObjectStore } from '../cloud/supabase-photo-store.js';
+import type { RuntimePersistence } from '../repositories/runtime-persistence.js';
+import type { PhotoObjectStore } from '../services/photo-object-store.js';
 import { EventDispatcher } from '../events/index.js';
 import {
   AuditRepository,
@@ -45,7 +50,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export interface ApplicationContainer {
-  readonly store: RuntimeStore;
+  readonly store: RuntimePersistence;
   readonly events: EventDispatcher;
   readonly repositories: {
     readonly audit: AuditRepository;
@@ -85,16 +90,20 @@ export interface ApplicationContainer {
     readonly recognitions: RecognitionService;
   };
   readonly objectStores: {
-    readonly photos: LocalPhotoObjectStore;
+    readonly photos: PhotoObjectStore & Required<Pick<PhotoObjectStore, 'readObject' | 'putObject'>>;
   };
 }
 
 export function createApplicationContainer(options: { databasePath?: string; seedDemo?: boolean } = {}): ApplicationContainer {
   const test = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
-  const store = new RuntimeStore(options.databasePath ?? process.env.REFCHECKID_DATABASE_PATH ??
+  const cloud = cloudEnabled();
+  if (process.env.VERCEL && !cloud) throw new Error("Vercel requires REFCHECKID_RUNTIME=supabase.");
+  if (cloud) validateCloudConfiguration();
+  const store: RuntimePersistence = cloud ? new PostgresStore({ connectionString: process.env.DATABASE_URL! }) : new RuntimeStore(options.databasePath ?? process.env.REFCHECKID_DATABASE_PATH ??
     (test ? ':memory:' : storagePath('refcheckid.sqlite')));
-  const seedDemo = options.seedDemo ?? process.env.NODE_ENV !== 'production';
+  const seedDemo = cloud ? false : options.seedDemo ?? process.env.NODE_ENV !== 'production';
   const legacy = <T>(table: string, file: string): readonly T[] => {
+    if (cloud) return [];
     const root = resolvePhotoMetadataRoot();
     if (store.initialized(table) || root === null || !existsSync(join(root, file))) return [];
     const parsed: unknown = JSON.parse(readFileSync(join(root, file), 'utf8'));
@@ -132,7 +141,7 @@ export function createApplicationContainer(options: { databasePath?: string; see
 
   for (const repository of Object.values(repositories)) repository.bindStore(store);
 
-  const objectStores = { photos: new LocalPhotoObjectStore() };
+  const objectStores = { photos: cloud ? new SupabasePhotoObjectStore() : new LocalPhotoObjectStore() };
   const photosService = new PhotoService({
     objectStore: objectStores.photos,
     photoSubjects: repositories.photoSubjects,

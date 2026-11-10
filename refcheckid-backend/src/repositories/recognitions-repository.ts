@@ -5,7 +5,7 @@ import type {
   UUID,
 } from '../domain/index.js';
 import { DrizzleRepository } from './base-repository.js';
-import type { RuntimeStore } from './runtime-store.js';
+import type { RuntimePersistence } from './runtime-persistence.js';
 
 export interface RecognitionRepositoryPort {
   saveDecision?(input: Omit<Recognition, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>): Promise<Recognition>;
@@ -26,7 +26,7 @@ export class RecognitionRepository
 {
   private readonly workflows = new DrizzleRepository<RecognitionWorkflow & { id: UUID; createdAt: string }>({ tableName: 'recognition_workflows' });
 
-  override bindStore(store: RuntimeStore): void {
+  override bindStore(store: RuntimePersistence): void {
     super.bindStore(store);
     this.workflows.bindStore(store);
   }
@@ -35,8 +35,8 @@ export class RecognitionRepository
     super({ tableName: 'recognitions', initialRows });
   }
 
-  listByMatch(matchId: UUID): Promise<readonly Recognition[]> {
-    return Promise.resolve(this.values().filter((recognition) => recognition.matchId === matchId && recognition.deletedAt === null));
+  async listByMatch(matchId: UUID): Promise<readonly Recognition[]> {
+    return Promise.resolve((await this.values()).filter((recognition) => recognition.matchId === matchId && recognition.deletedAt === null));
   }
 
   async saveDecision(input: Omit<Recognition, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>): Promise<Recognition> {

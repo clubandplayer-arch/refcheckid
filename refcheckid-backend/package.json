@@ -29,17 +29,22 @@
     "demo:bootstrap:dry-run": "pnpm demo:bootstrap -- --dry-run",
     "demo:verify": "pnpm build && node dist/scripts/demo-verify.js",
     "backup": "node scripts/backup-runtime.mjs",
-    "backup:verify": "node scripts/verify-backup.mjs"
+    "backup:verify": "node scripts/verify-backup.mjs",
+    "supabase:transfer": "node --env-file-if-exists=.env scripts/supabase-transfer.mjs",
+    "supabase:profile": "node --env-file-if-exists=.env scripts/supabase-provision-profile.mjs"
   },
   "engines": {
     "node": ">=24.0.0",
     "pnpm": ">=9.0.0"
   },
   "dependencies": {
-    "drizzle-orm": "^0.45.4"
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vitest/coverage-v8": "2.1.9",
@@ -47,5 +52,8 @@
     "prettier": "^3.0.0",
     "typescript": "^5.0.0",
     "vitest": "^2.0.0"
+  },
+  "exports": {
+    "./cloud": "./src/cloud/vercel-handler.ts"
   }
 }

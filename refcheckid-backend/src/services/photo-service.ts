@@ -27,7 +27,7 @@ import type { PhotoObjectStore } from './photo-object-store.js';
 import { PhotoPolicyEngine } from './photo-policy-engine.js';
 import { PhotoValidationPipeline } from './photo-validation-pipeline.js';
 import { DrizzleRepository } from '../repositories/base-repository.js';
-import type { RuntimeStore } from '../repositories/runtime-store.js';
+import type { RuntimePersistence } from '../repositories/runtime-persistence.js';
 
 export class PhotoInvariantViolationError extends Error {
   constructor(message: string) {
@@ -106,7 +106,7 @@ export class PhotoService {
     objectKey: string; expiresAt: string; completedVersionId?: UUID;
   }>({ tableName: 'photo_upload_sessions' });
 
-  bindStore(store: RuntimeStore): void { this.uploadSessions.bindStore(store); }
+  bindStore(store: RuntimePersistence): void { this.uploadSessions.bindStore(store); }
 
   constructor(private readonly dependencies: PhotoServiceDependencies) {
     this.policyEngine = dependencies.policyEngine ?? new PhotoPolicyEngine();
