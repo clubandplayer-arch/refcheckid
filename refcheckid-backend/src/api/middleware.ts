@@ -3,6 +3,7 @@ import type { ApiMiddleware } from './http.js';
 import { json } from './http.js';
 import { ValidationError } from './validation.js';
 import { validPhotoContentToken } from './photo-content-token.js';
+import { logCloudError } from '../cloud/diagnostics.js';
 
 export const requestIdMiddleware: ApiMiddleware = (next) => async (request) => {
   const requestId = request.headers['x-request-id'] ?? randomUUID();
@@ -69,7 +70,9 @@ export const errorHandlingMiddleware: ApiMiddleware = (next) => async (request) 
 
     if (error instanceof Error) {
       if (process.env.REFCHECKID_RUNTIME === 'supabase' && ('severity' in error || error.name === 'SupabaseRequestError' || error.name === 'TypeError' || error.name === 'TimeoutError' || 'code' in error)) {
-        return json(503, { error: 'STORAGE_UNAVAILABLE', message: 'Service temporarily unavailable.' });
+        const errorId = logCloudError(error, 'transaction');
+        const response = json(503, { error: 'STORAGE_UNAVAILABLE', message: 'Service temporarily unavailable.' });
+        return { ...response, headers: { ...response.headers, 'x-refcheckid-error-id': errorId } };
       }
       if ('code' in error && typeof error.code === 'string' && error.code.startsWith('ERR_SQLITE')) return json(503, { error: 'STORAGE_UNAVAILABLE', message: 'Storage temporarily unavailable. No command changes were committed.' });
       return json(409, { error: error.name, message: error.message });

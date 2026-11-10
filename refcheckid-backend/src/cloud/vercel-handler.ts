@@ -1,6 +1,8 @@
 import { createApplicationContainer } from '../config/application-container.js';
 import { createRestApiRouter } from '../api/router.js';
 import type { HttpMethod } from '../api/http.js';
+import { CloudConfigurationError } from './config.js';
+import { logCloudError } from './diagnostics.js';
 
 let router: ReturnType<typeof createRestApiRouter> | undefined;
 const methods = new Set(['GET', 'POST', 'PATCH', 'PUT', 'DELETE']);
@@ -8,10 +10,12 @@ const methods = new Set(['GET', 'POST', 'PATCH', 'PUT', 'DELETE']);
 /** Web and mobile share these APIs. Local development still uses port 4000. */
 export async function handleCloudRequest(request: Request): Promise<Response> {
   const common = { 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' };
+  let phase: 'bootstrap' | 'request' = 'bootstrap';
   try {
     if (!methods.has(request.method)) return Response.json({ error: 'METHOD_NOT_ALLOWED' }, { status: 405, headers: common });
-    if (process.env.REFCHECKID_RUNTIME !== 'supabase') throw new Error('Cloud runtime is not configured.');
+    if (process.env.REFCHECKID_RUNTIME !== 'supabase') throw new CloudConfigurationError('CONFIG_RUNTIME_INVALID', 'Cloud runtime is not configured.');
     router ??= createRestApiRouter(createApplicationContainer());
+    phase = 'request';
     const url = new URL(request.url);
     let body: unknown;
     if (!['GET', 'DELETE'].includes(request.method)) {
@@ -42,7 +46,9 @@ export async function handleCloudRequest(request: Request): Promise<Response> {
     if (typeof result.body === 'string') return new Response(result.body, { status: result.status, headers });
     return Response.json(result.body, { status: result.status, headers });
   } catch (error) {
+    const errorId = logCloudError(error, phase);
     return Response.json({ error: error instanceof SyntaxError ? 'INVALID_JSON' : 'SERVICE_UNAVAILABLE',
-      message: 'Request could not be processed.' }, { status: error instanceof SyntaxError ? 400 : 503, headers: common });
+      message: 'Request could not be processed.' }, { status: error instanceof SyntaxError ? 400 : 503,
+      headers: { ...common, 'x-refcheckid-error-id': errorId } });
   }
 }
