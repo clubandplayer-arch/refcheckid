@@ -59,6 +59,9 @@ export class ApiRouter {
   async handle(
     request: Omit<ApiRequest, 'params'> & { params?: Record<string, string> },
   ): Promise<ApiResponse> {
+    // Route matching and every authorization predicate must see the same path.
+    // splitPath already ignores empty segments; do that once before middleware.
+    request = { ...request, path: `/${splitPath(request.path).join('/')}` };
     const match = this.matchRoute(request.method, request.path);
 
     if (match === null) {

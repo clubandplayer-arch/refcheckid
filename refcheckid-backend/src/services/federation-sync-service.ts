@@ -115,6 +115,9 @@ export class FederationSyncService {
       const existing = await this.dependencies.matchesRepository.findById(match.id);
       if (!existing && match.status !== 'scheduled') throw new Error('A new match must start in scheduled status.');
       if (match.homeClubId === match.awayClubId) throw new Error('A match requires two distinct clubs.');
+      if (existing && (existing.homeClubId !== match.homeClubId || existing.awayClubId !== match.awayClubId)) {
+        throw new Error('Cannot change the clubs of an existing fixture. Create a separate fixture to preserve its sheets and history.');
+      }
       if (existing && existing.status !== 'scheduled' && (existing.homeClubId !== match.homeClubId || existing.awayClubId !== match.awayClubId || existing.season !== match.season || existing.refereeId !== match.refereeId)) throw new Error('Cannot reassign a match after its workflow has started.');
       await this.dependencies.matchesRepository.upsert({ ...match, status: existing?.status ?? match.status });
       if (this.dependencies.matchSheetsRepository) {
