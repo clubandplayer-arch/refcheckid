@@ -76,6 +76,7 @@ Il runtime richiede Node.js 24. Con nvm disponibile:
 cd /workspaces/refcheckid
 nvm install
 nvm use
+corepack enable
 pnpm install --frozen-lockfile
 pnpm -C refcheckid-backend backup:verify /workspaces/refcheckid-transfer-20261110/data
 ```
@@ -96,6 +97,8 @@ export REFCHECKID_PHOTO_METADATA_ROOT="$TRANSFER_DIR/data/legacy-photo-metadata"
 export NEXT_PUBLIC_API_BASE_URL=/api/v1
 export BACKEND_ORIGIN=http://127.0.0.1:4000
 export HOST=0.0.0.0
+export NODE_ENV=development
+export REFCHECKID_DEMO_AUTO_BOOTSTRAP=false
 pnpm dev
 ```
 
