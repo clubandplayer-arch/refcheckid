@@ -239,8 +239,8 @@ function toFederationMatch(
   const normalizedReportStatus = normalizeReportStatus(reportStatus);
   return {
     id: match.id,
-    awayTeam: formatClubName(match.awayClubId),
-    homeTeam: formatClubName(match.homeClubId),
+    awayTeam: match.awayClubName ?? formatClubName(match.awayClubId),
+    homeTeam: match.homeClubName ?? formatClubName(match.homeClubId),
     matchStatus:
       match.status === "completed"
         ? "completed"
@@ -421,8 +421,8 @@ function resolveReportTeams(
 ): { homeTeam: string; awayTeam: string } {
   if (match) {
     return {
-      awayTeam: formatClubName(match.awayClubId),
-      homeTeam: formatClubName(match.homeClubId),
+      awayTeam: match.awayClubName ?? formatClubName(match.awayClubId),
+      homeTeam: match.homeClubName ?? formatClubName(match.homeClubId),
     };
   }
 

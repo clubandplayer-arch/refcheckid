@@ -9,10 +9,33 @@ import type {
 import type { ApiHandler } from './http.js';
 import { json } from './http.js';
 import { optionalString, requireBodyObject, requireString, requireUuid } from './validation.js';
+import { signedPhotoContentUrl } from './photo-content-token.js';
+import { validateFinalReport } from './report-validation.js';
 
 export function createControllers(container: ApplicationContainer): Record<string, ApiHandler> {
   return {
     health: () => json(200, { status: 'ok' }),
+    getMatchReadiness: async (request) => {
+      const id = requireUuid(request.params.id, 'id');
+      const match = await container.repositories.matches.findById(id);
+      if (!match) return json(404, { error: 'MATCH_NOT_FOUND' });
+      const sheets = await container.repositories.matchSheets.listByMatch(id);
+      const coverage = await Promise.all(sheets.map(async (sheet) => {
+        const expected = [
+          ...(await container.repositories.matchSheetPlayers.listByMatchSheet(sheet.id)).map((row) => row.playerRegistrationId),
+          ...(await container.repositories.matchSheetStaff.listByMatchSheet(sheet.id)).map((row) => row.staffRegistrationId),
+        ];
+        const snapshots = await container.repositories.matchSheetPhotoSnapshots.listByMatchSheet(sheet.id);
+        const ids = new Set(snapshots.map((row) => row.registrationId));
+        return { id: sheet.id, clubId: sheet.clubId, status: sheet.status, participants: expected.length,
+          manifestComplete: expected.length > 0 && snapshots.length === expected.length && ids.size === expected.length && expected.every((key) => ids.has(key)) && snapshots.every((row) => row.matchId === id) };
+      }));
+      const workflow = await container.repositories.recognitions.getWorkflowByMatch(id);
+      const report = await container.repositories.matchReports.findByMatch(id);
+      const clubs = new Set(sheets.map((sheet) => sheet.clubId));
+      return json(200, { matchId: id, status: match.status, sheets: coverage, recognitionStatus: workflow.status, reportStatus: report?.status ?? null,
+        initialized: sheets.length === 2 && clubs.has(match.homeClubId) && clubs.has(match.awayClubId) && coverage.every((sheet) => sheet.status === 'locked' && sheet.manifestComplete) && workflow.status === 'locked' && match.status === 'completed' && report !== null });
+    },
     openApi: () => json(200, containerOpenApiPlaceholder),
     swagger: () => ({ status: 200, headers: { 'content-type': 'text/html' }, body: swaggerHtml }),
     arch1DefinedEndpoint: () =>
@@ -312,7 +335,10 @@ export function createControllers(container: ApplicationContainer): Record<strin
         sha256: requireString(body.sha256, 'sha256'),
         context: photoContext(request, { registrationClubId }),
       });
-      return json(202, { intent });
+      return json(202, { intent: { ...intent, uploadUrl: {
+        url: intent.uploadUrl, method: intent.method,
+        headers: { 'content-type': String(body.mimeType) },
+      } } });
     },
     completePhotoUpload: async (request) => {
       const body = requireBodyObject(request.body);
@@ -440,7 +466,12 @@ export function createControllers(container: ApplicationContainer): Record<strin
       ),
     getMatchPhotoManifest: async (request) => {
       const matchId = requireUuid(request.params.id, 'id');
-      const sheets = await container.services.matchSheets.listMatchSheetsByMatch(matchId);
+      if (!await container.services.recognitions.manifestReady(matchId)) return json(200, {
+        matchId, manifestVersion: 'live-v1', photoEtag: `manifest:${matchId}:incomplete`, generatedAt: new Date().toISOString(), expiresAt: null, status: 'unavailable', subjects: [],
+      });
+      const sheets = [...await container.services.matchSheets.listMatchSheetsByMatch(matchId)];
+      const match = await container.repositories.matches.findById(matchId);
+      sheets.sort((left, right) => Number(right.clubId === match?.homeClubId) - Number(left.clubId === match?.homeClubId));
       const snapshotRows = (
         await Promise.all(
           sheets.map((sheet) =>
@@ -451,6 +482,8 @@ export function createControllers(container: ApplicationContainer): Record<strin
       const frozen = snapshotRows.length > 0;
       const subjects = await Promise.all(
         snapshotRows.map(async (snapshot) => {
+          const sheet = sheets.find((sheet) => sheet.id === snapshot.matchSheetId);
+          const club = sheet ? await container.repositories.clubs.findById(sheet.clubId) : null;
           const context = photoContext(request, { matchId });
           if (snapshot.photoVersionId !== null) {
             await container.services.photos.createSignedReadUrl(snapshot.photoVersionId, context, {
@@ -462,11 +495,12 @@ export function createControllers(container: ApplicationContainer): Record<strin
           const manifest = snapshot.renditionManifest;
           return {
             id: snapshot.registrationId,
+            clubId: sheet?.clubId,
             firstName: typeof manifest.firstName === 'string' ? manifest.firstName : 'Tesserato',
             lastName:
               typeof manifest.lastName === 'string' ? manifest.lastName : snapshot.registrationId,
             shirtNumber: typeof manifest.shirtNumber === 'number' ? manifest.shirtNumber : null,
-            teamName: typeof manifest.teamName === 'string' ? manifest.teamName : 'Distinta gara',
+            teamName: club?.name ?? (typeof manifest.teamName === 'string' ? manifest.teamName : 'Distinta gara'),
             roleLabel: typeof manifest.roleLabel === 'string' ? manifest.roleLabel : 'Tesserato',
             subjectKind: manifest.subjectKind === 'staff' ? 'staff' : 'player',
             photoUrl:
@@ -482,9 +516,9 @@ export function createControllers(container: ApplicationContainer): Record<strin
               type:
                 typeof manifest.documentType === 'string'
                   ? manifest.documentType
-                  : 'Documento tesserato',
-              number: snapshot.registrationId,
-              expiresAt: snapshot.frozenAt,
+                  : 'Documento da verificare dal vivo',
+              number: typeof manifest.documentNumber === 'string' ? manifest.documentNumber : 'Non registrato',
+              expiresAt: typeof manifest.documentExpiresAt === 'string' ? manifest.documentExpiresAt : '',
             },
           };
         }),
@@ -631,6 +665,7 @@ export function createControllers(container: ApplicationContainer): Record<strin
           parseMatchSheetLineup(request.body),
         ),
       ),
+    saveMatchSheetDraft: async (request) => json(200, await container.services.matchSheets.saveDraft(requireUuid(request.params.id, 'id'), parseMatchSheetLineup(request.body))),
     lockMatchSheet: async (request) =>
       json(
         200,
@@ -651,6 +686,7 @@ export function createControllers(container: ApplicationContainer): Record<strin
           requireUuid(request.query.matchId, 'matchId'),
         ),
       ),
+    getRecognitionWorkflow: async (request) => json(200, await container.repositories.recognitions.getWorkflowByMatch(requireUuid(request.query.matchId, 'matchId'))),
     getRecognition: async (request) =>
       json(
         200,
@@ -673,6 +709,58 @@ export function createControllers(container: ApplicationContainer): Record<strin
         ),
       ),
 
+    recordRecognitionDecision: async (request) => {
+      const body = requireBodyObject(request.body);
+      const status = requireString(body.status, 'status');
+      if (status !== 'recognized' && status !== 'rejected' && status !== 'pending') throw new Error('Invalid recognition decision.');
+      return json(200, await container.services.recognitions.recordDecision(
+        requireUuid(body.matchId as string, 'matchId'),
+        requireUuid(body.registrationId as string, 'registrationId'),
+        status, optionalString(body.notes, 'notes'), request.auth!.actorId,
+      ));
+    },
+    finalizeMatchReport: async (request) => {
+      const matchId = requireUuid(request.params.id, 'id');
+      if ((await container.repositories.recognitions.getWorkflowByMatch(matchId)).status !== 'locked') throw new Error('Recognition must be completed before finalizing the report.');
+      const body = requireBodyObject(request.body);
+      let summary = requireString(body.summary, 'summary');
+      if (summary.length > 200_000) throw new Error('Report is too large.');
+      const content = requireBodyObject(JSON.parse(summary));
+      const result = requireBodyObject(content.result);
+      if (content.matchId !== matchId || ![result.homeGoals, result.awayGoals].every((score) => typeof score === 'number' && Number.isInteger(score) && score >= 0 && score <= 999)) throw new Error('Invalid report score or match.');
+      for (const key of ['goals', 'cautions', 'expulsions', 'substitutions']) {
+        if (!Array.isArray(content[key])) throw new Error(`Report ${key} must be an array.`);
+      }
+      summary = JSON.stringify({ ...await validateFinalReport(container, matchId, content), refereeName: request.auth?.displayName ?? request.auth?.actorId });
+      const match = await container.repositories.matches.findById(matchId);
+      if (!match?.refereeId) throw new Error('Match must have an assigned referee.');
+      if (match.status === 'scheduled') await container.services.matches.transitionMatchStatus(matchId, 'in_progress');
+      await container.services.matches.transitionMatchStatus(matchId, 'completed');
+      const existing = await container.services.matchReports.getMatchReportByMatch(matchId);
+      if (existing?.status === 'submitted') {
+        if (existing.summary === summary) return json(200, existing);
+        throw new Error('Submitted reports cannot be replaced.');
+      }
+      const report = existing ?? await container.services.matchReports.createMatchReport({ matchId, refereeId: match.refereeId, summary });
+      await container.services.matchReports.updateMatchReport(report.id, { summary });
+      const submitted = await container.services.matchReports.submitMatchReport(report.id);
+      const draft = await container.repositories.reportDrafts.findById(matchId);
+      if (draft) await container.repositories.reportDrafts.update(matchId, { deletedAt: new Date().toISOString() });
+      return json(200, submitted);
+    },
+    saveReportDraft: async (request) => {
+      const matchId = requireUuid(request.params.id, 'id');
+      const workflow = await container.repositories.recognitions.getWorkflowByMatch(matchId);
+      if (workflow.status !== 'locked') throw new Error('Complete recognition before writing a report.');
+      const existing = await container.repositories.matchReports.findByMatch(matchId);
+      if (existing?.status === 'submitted') throw new Error('Submitted reports cannot be modified.');
+      const summary = requireString(requireBodyObject(request.body).summary, 'summary');
+      if (summary.length > 200_000) throw new Error('Report is too large.');
+      const content = requireBodyObject(JSON.parse(summary));
+      if (content.matchId !== matchId) throw new Error('Report match does not match request.');
+      return json(200, await container.repositories.reportDrafts.upsert({ id: matchId, matchId, summary, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), deletedAt: null }));
+    },
+
     getMatchReport: async (request) =>
       json(
         200,
@@ -680,13 +768,13 @@ export function createControllers(container: ApplicationContainer): Record<strin
           requireUuid(request.params.id, 'id'),
         ),
       ),
-    getMatchReportByMatch: async (request) =>
-      json(
-        200,
-        await container.services.matchReports.getMatchReportByMatch(
-          requireUuid(request.query.matchId, 'matchId'),
-        ),
-      ),
+    getMatchReportByMatch: async (request) => {
+      const matchId = requireUuid(request.query.matchId, 'matchId');
+      const report = await container.services.matchReports.getMatchReportByMatch(matchId);
+      const draft = await container.repositories.reportDrafts.findById(matchId);
+      if (report?.status !== 'submitted' && draft && draft.deletedAt === null) return json(200, { ...report, id: report?.id ?? null, matchId, status: 'draft', summary: draft.summary });
+      return json(200, report);
+    },
     createMatchReport: async (request) => {
       const body = requireBodyObject(request.body);
       return json(
@@ -708,13 +796,14 @@ export function createControllers(container: ApplicationContainer): Record<strin
         ),
       );
     },
-    submitMatchReport: async (request) =>
-      json(
-        200,
-        await container.services.matchReports.submitMatchReport(
-          requireUuid(request.params.id, 'id'),
-        ),
-      ),
+    submitMatchReport: async (request) => {
+      const id = requireUuid(request.params.id, 'id');
+      const report = await container.services.matchReports.getMatchReportById(id);
+      if (!report?.summary) throw new Error('A complete report is required.');
+      const content = await validateFinalReport(container, report.matchId, requireBodyObject(JSON.parse(report.summary)));
+      await container.services.matchReports.updateMatchReport(id, { summary: JSON.stringify({ ...content, refereeName: request.auth?.displayName ?? request.auth?.actorId }) });
+      return json(200, await container.services.matchReports.submitMatchReport(id));
+    },
 
     listAuditByMatch: async (request) =>
       json(
@@ -809,12 +898,16 @@ async function enrichMatchSheetsForReferee(
 ) {
   return Promise.all(
     sheets.map(async (sheet) => {
+      const club = await container.repositories.clubs.findById(sheet.clubId);
+      const match = await container.repositories.matches.findById(sheet.matchId);
       const [players, staff] = await Promise.all([
         container.repositories.matchSheetPlayers.listByMatchSheet(sheet.id),
         container.repositories.matchSheetStaff.listByMatchSheet(sheet.id),
       ]);
       return {
         ...sheet,
+        clubName: club?.name,
+        team: sheet.clubId === match?.homeClubId ? 'home' : 'away',
         playerCount: players.length,
         staffCount: staff.length,
         players: [...players].sort((left, right) => left.lineupOrder - right.lineupOrder),
@@ -959,7 +1052,7 @@ async function createApprovalPreviewUrl(container: ApplicationContainer, version
 }
 
 function photoVersionContentUrl(versionId: string): string {
-  return `/api/v1/photos/versions/${versionId}/content?rendition=normalized`;
+  return signedPhotoContentUrl(versionId);
 }
 
 function withBrowserPhotoContentUrl<

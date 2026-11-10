@@ -1,10 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { roleRedirects } from "@/components/auth/auth-gate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,7 +30,6 @@ export function LoginForm() {
     defaultValues: { email: "", password: "" },
     resolver: zodResolver(loginSchema),
   });
-  const router = useRouter();
   const { login } = useSession();
   const { notify } = useToast();
 
@@ -42,7 +39,6 @@ export function LoginForm() {
       setDiagnostics(null);
       login(session);
       notify("Accesso eseguito", "success");
-      router.push(roleRedirects[session.user.role]);
     } catch (error) {
       const message =
         error instanceof AuthError

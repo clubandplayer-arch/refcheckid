@@ -26,6 +26,8 @@ import {
 import type { PhotoObjectStore } from './photo-object-store.js';
 import { PhotoPolicyEngine } from './photo-policy-engine.js';
 import { PhotoValidationPipeline } from './photo-validation-pipeline.js';
+import { DrizzleRepository } from '../repositories/base-repository.js';
+import type { RuntimePersistence } from '../repositories/runtime-persistence.js';
 
 export class PhotoInvariantViolationError extends Error {
   constructor(message: string) {
@@ -99,10 +101,12 @@ export interface PhotoDecisionCommand {
 export class PhotoService {
   private readonly policyEngine: PhotoPolicyEngine;
   private readonly validationPipeline: PhotoValidationPipeline;
-  private readonly uploadSessions = new Map<
-    UUID,
-    CreateUploadIntentCommand & { photoSubjectId: UUID; globalOfficialPhotoId: UUID }
-  >();
+  private readonly uploadSessions = new DrizzleRepository<CreateUploadIntentCommand & {
+    id: UUID; createdAt: string; photoSubjectId: UUID; globalOfficialPhotoId: UUID;
+    objectKey: string; expiresAt: string; completedVersionId?: UUID;
+  }>({ tableName: 'photo_upload_sessions' });
+
+  bindStore(store: RuntimePersistence): void { this.uploadSessions.bindStore(store); }
 
   constructor(private readonly dependencies: PhotoServiceDependencies) {
     this.policyEngine = dependencies.policyEngine ?? new PhotoPolicyEngine();
@@ -147,6 +151,7 @@ export class PhotoService {
       )
     )
       throw new PhotoAuthorizationError('Actor cannot upload a photo for this registration.');
+    if (!['image/png', 'image/jpeg'].includes(command.mimeType) || !Number.isInteger(command.fileSizeBytes) || command.fileSizeBytes < 1 || command.fileSizeBytes > 5 * 1024 * 1024 || !/^[a-f\d]{64}$/i.test(command.sha256)) throw new PhotoInvariantViolationError('Upload requires PNG/JPEG, a size up to 5 MB and a SHA-256 checksum.');
     if (this.dependencies.objectStore === undefined)
       throw new PhotoInvariantViolationError('Photo object store is not configured.');
     const intent = await this.dependencies.objectStore.createUploadIntent({
@@ -155,7 +160,8 @@ export class PhotoService {
       fileSizeBytes: command.fileSizeBytes,
       sha256: command.sha256,
     });
-    this.uploadSessions.set(intent.uploadId, {
+    await this.uploadSessions.create({
+      id: intent.uploadId, createdAt: new Date().toISOString(), objectKey, expiresAt: intent.expiresAt,
       ...command,
       photoSubjectId: subject.id,
       globalOfficialPhotoId: global.id,
@@ -180,17 +186,19 @@ export class PhotoService {
   async completeUpload(command: CompleteUploadCommand) {
     if (this.dependencies.objectStore === undefined)
       throw new PhotoInvariantViolationError('Photo object store is not configured.');
-    if (command.contentBase64 !== undefined && this.dependencies.objectStore.putObject)
-      await this.dependencies.objectStore.putObject(
-        command.objectKey,
-        Buffer.from(command.contentBase64, 'base64'),
-      );
-    const uploaded = await this.dependencies.objectStore.confirmUploadedObject(command.objectKey);
-    const bytes = uploaded.bytes;
+    const session = await this.uploadSessions.findById(command.uploadId);
+    if (!session || session.objectKey !== command.objectKey || session.context.actorId !== command.context.actorId) throw new PhotoAuthorizationError('Upload session does not belong to this actor or object.');
+    if (session.completedVersionId) return this.requirePhotoVersion(session.completedVersionId);
+    if (session.expiresAt <= new Date().toISOString()) throw new PhotoInvariantViolationError('Upload session expired.');
+    const bytes = command.contentBase64 === undefined
+      ? (await this.dependencies.objectStore.confirmUploadedObject(command.objectKey)).bytes
+      : Buffer.from(command.contentBase64, 'base64');
     if (bytes === undefined)
       throw new PhotoInvariantViolationError('Object store did not return bytes for validation.');
-    const intentMime = command.objectKey.endsWith('.png') ? 'image/png' : 'image/jpeg';
+    const intentMime = session.mimeType;
     const validated = this.validationPipeline.validate({ bytes, declaredMimeType: intentMime });
+    if (validated.sha256 !== session.sha256 || validated.fileSizeBytes !== session.fileSizeBytes) throw new PhotoInvariantViolationError('Uploaded photo does not match its declared checksum and size.');
+    if (command.contentBase64 !== undefined && this.dependencies.objectStore.putObject) await this.dependencies.objectStore.putObject(command.objectKey, bytes);
     const subjectId = command.objectKey.split('/')[1];
     const global = await this.dependencies.globalOfficialPhotos.findBySubject(subjectId);
     if (global === null)
@@ -203,7 +211,7 @@ export class PhotoService {
       uploadedByRole: command.context.actorRole,
       uploadedByClubId: command.context.clubId ?? null,
       originFederationId: command.context.federationId ?? null,
-      originSeasonId: this.uploadSessions.get(command.uploadId)?.seasonId ?? null,
+      originSeasonId: session.seasonId,
       storageOriginalKey: command.objectKey,
       storageNormalizedKey: `${command.objectKey}.normalized`,
       mimeType: validated.mimeType,
@@ -223,7 +231,6 @@ export class PhotoService {
       rejectionReasonCode: null,
       rejectionNotes: null,
     });
-    const session = this.uploadSessions.get(command.uploadId);
     if (session !== undefined) {
       await this.dependencies.photoApprovals.create({
         photoVersionId: version.id,
@@ -265,6 +272,7 @@ export class PhotoService {
       ipHash: null,
       userAgentHash: null,
     });
+    await this.uploadSessions.update(command.uploadId, { completedVersionId: version.id });
     return version;
   }
 
@@ -278,9 +286,17 @@ export class PhotoService {
     } = {},
   ) {
     const version = await this.requirePhotoVersion(versionId);
-    const registrations = await this.dependencies.seasonRegistrationPhotos.listByVersion(
+    let registrations = await this.dependencies.seasonRegistrationPhotos.listByVersion(
       version.id,
     );
+    // A frozen match continues to use its historical version after the official photo changes.
+    if (registrations.length === 0 && context.matchId) {
+      const snapshot = (await this.dependencies.matchSheetPhotoSnapshots.list()).find((row) => row.matchId === context.matchId && row.photoVersionId === version.id && row.deletedAt === null);
+      if (snapshot?.seasonRegistrationPhotoId) {
+        const historical = await this.dependencies.seasonRegistrationPhotos.findById(snapshot.seasonRegistrationPhotoId);
+        if (historical) registrations = [historical];
+      }
+    }
     if (registrations[0] === undefined) {
       if (context.actorRole === 'admin') {
         const adminPolicy = {
@@ -664,6 +680,15 @@ export class PhotoService {
 
   getPhotoVersionById(photoVersionId: UUID): Promise<PhotoVersion | null> {
     return this.dependencies.photoVersions.findById(photoVersionId);
+  }
+
+  async versionContentAvailable(id: UUID): Promise<boolean> {
+    const version = await this.dependencies.photoVersions.findById(id);
+    if (!version || !this.dependencies.objectStore?.readObject) return false;
+    try {
+      const bytes = await this.dependencies.objectStore.readObject(version.storageNormalizedKey ?? version.storageOriginalKey);
+      return bytes.length > 0;
+    } catch { return false; }
   }
 
   async assertCanAccessSeasonRegistrationPhoto(

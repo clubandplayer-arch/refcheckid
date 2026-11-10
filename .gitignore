@@ -13,3 +13,8 @@ refcheckid-backend/storage/refcheckid-photos-dev/
 Thumbs.db
 
 **/.tmp/
+**/storage/*.sqlite*
+**/storage/*users*.json
+**/*.tsbuildinfo
+**/test-results/
+**/playwright-report/

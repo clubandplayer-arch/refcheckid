@@ -22,5 +22,14 @@ export function getManagerTeamByEmail(email: string | undefined): ManagerTeam {
 }
 
 export function getCurrentManagerTeam(): ManagerTeam {
-  return getManagerTeamByEmail(readStoredSession()?.user.email);
+  const user = readStoredSession()?.user;
+  return user?.clubIds?.includes(managerTeamConfig.away.clubId) ? 'away' : getManagerTeamByEmail(user?.email);
+}
+
+export function getCurrentManagerConfig() {
+  const user = readStoredSession()?.user;
+  const demo = managerTeamConfig[getCurrentManagerTeam()];
+  const clubId = user?.clubIds?.[0] ?? (process.env.NODE_ENV === 'production' ? '' : demo.clubId);
+  return { clubId, federationId: user?.federationIds?.[0] ?? (process.env.NODE_ENV === 'production' ? '' : demo.federationId),
+    label: clubId === demo.clubId ? demo.label : 'La tua società', opponent: clubId === demo.clubId ? demo.opponent : 'Avversario' };
 }

@@ -1,4 +1,8 @@
-import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { cloudEnabled } from '../cloud/config.js';
+import { authenticateSupabaseToken, cloudSession, cloudMe, cloudLogout } from '../cloud/supabase-auth.js';
+import { readFileSync } from 'node:fs';
+import { requestContext } from './request-context.js';
+import { createHmac, randomUUID, timingSafeEqual, scryptSync } from 'node:crypto';
 import { pilotIds } from '../config/pilot-data.js';
 import type { ApiHandler, AuthContext } from './http.js';
 import { json } from './http.js';
@@ -9,7 +13,8 @@ type AuthErrorCode = 'INVALID_CREDENTIALS' | 'USER_NOT_FOUND' | 'ACCOUNT_DISABLE
 interface AuthUser {
   readonly id: string;
   readonly email: string;
-  readonly password: string;
+  readonly password?: string;
+  readonly passwordHash?: string;
   readonly role: UserRole;
   readonly displayName: string;
   readonly enabled: boolean;
@@ -20,6 +25,7 @@ interface AuthUser {
 }
 
 interface TokenPayload {
+  readonly sid?: string;
   readonly sub: string;
   readonly email: string;
   readonly role: UserRole;
@@ -27,7 +33,7 @@ interface TokenPayload {
   readonly typ: 'access' | 'refresh';
 }
 
-const users: readonly AuthUser[] = [
+const demoUsers: readonly AuthUser[] = [
   {
     id: '90000000-0000-4000-8000-000000000001',
     email: 'dirigente@refcheckid.local',
@@ -83,19 +89,12 @@ const users: readonly AuthUser[] = [
 const accessTokenTtlSeconds = 15 * 60;
 const refreshTokenTtlSeconds = 7 * 24 * 60 * 60;
 
-export const loginHandler: ApiHandler = (request) => {
+export const loginHandler: ApiHandler = async (request) => {
+  if (cloudEnabled()) return cloudSession(request, 'password');
   const credentials = parseCredentials(request.body);
-  const user = users.find((candidate) => candidate.email === credentials.email.toLowerCase());
+  const user = getUsers().find((candidate) => candidate.email === credentials.email.toLowerCase());
 
-  const passwordMatches = user?.password === credentials.password;
-  console.info('[RefCheckID][auth] login diagnostic', {
-    email: credentials.email.toLowerCase(),
-    passwordLength: credentials.password.length,
-    passwordMatches,
-    userEnabled: user?.enabled ?? null,
-    userExists: user !== undefined,
-    userRole: user?.role ?? null,
-  });
+  const passwordMatches = user ? verifyPassword(user, credentials.password) : false;
 
   if (user === undefined) {
     return authError('USER_NOT_FOUND', 'Utente inesistente.');
@@ -109,18 +108,19 @@ export const loginHandler: ApiHandler = (request) => {
     return authError('INVALID_CREDENTIALS', 'Credenziali errate.');
   }
 
-  return json(200, createSessionResponse(user));
+  return json(200, await createSessionResponse(user));
 };
 
-export const refreshHandler: ApiHandler = (request) => {
+export const refreshHandler: ApiHandler = async (request) => {
+  if (cloudEnabled()) return cloudSession(request, 'refresh_token');
   const refreshToken = parseRefreshToken(request.body);
-  const payload = verifyToken(refreshToken, 'refresh');
+  const payload = await verifyToken(refreshToken, 'refresh');
 
   if (payload === null) {
     return authError('INVALID_CREDENTIALS', 'Sessione scaduta. Accedi di nuovo.');
   }
 
-  const user = users.find((candidate) => candidate.id === payload.sub);
+  const user = getUsers().find((candidate) => candidate.id === payload.sub);
   if (user === undefined) {
     return authError('USER_NOT_FOUND', 'Utente inesistente.');
   }
@@ -129,15 +129,17 @@ export const refreshHandler: ApiHandler = (request) => {
     return authError('ACCOUNT_DISABLED', 'Account disabilitato.');
   }
 
-  return json(200, createSessionResponse(user));
+  if (payload.sid) await requestContext.getStore()?.store?.put('auth_sessions', { id: payload.sid, revoked: true });
+  return json(200, await createSessionResponse(user));
 };
 
-export const meHandler: ApiHandler = (request) => {
+export const meHandler: ApiHandler = async (request) => {
+  if (cloudEnabled()) return cloudMe(request);
   if (request.auth === undefined) {
     return json(401, { error: 'UNAUTHENTICATED', message: 'Sessione richiesta.' });
   }
 
-  const user = users.find((candidate) => candidate.id === request.auth?.actorId);
+  const user = getUsers().find((candidate) => candidate.id === request.auth?.actorId);
   if (user === undefined) {
     return authError('USER_NOT_FOUND', 'Utente inesistente.');
   }
@@ -145,27 +147,37 @@ export const meHandler: ApiHandler = (request) => {
   return json(200, toPublicUser(user));
 };
 
-export const logoutHandler: ApiHandler = () => json(204, null);
+export const logoutHandler: ApiHandler = async (request) => {
+  if (cloudEnabled()) return cloudLogout(request);
+  const store = requestContext.getStore()?.store;
+  const refresh = await verifyToken(parseRefreshToken(request.body), 'refresh');
+  const id = request.auth?.sessionId ?? refresh?.sid;
+  if (id && store) await store.put('auth_sessions', { id, revoked: true });
+  return json(204, null);
+};
 
-export function authenticateBearerToken(authorizationHeader: string | undefined): AuthContext | null {
+export async function authenticateBearerToken(authorizationHeader: string | undefined): Promise<AuthContext | null> {
+  if (cloudEnabled()) return authenticateSupabaseToken(authorizationHeader);
   if (authorizationHeader === undefined || !authorizationHeader.startsWith('Bearer ')) {
     return null;
   }
 
-  const payload = verifyToken(authorizationHeader.slice('Bearer '.length), 'access');
+  const payload = await verifyToken(authorizationHeader.slice('Bearer '.length), 'access');
   if (payload === null) {
     return null;
   }
 
-  const user = users.find((candidate) => candidate.id === payload.sub);
+  const user = getUsers().find((candidate) => candidate.id === payload.sub);
   if (user === undefined || !user.enabled) return null;
 
-  return toAuthContext(user);
+  return { ...toAuthContext(user), ...(payload.sid ? { sessionId: payload.sid } : {}) };
 }
 
-function createSessionResponse(user: AuthUser) {
-  const accessToken = signToken(user, 'access', accessTokenTtlSeconds);
-  const refreshToken = signToken(user, 'refresh', refreshTokenTtlSeconds);
+async function createSessionResponse(user: AuthUser) {
+  const sid = randomUUID();
+  await requestContext.getStore()?.store?.put('auth_sessions', { id: sid, revoked: false, expiresAt: nowSeconds() + refreshTokenTtlSeconds });
+  const accessToken = signToken(user, 'access', accessTokenTtlSeconds, sid);
+  const refreshToken = signToken(user, 'refresh', refreshTokenTtlSeconds, sid);
 
   return {
     accessToken,
@@ -190,6 +202,7 @@ function toPublicUser(user: AuthUser) {
 
 function toAuthContext(user: AuthUser): AuthContext {
   return {
+    displayName: user.displayName,
     actorId: user.id,
     roles: [user.role],
     clubIds: user.clubIds ?? [],
@@ -220,35 +233,33 @@ function parseRefreshToken(body: unknown): string {
   return typeof candidate.refreshToken === 'string' ? candidate.refreshToken : '';
 }
 
-function signToken(user: AuthUser, type: TokenPayload['typ'], ttlSeconds: number): string {
+function signToken(user: AuthUser, type: TokenPayload['typ'], ttlSeconds: number, sid: string): string {
   const payload: TokenPayload = {
     sub: user.id,
     email: user.email,
     role: user.role,
     exp: nowSeconds() + ttlSeconds,
     typ: type,
+    sid,
   };
   const encodedPayload = base64UrlEncode(JSON.stringify(payload));
   const signature = createSignature(encodedPayload);
   return `${encodedPayload}.${signature}`;
 }
 
-function verifyToken(token: string, expectedType: TokenPayload['typ']): TokenPayload | null {
-  const [encodedPayload, signature] = token.split('.');
-  if (encodedPayload === undefined || signature === undefined) {
-    return null;
-  }
-
-  if (!safeEqual(signature, createSignature(encodedPayload))) {
-    return null;
-  }
-
-  const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as TokenPayload;
-  if (payload.typ !== expectedType || payload.exp <= nowSeconds()) {
-    return null;
-  }
-
-  return payload;
+async function verifyToken(token: string, expectedType: TokenPayload['typ']): Promise<TokenPayload | null> {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
+    const [encodedPayload, signature] = parts;
+    if (!safeEqual(signature, createSignature(encodedPayload))) return null;
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as TokenPayload;
+    if (payload.typ !== expectedType || typeof payload.sub !== 'string' || !Number.isFinite(payload.exp) || payload.exp <= nowSeconds()) return null;
+    const store = requestContext.getStore()?.store;
+    const session = payload.sid ? await store?.get<{ revoked: boolean }>('auth_sessions', payload.sid) : null;
+    if (session?.revoked || (process.env.NODE_ENV === 'production' && store && !session)) return null;
+    return payload;
+  } catch { return null; }
 }
 
 function createSignature(encodedPayload: string): string {
@@ -272,5 +283,33 @@ function nowSeconds(): number {
 }
 
 function authError(error: AuthErrorCode, message: string) {
-  return json(401, { error, message, requestId: randomUUID() });
+  return json(401, { error: process.env.NODE_ENV === 'production' ? 'INVALID_CREDENTIALS' : error, message: process.env.NODE_ENV === 'production' ? 'Credenziali non valide.' : message, requestId: randomUUID() });
+}
+
+function getUsers(): readonly AuthUser[] {
+  if (!process.env.AUTH_USERS_FILE) {
+    if (process.env.NODE_ENV === 'production') throw new Error('AUTH_USERS_FILE is required in production.');
+    return demoUsers;
+  }
+  const users: unknown = JSON.parse(readFileSync(process.env.AUTH_USERS_FILE, 'utf8'));
+  if (!Array.isArray(users) || users.some((candidate: unknown) => {
+    if (typeof candidate !== 'object' || candidate === null) return true;
+    const user = candidate as Record<string, unknown>;
+    return typeof user.id !== 'string' || typeof user.email !== 'string' || typeof user.role !== 'string' || !['manager', 'referee', 'federation', 'admin'].includes(user.role) || typeof user.passwordHash !== 'string' || !/^scrypt\$[a-f0-9]{64}\$[a-f0-9]{128}$/.test(user.passwordHash) || typeof user.enabled !== 'boolean' || ['clubIds', 'federationIds', 'refereeIds', 'authorizedMatchIds'].some((key) => user[key] !== undefined && (!Array.isArray(user[key]) || (user[key] as unknown[]).some((id) => typeof id !== 'string' || !/^[a-f0-9-]{36}$/i.test(id))));
+  })) throw new Error('Invalid user directory.');
+  return users as AuthUser[];
+}
+
+export function validateAuthConfiguration(): void {
+  if (cloudEnabled()) return;
+  if (process.env.NODE_ENV === 'production' && getUsers().length === 0) throw new Error('At least one configured user is required.');
+}
+
+function verifyPassword(user: AuthUser, password: string): boolean {
+  if (user.passwordHash) {
+    const [algorithm, salt, hash] = user.passwordHash.split('$');
+    if (algorithm !== 'scrypt' || !salt || !hash) return false;
+    return safeEqual(scryptSync(password, salt, 64).toString('hex'), hash);
+  }
+  return process.env.NODE_ENV !== 'production' && safeEqual(user.password ?? '', password);
 }

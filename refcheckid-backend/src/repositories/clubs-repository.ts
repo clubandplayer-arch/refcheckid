@@ -6,8 +6,8 @@ export class ClubRepository extends DrizzleRepository<Club> {
     super({ tableName: 'clubs', initialRows });
   }
 
-  listByFederation(federationId: UUID): Promise<readonly Club[]> {
-    return Promise.resolve(this.values().filter((club) => club.federationId === federationId));
+  async listByFederation(federationId: UUID): Promise<readonly Club[]> {
+    return Promise.resolve((await this.values()).filter((club) => club.federationId === federationId));
   }
 }
 

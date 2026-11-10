@@ -6,8 +6,8 @@
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "pnpm build && node dist/src/server.js",
-    "start": "node dist/src/server.js",
+    "dev": "pnpm build && node --env-file-if-exists=.env dist/src/server.js",
+    "start": "node --env-file-if-exists=.env dist/src/server.js",
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
@@ -20,29 +20,40 @@
     "test:regression": "vitest run tests/regression",
     "test:security": "vitest run tests/security",
     "test:performance": "vitest run tests/performance",
-    "coverage": "vitest run && node scripts/write-coverage-report.mjs",
+    "coverage": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=json-summary",
     "migrate": "node scripts/migrate.mjs migrate",
     "migrate:dry-run": "node scripts/migrate.mjs migrate --dry-run",
     "migrate:status": "node scripts/migrate.mjs status",
     "migrate:rollback": "node scripts/migrate.mjs rollback",
     "demo:bootstrap": "pnpm build && node dist/scripts/demo-bootstrap.js",
     "demo:bootstrap:dry-run": "pnpm demo:bootstrap -- --dry-run",
-    "demo:verify": "pnpm build && node dist/scripts/demo-verify.js"
+    "demo:verify": "pnpm build && node dist/scripts/demo-verify.js",
+    "backup": "node scripts/backup-runtime.mjs",
+    "backup:verify": "node scripts/verify-backup.mjs",
+    "supabase:transfer": "node --env-file-if-exists=.env scripts/supabase-transfer.mjs",
+    "supabase:profile": "node --env-file-if-exists=.env scripts/supabase-provision-profile.mjs"
   },
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=24.0.0",
     "pnpm": ">=9.0.0"
   },
   "dependencies": {
-    "drizzle-orm": "^0.44.0"
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@electric-sql/pglite": "^0.5.16",
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/coverage-v8": "2.1.9",
     "eslint": "^8.57.0",
     "prettier": "^3.0.0",
     "typescript": "^5.0.0",
     "vitest": "^2.0.0"
+  },
+  "exports": {
+    "./cloud": "./src/cloud/vercel-handler.ts"
   }
 }

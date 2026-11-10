@@ -51,7 +51,7 @@ export class AuditRepository
     super({ tableName: 'audit_logs', initialRows });
   }
 
-  createAuditLog(input: CreateAuditLogInput): Promise<AuditLog> {
+  async createAuditLog(input: CreateAuditLogInput): Promise<AuditLog> {
     return this.create({
       actorFederationId: input.actorFederationId ?? null,
       actorClubId: input.actorClubId ?? null,
@@ -78,13 +78,13 @@ export class AuditRepository
     } as CreateAuditLogInput);
   }
 
-  listByMatch(matchId: UUID): Promise<readonly AuditLog[]> {
-    return Promise.resolve(this.values().filter((auditLog) => auditLog.matchId === matchId));
+  async listByMatch(matchId: UUID): Promise<readonly AuditLog[]> {
+    return Promise.resolve((await this.values()).filter((auditLog) => auditLog.matchId === matchId));
   }
 
-  listByActor(actor: AuditActor): Promise<readonly AuditLog[]> {
+  async listByActor(actor: AuditActor): Promise<readonly AuditLog[]> {
     return Promise.resolve(
-      this.values().filter(
+      (await this.values()).filter(
         (auditLog) =>
           (actor.actorFederationId !== undefined &&
             auditLog.actorFederationId === actor.actorFederationId) ||
@@ -94,9 +94,9 @@ export class AuditRepository
     );
   }
 
-  listByEntity(entity: AuditEntity): Promise<readonly AuditLog[]> {
+  async listByEntity(entity: AuditEntity): Promise<readonly AuditLog[]> {
     return Promise.resolve(
-      this.values().filter((auditLog) =>
+      (await this.values()).filter((auditLog) =>
         Object.entries(entity).some(
           ([field, value]) => value !== undefined && auditLog[field as keyof AuditLog] === value,
         ),
@@ -104,7 +104,7 @@ export class AuditRepository
     );
   }
 
-  listByAction(action: AuditAction): Promise<readonly AuditLog[]> {
-    return Promise.resolve(this.values().filter((auditLog) => auditLog.action === action));
+  async listByAction(action: AuditAction): Promise<readonly AuditLog[]> {
+    return Promise.resolve((await this.values()).filter((auditLog) => auditLog.action === action));
   }
 }

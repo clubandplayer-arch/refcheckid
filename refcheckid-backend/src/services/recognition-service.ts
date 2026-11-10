@@ -5,12 +5,14 @@ import type {
   UUID,
 } from '../domain/index.js';
 import type { EventPublisher } from '../events/index.js';
+import type { PhotoService } from './photo-service.js';
 import type {
   MatchSheetPlayerRepositoryPort,
   MatchSheetPhotoSnapshotRepository,
   MatchSheetRepositoryPort,
   MatchSheetStaffRepositoryPort,
   RecognitionRepositoryPort,
+  MatchRepositoryPort,
 } from '../repositories/index.js';
 
 const allowedRecognitionWorkflowTransitions: Readonly<
@@ -57,6 +59,8 @@ export class CompletedRecognitionError extends Error {
 }
 
 export interface RecognitionServiceDependencies {
+  readonly photosService?: PhotoService;
+  readonly matchesRepository?: MatchRepositoryPort;
   readonly eventPublisher?: EventPublisher;
   readonly matchSheetPlayersRepository?: MatchSheetPlayerRepositoryPort;
   readonly matchSheetsRepository: MatchSheetRepositoryPort;
@@ -74,6 +78,17 @@ export class RecognitionService {
 
   listRecognitionsByMatch(matchId: UUID): Promise<readonly Recognition[]> {
     return this.dependencies.recognitionsRepository.listByMatch(matchId);
+  }
+
+  async manifestReady(matchId: UUID): Promise<boolean> {
+    try {
+      const sheets = await this.assertMatchSheetsLocked(matchId);
+      await this.assertPhotoManifestReady(matchId, sheets);
+      return true;
+    } catch (error) {
+      if (error instanceof MatchSheetsNotLockedError || error instanceof MatchPhotoManifestNotReadyError) return false;
+      throw error;
+    }
   }
 
   async startRecognition(matchId: UUID): Promise<RecognitionWorkflow> {
@@ -104,11 +119,28 @@ export class RecognitionService {
       return workflow;
     }
 
+    if (this.dependencies.matchesRepository) {
+      const sheets = await this.assertMatchSheetsLocked(matchId);
+      await this.assertPhotoManifestReady(matchId, sheets);
+      const snapshots = (await Promise.all(sheets.map((s) => this.dependencies.matchSheetPhotoSnapshotsRepository!.listByMatchSheet(s.id)))).flat();
+      const decisions = await this.dependencies.recognitionsRepository.listByMatch(matchId);
+      if (snapshots.some((snapshot) => !decisions.some((decision) => decision.registrationId === snapshot.registrationId && decision.snapshotId === snapshot.id))) {
+        throw new Error('Every participant must have a saved recognition decision before completion.');
+      }
+    }
+
     return this.transitionRecognitionWorkflow(matchId, workflow.status, 'locked');
   }
 
   private async assertMatchSheetsLocked(matchId: UUID): Promise<readonly { readonly id: UUID; readonly status: string }[]> {
     const matchSheets = await this.dependencies.matchSheetsRepository.listByMatch(matchId);
+    if (this.dependencies.matchesRepository) {
+      const match = await this.dependencies.matchesRepository.findById(matchId);
+      if (!match || match.status === 'cancelled') throw new MatchSheetsNotLockedError(matchId);
+      const clubs = new Set(matchSheets.map((sheet) => sheet.clubId));
+      if (matchSheets.length !== 2 || clubs.size !== 2 || !clubs.has(match.homeClubId) || !clubs.has(match.awayClubId)) throw new MatchSheetsNotLockedError(matchId);
+    }
+    if (matchSheets.length === 0) throw new MatchSheetsNotLockedError(matchId);
     const hasUnlockedMatchSheet = matchSheets.some((matchSheet) => matchSheet.status !== 'locked');
 
     if (hasUnlockedMatchSheet) {
@@ -127,6 +159,17 @@ export class RecognitionService {
       matchSheetPlayersRepository,
       matchSheetStaffRepository,
     } = this.dependencies;
+    if (matchSheetPlayersRepository && matchSheetStaffRepository) {
+      for (const sheet of matchSheets) {
+        const expected = [
+          ...(await matchSheetPlayersRepository.listByMatchSheet(sheet.id)).map((p) => p.playerRegistrationId),
+          ...(await matchSheetStaffRepository.listByMatchSheet(sheet.id)).map((p) => p.staffRegistrationId),
+        ];
+        const snapshots = await matchSheetPhotoSnapshotsRepository.listByMatchSheet(sheet.id);
+        const actual = new Set(snapshots.map((row) => row.registrationId));
+        if (!expected.length || snapshots.length !== expected.length || actual.size !== expected.length || snapshots.some((row) => row.matchId !== matchId) || expected.some((id) => !actual.has(id))) throw new MatchPhotoManifestNotReadyError(matchId);
+      }
+    }
     const snapshotRows = (
       await Promise.all(
         matchSheets.map((sheet) =>
@@ -180,6 +223,34 @@ export class RecognitionService {
     }
 
     return this.dependencies.recognitionsRepository.updateWorkflowStatus(matchId, nextStatus);
+  }
+
+  async recordDecision(matchId: UUID, registrationId: UUID, status: 'recognized' | 'rejected' | 'pending', notes: string | null, actorId: UUID): Promise<Recognition | null> {
+    const workflow = await this.dependencies.recognitionsRepository.getWorkflowByMatch(matchId);
+    if (workflow.status !== 'in_progress') throw new CompletedRecognitionError(matchId);
+    const sheets = await this.assertMatchSheetsLocked(matchId);
+    await this.assertPhotoManifestReady(matchId, sheets);
+    const snapshots = (await Promise.all(sheets.map((s) => this.dependencies.matchSheetPhotoSnapshotsRepository!.listByMatchSheet(s.id)))).flat();
+    const snapshot = snapshots.find((row) => row.registrationId === registrationId);
+    if (!snapshot) throw new MatchPhotoManifestNotReadyError(matchId);
+    if (status === 'pending') {
+      if (!this.dependencies.recognitionsRepository.clearDecision) throw new Error('Recognition decision storage is required.');
+      await this.dependencies.recognitionsRepository.clearDecision(matchId, registrationId);
+      return null;
+    }
+    const unavailable = snapshot.photoStatus !== 'active' || (this.dependencies.photosService && (!snapshot.photoVersionId || !await this.dependencies.photosService.versionContentAvailable(snapshot.photoVersionId)));
+    if ((status === 'rejected' || unavailable) && !notes?.trim()) throw new Error('A reason is required for rejection or recognition without an available active photo.');
+    const match = await this.dependencies.matchesRepository?.findById(matchId);
+    const players = await this.dependencies.matchSheetPlayersRepository!.listByMatchSheet(snapshot.matchSheetId);
+    const staff = await this.dependencies.matchSheetStaffRepository!.listByMatchSheet(snapshot.matchSheetId);
+    if (!this.dependencies.recognitionsRepository.saveDecision) throw new Error('Recognition decision storage is required.');
+    return this.dependencies.recognitionsRepository.saveDecision({
+      matchId, registrationId, snapshotId: snapshot.id, actorId,
+      refereeId: match?.refereeId ?? actorId,
+      matchSheetPlayerId: players.find((p) => p.playerRegistrationId === registrationId)?.id ?? null,
+      matchSheetStaffId: staff.find((p) => p.staffRegistrationId === registrationId)?.id ?? null,
+      status, notes, recognizedAt: new Date().toISOString(),
+    });
   }
 
   protected get eventPublisher(): EventPublisher | undefined {

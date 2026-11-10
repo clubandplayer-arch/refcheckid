@@ -18,6 +18,7 @@ const regressionCases = [
     run: async () => {
       const app = createApplicationContainer();
       await app.repositories.matches.upsert(match({ status: 'completed' }));
+      await app.repositories.recognitions.updateWorkflowStatus(ids.match, 'locked');
       const report = await app.services.matchReports.createMatchReport({ matchId: ids.match, refereeId: ids.referee, summary: 'Finale' });
       await app.services.matchReports.submitMatchReport(report.id);
       await expect(app.services.matchReports.updateMatchReport(report.id, { summary: 'Mutato' })).rejects.toThrow('submitted');

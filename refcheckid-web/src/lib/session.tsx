@@ -3,13 +3,17 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getApiBaseUrl } from "./api-base-url";
 
-export type AppRole = "manager" | "referee" | "federation";
+export type AppRole = "manager" | "referee" | "federation" | "admin";
 
 export interface AuthenticatedUser {
   id: string;
   email: string;
   role: AppRole;
   displayName: string;
+  clubIds?: readonly string[];
+  federationIds?: readonly string[];
+  refereeIds?: readonly string[];
+  authorizedMatchIds?: readonly string[];
 }
 
 export interface AppSession {
@@ -58,6 +62,7 @@ export function SessionProvider({
         }
 
         const refreshedSession = await refreshStoredSession(currentSession.refreshToken);
+        if (readStoredSession()?.refreshToken !== currentSession.refreshToken) return readStoredSession();
         if (refreshedSession === null) {
           window.localStorage.removeItem(storageKey);
           setSession(null);
@@ -109,7 +114,14 @@ export function isSessionExpired(session: AppSession): boolean {
   return Date.parse(session.expiresAt) <= Date.now();
 }
 
-export async function refreshStoredSession(refreshToken: string): Promise<AppSession | null> {
+let pendingRefresh: Promise<AppSession | null> | null = null;
+export function refreshStoredSession(refreshToken: string): Promise<AppSession | null> {
+  if (pendingRefresh) return pendingRefresh;
+  pendingRefresh = performRefresh(refreshToken).finally(() => { pendingRefresh = null; });
+  return pendingRefresh;
+}
+
+async function performRefresh(refreshToken: string): Promise<AppSession | null> {
   const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
     method: "POST",
     headers: { "content-type": "application/json" },

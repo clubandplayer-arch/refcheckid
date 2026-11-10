@@ -1,3 +1,4 @@
+import { signedPhotoContentUrl } from '../../src/api/photo-content-token.js';
 import { describe, expect, it } from 'vitest';
 import { createRestApiRouter } from '../../src/api/index.js';
 import { createApplicationContainer } from '../../src/config/application-container.js';
@@ -122,7 +123,7 @@ describe('security: JWT/RLS/roles/permissions/API/storage gates', () => {
       method: 'GET',
       path: `/api/v1/photos/versions/${version.id}/content`,
       headers: {},
-      query: {},
+      query: Object.fromEntries(new URL(signedPhotoContentUrl(version.id), 'http://localhost').searchParams),
     });
 
     expect(response).toMatchObject({

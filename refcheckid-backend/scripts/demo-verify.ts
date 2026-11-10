@@ -295,6 +295,8 @@ async function verifyPhotos(
     if (seasonPhoto.signedUrl.url.length === 0) {
       throw new Error(`Registration ${photo.registrationId} season photo signed URL is empty.`);
     }
+    const content = await fetch(new URL(seasonPhoto.signedUrl.url, apiBaseUrl), { headers: { authorization: `Bearer ${accessToken}` } });
+    if (!content.ok || (await content.arrayBuffer()).byteLength === 0) throw new Error(`Registration ${photo.registrationId} photo content is missing.`);
   }
 }
 
@@ -319,9 +321,7 @@ async function verifyMatchWorkflow(
     throw new Error(`Match ${workflow.matchId} does not have a report.`);
   }
   if (report.status === 'submitted') {
-    throw new Error(
-      `Match report ${report.id} is already submitted and cannot be edited in the demo UI.`,
-    );
+    return; // A submitted report is a valid terminal outcome, not an initialization failure.
   }
   if (report.summary !== workflow.reportSummary) {
     throw new Error(`Match report ${report.id} summary does not match the demo workflow plan.`);

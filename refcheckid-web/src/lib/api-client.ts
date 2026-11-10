@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from "./api-base-url";
-import { managerTeamConfig, getCurrentManagerTeam } from "./manager-team";
+import { getCurrentManagerConfig, getCurrentManagerTeam } from "./manager-team";
 import {
   enrichPlayersWithBackendPhotos,
   enrichStaffWithBackendStatus,
@@ -13,6 +13,8 @@ import {
 import type { ManagerDashboard, PlayerListItem, StaffListItem } from "./types";
 
 export interface ApiMatch {
+  homeClubName?: string;
+  awayClubName?: string;
   id: string;
   homeClubId: string;
   awayClubId: string;
@@ -23,6 +25,8 @@ export interface ApiMatch {
 }
 
 export interface ApiMatchSheet {
+  clubName?: string;
+  team?: 'home' | 'away';
   id: string;
   matchId: string;
   clubId: string;
@@ -59,6 +63,7 @@ export type ApiManifestPhotoStatus =
 export type ApiManifestSource = "live_manifest" | "frozen_snapshot";
 
 export interface ApiMatchPhotoManifestSubject {
+  clubId?: string;
   id: string;
   firstName: string;
   lastName: string;
@@ -110,16 +115,12 @@ export const queryKeys = {
 };
 
 export async function fetchManagerDashboard(): Promise<ManagerDashboard> {
-  const managerTeam = getCurrentManagerTeam();
-  const managerClubId = managerTeamConfig[managerTeam].clubId;
+  const managerClubId = getCurrentManagerConfig().clubId;
   const [matches, sheets] = await Promise.all([
     fetchMatches(`?clubId=${encodeURIComponent(managerClubId)}`),
     fetchMatchSheets(`?clubId=${encodeURIComponent(managerClubId)}`),
   ]);
-  const nextMatch =
-    [...matches].sort((a, b) =>
-      a.scheduledAt.localeCompare(b.scheduledAt),
-    )[0] ?? null;
+  const nextMatch = selectOperationalMatch(matches);
   const firstSheet = nextMatch
     ? sheets.find((sheet) => sheet.matchId === nextMatch.id)
     : null;
@@ -127,7 +128,7 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboard> {
     nextMatch: nextMatch
       ? {
           id: nextMatch.id,
-          opponent: managerTeamConfig[managerTeam].opponent,
+          opponent: (nextMatch.homeClubId === managerClubId ? nextMatch.awayClubName : nextMatch.homeClubName) ?? getCurrentManagerConfig().opponent,
           scheduledAt: nextMatch.scheduledAt,
           venue: nextMatch.venue ?? "Da definire",
         }
@@ -137,6 +138,12 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboard> {
       ? [toManagerStatusNotification(firstSheet.status)]
       : [],
   };
+}
+
+export function selectOperationalMatch(matches: readonly ApiMatch[]): ApiMatch | null {
+  const active = matches.filter((match) => match.status === 'scheduled' || match.status === 'in_progress');
+  if (active.length) return [...active].sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))[0];
+  return [...matches].filter((match) => match.status === 'completed').sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))[0] ?? null;
 }
 
 function toManagerStatusNotification(status: ApiMatchSheet["status"]): string {
@@ -150,7 +157,7 @@ function toManagerStatusNotification(status: ApiMatchSheet["status"]): string {
 export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
   const players = await request<readonly Record<string, unknown>[]>("/players");
   const managerTeam = getCurrentManagerTeam();
-  const managerClubId = managerTeamConfig[managerTeam].clubId;
+  const managerClubId = getCurrentManagerConfig().clubId;
   const registrations = await fetchPlayerRegistrations(
     `?clubId=${encodeURIComponent(managerClubId)}`,
   );
@@ -169,7 +176,7 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
         registrationId: registration.id,
         season: registration.season,
         warning: Boolean(player.warning ?? false),
-        suspended: Boolean(player.suspended ?? false),
+        suspended: registration.status !== 'active' || player.status === 'inactive' || Boolean(player.suspended ?? false),
         selected: false,
         shirtNumber: null,
         role: "starter" as const,
@@ -186,7 +193,7 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
   const staff =
     await request<readonly Record<string, unknown>[]>("/staff-members");
   const managerTeam = getCurrentManagerTeam();
-  const managerClubId = managerTeamConfig[managerTeam].clubId;
+  const managerClubId = getCurrentManagerConfig().clubId;
   const registrations = await fetchStaffRegistrations(
     `?clubId=${encodeURIComponent(managerClubId)}`,
   );
@@ -341,6 +348,10 @@ export function submitMatchSheet(
   );
 }
 
+export function saveMatchSheetDraft(matchSheetId: string, payload: SubmitMatchSheetPayload): Promise<ApiMatchSheet> {
+  return request<ApiMatchSheet>(`/match-sheets/${encodeURIComponent(matchSheetId)}/draft`, { method: 'POST', body: JSON.stringify(payload) });
+}
+
 export function lockMatchSheet(matchSheetId: string): Promise<ApiMatchSheet> {
   return request<ApiMatchSheet>(
     `/match-sheets/${encodeURIComponent(matchSheetId)}/lock`,
@@ -435,6 +446,7 @@ async function resolveActiveSession() {
   if (!isSessionExpired(session)) return session;
 
   const refreshedSession = await refreshStoredSession(session.refreshToken);
+  if (readStoredSession()?.refreshToken !== session.refreshToken) return readStoredSession();
   if (refreshedSession === null) {
     window.localStorage.removeItem("refcheckid.session");
     return null;

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { requestContext } from '../api/request-context.js';
 
 import type {
   MatchSheet,
@@ -16,6 +17,8 @@ import type {
   PlayerRepository,
   RecognitionRepositoryPort,
   RegistrationRepository,
+  MatchReportRepositoryPort,
+  ReportDraftRepository,
 } from '../repositories/index.js';
 import type { PhotoService } from './photo-service.js';
 
@@ -76,6 +79,8 @@ export interface MatchSheetServiceDependencies {
   readonly matchSheetPhotoSnapshotsRepository?: MatchSheetPhotoSnapshotRepository;
   readonly matchesRepository?: MatchRepositoryPort;
   readonly recognitionsRepository?: RecognitionRepositoryPort;
+  readonly reportsRepository?: MatchReportRepositoryPort;
+  readonly reportDraftsRepository?: ReportDraftRepository;
 }
 
 export interface SubmitMatchSheetPlayerInput {
@@ -124,14 +129,28 @@ export class MatchSheetService {
     if (matchSheet.status === 'locked') {
       throw new LockedMatchSheetError(matchSheetId);
     }
+    await this.validateLineup(matchSheet, input);
     await this.replaceLineup(matchSheetId, input);
     return this.transitionMatchSheetStatus(matchSheetId, 'submitted');
   }
 
+  async saveDraft(matchSheetId: UUID, input: SubmitMatchSheetInput): Promise<MatchSheet> {
+    const sheet = await this.dependencies.matchSheetsRepository.findById(matchSheetId);
+    if (!sheet) throw new MatchSheetNotFoundError(matchSheetId);
+    if (sheet.status !== 'draft') throw new LockedMatchSheetError(matchSheetId);
+    await this.validateLineup(sheet, input, true);
+    await this.replaceLineup(matchSheetId, input);
+    return sheet;
+  }
+
   async lockMatchSheet(matchSheetId: UUID): Promise<MatchSheet> {
-    const locked = await this.transitionMatchSheetStatus(matchSheetId, 'locked');
-    await this.freezePhotoSnapshots(locked);
-    return locked;
+    const sheet = await this.dependencies.matchSheetsRepository.findById(matchSheetId);
+    if (!sheet) throw new MatchSheetNotFoundError(matchSheetId);
+    if (sheet.status !== 'submitted' && sheet.status !== 'locked') {
+      throw new InvalidMatchSheetStatusTransitionError(sheet.status, 'locked');
+    }
+    await this.freezePhotoSnapshots({ ...sheet, status: 'locked' });
+    return this.transitionMatchSheetStatus(matchSheetId, 'locked');
   }
 
   async resetSmokeMatchSheet(matchSheetId: UUID): Promise<MatchSheet> {
@@ -157,6 +176,11 @@ export class MatchSheetService {
       matchSheet.matchId,
       'not_started',
     );
+    await this.dependencies.recognitionsRepository?.resetByMatch?.(matchSheet.matchId);
+    await this.dependencies.reportsRepository?.resetByMatch?.(matchSheet.matchId);
+    if (await this.dependencies.reportDraftsRepository?.findById(matchSheet.matchId)) {
+      await this.dependencies.reportDraftsRepository?.update(matchSheet.matchId, { deletedAt: new Date().toISOString() });
+    }
     await this.dependencies.matchesRepository?.updateStatus(matchSheet.matchId, 'scheduled');
     return (await this.dependencies.matchSheetsRepository.findById(matchSheetId)) ?? matchSheet;
   }
@@ -222,6 +246,26 @@ export class MatchSheetService {
     );
   }
 
+  private async validateLineup(sheet: MatchSheet, input: SubmitMatchSheetInput, allowEmpty = false): Promise<void> {
+    if (!this.dependencies.registrationsRepository || !this.dependencies.matchesRepository) return;
+    const match = await this.dependencies.matchesRepository.findById(sheet.matchId);
+    if (!match || match.status !== 'scheduled') throw new Error('Lineups can be submitted only for a scheduled match.');
+    const ids = [...(input.players ?? []).map((p) => p.playerRegistrationId), ...(input.staff ?? []).map((p) => p.staffRegistrationId)];
+    if (new Set(ids).size !== ids.length) throw new Error('Duplicate registration in lineup.');
+    if (!allowEmpty && !input.players?.length) throw new Error('A lineup must contain players.');
+    if ((input.players ?? []).some((player) => !['starter', 'reserve'].includes(player.role) || (!allowEmpty && player.shirtNumber === null))) throw new Error('Players require a valid lineup role and shirt number before submission.');
+    const numbers = (input.players ?? []).map((p) => p.shirtNumber).filter((n) => n !== null);
+    if (new Set(numbers).size !== numbers.length || numbers.some((n) => !Number.isInteger(n) || n < 1 || n > 99)) throw new Error('Shirt numbers must be unique integers between 1 and 99.');
+    for (const row of input.players ?? []) {
+      const registration = await this.dependencies.registrationsRepository.findPlayerRegistrationById(row.playerRegistrationId);
+      if (!registration || registration.deletedAt !== null || registration.clubId !== sheet.clubId || registration.season !== match.season || registration.status !== 'active') throw new Error('Player registration is not eligible for this lineup.');
+    }
+    for (const row of input.staff ?? []) {
+      const registration = await this.dependencies.registrationsRepository.findStaffRegistrationById(row.staffRegistrationId);
+      if (!registration || registration.deletedAt !== null || registration.clubId !== sheet.clubId || registration.season !== match.season || registration.status !== 'active') throw new Error('Staff registration is not eligible for this lineup.');
+    }
+  }
+
   private async freezePhotoSnapshots(matchSheet: MatchSheet): Promise<void> {
     if (
       this.dependencies.matchSheetPlayersRepository === undefined ||
@@ -252,7 +296,7 @@ export class MatchSheetService {
       ...staff.map((staffMember) => staffMember.staffRegistrationId),
     ];
     const existingSnapshots = await photosService.listMatchSheetPhotoSnapshots(matchSheet.id);
-    if (hasExactSnapshotCoverage(expectedRegistrationIds, existingSnapshots)) return;
+    if (hasExactSnapshotCoverage(expectedRegistrationIds, existingSnapshots) && existingSnapshots.every((row) => row.matchId === matchSheet.matchId)) return;
 
     if (expectedRegistrationIds.length === 0) {
       throw new MatchSheetPhotoManifestIncompleteError(
@@ -267,7 +311,7 @@ export class MatchSheetService {
     // the presence of any old snapshot as proof that the manifest is ready.
     await matchSheetPhotoSnapshotsRepository.deleteByMatchSheet(matchSheet.id);
 
-    await Promise.all([
+    const outcomes = await Promise.allSettled([
       ...players.map(async (player) => {
         const registration = await registrationsRepository.findPlayerRegistrationById(
           player.playerRegistrationId,
@@ -311,6 +355,8 @@ export class MatchSheetService {
         });
       }),
     ]);
+    const failure = outcomes.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+    if (failure) throw failure.reason;
 
     const rebuiltSnapshots = await photosService.listMatchSheetPhotoSnapshots(matchSheet.id);
     if (!hasExactSnapshotCoverage(expectedRegistrationIds, rebuiltSnapshots)) {
@@ -347,7 +393,7 @@ export class MatchSheetService {
         photoStatus: 'missing',
         renditionManifest: input.renditionManifest,
         frozenAt: new Date().toISOString(),
-        frozenByUserId: '00000000-0000-4000-8000-000000000001',
+        frozenByUserId: requestContext.getStore()?.auth?.actorId ?? '00000000-0000-4000-8000-000000000001',
         freezeReason: 'match_sheet_locked',
         auditCorrelationId: randomUUID(),
       });
@@ -366,7 +412,7 @@ export class MatchSheetService {
         photoStatus: seasonPhoto.status === 'suspended' ? 'suspended' : 'unavailable',
         renditionManifest: input.renditionManifest,
         frozenAt: new Date().toISOString(),
-        frozenByUserId: '00000000-0000-4000-8000-000000000001',
+        frozenByUserId: requestContext.getStore()?.auth?.actorId ?? '00000000-0000-4000-8000-000000000001',
         freezeReason: 'match_sheet_locked',
         auditCorrelationId: randomUUID(),
       });
@@ -375,7 +421,7 @@ export class MatchSheetService {
     const version = await this.dependencies.photosService.getPhotoVersionById(
       seasonPhoto.effectiveVersionId,
     );
-    if (version === null) {
+    if (version === null || version.status !== 'active') {
       return this.dependencies.photosService.createMatchSheetPhotoSnapshot({
         matchSheetId: input.matchSheet.id,
         matchId: input.matchSheet.matchId,
@@ -388,7 +434,7 @@ export class MatchSheetService {
         photoStatus: 'unavailable',
         renditionManifest: input.renditionManifest,
         frozenAt: new Date().toISOString(),
-        frozenByUserId: '00000000-0000-4000-8000-000000000001',
+        frozenByUserId: requestContext.getStore()?.auth?.actorId ?? '00000000-0000-4000-8000-000000000001',
         freezeReason: 'match_sheet_locked',
         auditCorrelationId: randomUUID(),
       });
@@ -406,7 +452,7 @@ export class MatchSheetService {
       photoStatus: 'active',
       renditionManifest: input.renditionManifest,
       frozenAt: new Date().toISOString(),
-      frozenByUserId: '00000000-0000-4000-8000-000000000001',
+      frozenByUserId: requestContext.getStore()?.auth?.actorId ?? '00000000-0000-4000-8000-000000000001',
       freezeReason: 'match_sheet_locked',
       auditCorrelationId: randomUUID(),
     });
@@ -417,6 +463,7 @@ function hasExactSnapshotCoverage(
   expectedRegistrationIds: readonly UUID[],
   snapshots: readonly MatchSheetPhotoSnapshot[],
 ): boolean {
+  if (expectedRegistrationIds.length === 0) return false;
   if (expectedRegistrationIds.length !== snapshots.length) return false;
   const expected = new Set(expectedRegistrationIds);
   const actual = new Set(snapshots.map((snapshot) => snapshot.registrationId));

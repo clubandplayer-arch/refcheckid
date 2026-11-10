@@ -1,7 +1,13 @@
 import type { PlayerRegistration, StaffMember, StaffRegistration, UUID } from '../domain/index.js';
 import { DrizzleRepository } from './base-repository.js';
+import type { RuntimePersistence } from './runtime-persistence.js';
 
 export class RegistrationRepository extends DrizzleRepository<PlayerRegistration> {
+  override bindStore(store: RuntimePersistence): void {
+    super.bindStore(store);
+    this.staffMembers.bindStore(store);
+    this.staffRegistrations.bindStore(store);
+  }
   private readonly staffMembers = new DrizzleRepository<StaffMember>({
     tableName: 'staff_members',
   });
@@ -13,37 +19,37 @@ export class RegistrationRepository extends DrizzleRepository<PlayerRegistration
     super({ tableName: 'player_registrations', initialRows });
   }
 
-  listByClub(clubId: UUID): Promise<readonly PlayerRegistration[]> {
-    return Promise.resolve(this.values().filter((registration) => registration.clubId === clubId));
+  async listByClub(clubId: UUID): Promise<readonly PlayerRegistration[]> {
+    return Promise.resolve((await this.values()).filter((registration) => registration.clubId === clubId));
   }
 
-  findPlayerRegistrationById(registrationId: UUID): Promise<PlayerRegistration | null> {
+  async findPlayerRegistrationById(registrationId: UUID): Promise<PlayerRegistration | null> {
     return this.findById(registrationId);
   }
 
-  syncStaffMember(staffMember: StaffMember): Promise<StaffMember> {
+  async syncStaffMember(staffMember: StaffMember): Promise<StaffMember> {
     return this.staffMembers.upsert(staffMember);
   }
 
-  syncStaffRegistration(staffRegistration: StaffRegistration): Promise<StaffRegistration> {
+  async syncStaffRegistration(staffRegistration: StaffRegistration): Promise<StaffRegistration> {
     return this.staffRegistrations.upsert(staffRegistration);
   }
 
-  listStaffMembers(): Promise<readonly StaffMember[]> {
+  async listStaffMembers(): Promise<readonly StaffMember[]> {
     return this.staffMembers.list();
   }
 
-  findStaffMemberById(staffMemberId: UUID): Promise<StaffMember | null> {
+  async findStaffMemberById(staffMemberId: UUID): Promise<StaffMember | null> {
     return this.staffMembers.findById(staffMemberId);
   }
 
-  findStaffRegistrationById(registrationId: UUID): Promise<StaffRegistration | null> {
+  async findStaffRegistrationById(registrationId: UUID): Promise<StaffRegistration | null> {
     return this.staffRegistrations.findById(registrationId);
   }
 
-  listStaffRegistrationsByClub(clubId: UUID): Promise<readonly StaffRegistration[]> {
+  async listStaffRegistrationsByClub(clubId: UUID): Promise<readonly StaffRegistration[]> {
     return Promise.resolve(
-      this.staffRegistrations.values().filter((registration) => registration.clubId === clubId),
+      (await this.staffRegistrations.values()).filter((registration) => registration.clubId === clubId),
     );
   }
 }

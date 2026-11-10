@@ -55,10 +55,12 @@ export async function checkDemoInitialization(apiBaseUrl) {
     staff: countItems(staff),
     staffRegistrations: countItems(staffRegistrations),
   };
+  const readiness = counts.matches > 0 ? await getJson(`${apiBaseUrl}/matches/70000000-0000-4000-8000-000000000006/readiness`, authHeaders) : null;
 
   return {
     counts,
     initialized:
+      readiness?.initialized === true &&
       counts.players > 0 &&
       counts.staff > 0 &&
       counts.playerRegistrations > 0 &&

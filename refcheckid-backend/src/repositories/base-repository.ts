@@ -1,4 +1,6 @@
 import type { ISODateTime, UUID } from '../domain/index.js';
+import { randomUUID } from 'node:crypto';
+import type { RuntimePersistence } from './runtime-persistence.js';
 
 export interface RepositoryEntity {
   id: UUID;
@@ -40,6 +42,12 @@ export class DrizzleRepository<
   TUpdate = Partial<TEntity>,
 > implements BaseRepository<TEntity, TCreate, TUpdate> {
   private readonly rows = new Map<UUID, TEntity>();
+  protected store?: RuntimePersistence;
+
+  bindStore(store: RuntimePersistence): void {
+    store.initialize(this.context.tableName, [...this.rows.values()]);
+    this.store = store;
+  }
   private readonly now: () => ISODateTime;
   private readonly idFactory: () => UUID;
 
@@ -52,18 +60,18 @@ export class DrizzleRepository<
     }
   }
 
-  findById(id: UUID): Promise<TEntity | null> {
-    return Promise.resolve(this.rows.get(id) ?? null);
+  async findById(id: UUID): Promise<TEntity | null> {
+    return Promise.resolve(this.store ? await this.store.get<TEntity>(this.context.tableName, id) : this.rows.get(id) ?? null);
   }
 
-  list(query: RepositoryQuery = {}): Promise<readonly TEntity[]> {
+  async list(query: RepositoryQuery = {}): Promise<readonly TEntity[]> {
     const offset = query.offset ?? 0;
     const limit = query.limit ?? Number.POSITIVE_INFINITY;
 
-    return Promise.resolve([...this.rows.values()].slice(offset, offset + limit));
+    return Promise.resolve((await this.values()).slice(offset, offset + limit));
   }
 
-  create(input: TCreate): Promise<TEntity> {
+  async create(input: TCreate): Promise<TEntity> {
     const timestamp = this.now();
     const row = {
       id: this.idFactory(),
@@ -73,15 +81,15 @@ export class DrizzleRepository<
       ...(input as Record<string, unknown>),
     } as TEntity;
 
-    this.rows.set(row.id, row);
+    await this.save(row);
 
     return Promise.resolve(row);
   }
 
-  update(id: UUID, input: TUpdate): Promise<TEntity> {
-    const existing = this.rows.get(id);
+  async update(id: UUID, input: TUpdate): Promise<TEntity> {
+    const existing = this.store ? await this.store.get<TEntity>(this.context.tableName, id) : this.rows.get(id);
 
-    if (existing === undefined) {
+    if (existing == null) {
       throw new RepositoryEntityNotFoundError(this.context.tableName, id);
     }
 
@@ -93,27 +101,32 @@ export class DrizzleRepository<
       ...('updatedAt' in existing ? { updatedAt: this.now() } : {}),
     } as TEntity;
 
-    this.rows.set(id, updated);
+    await this.save(updated);
 
     return Promise.resolve(updated);
   }
 
-  upsert(entity: TEntity): Promise<TEntity> {
-    const existing = this.rows.get(entity.id);
+  async upsert(entity: TEntity): Promise<TEntity> {
+    const existing = this.store ? await this.store.get<TEntity>(this.context.tableName, entity.id) : this.rows.get(entity.id);
 
-    if (existing === undefined) {
-      this.rows.set(entity.id, entity);
+    if (existing == null) {
+      await this.save(entity);
       return Promise.resolve(entity);
     }
 
     const updated = { ...existing, ...entity, id: existing.id };
-    this.rows.set(entity.id, updated);
+    await this.save(updated);
 
     return Promise.resolve(updated);
   }
 
-  values(): readonly TEntity[] {
-    return [...this.rows.values()];
+  async values(): Promise<readonly TEntity[]> {
+    return this.store ? this.store.list<TEntity>(this.context.tableName) : [...this.rows.values()];
+  }
+
+  private async save(row: TEntity): Promise<void> {
+    if (this.store) await this.store.put(this.context.tableName, row);
+    else this.rows.set(row.id, row);
   }
 }
 
@@ -128,9 +141,5 @@ export class NotImplementedRepository<
 }
 
 function createUuid(): UUID {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (token) => {
-    const random = Math.floor(Math.random() * 16);
-    const value = token === 'x' ? random : (random & 0x3) | 0x8;
-    return value.toString(16);
-  });
+  return randomUUID();
 }
