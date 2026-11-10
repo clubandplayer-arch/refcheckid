@@ -1,5 +1,10 @@
 # RefCheckID Backend Migration Workflow
 
+> Runtime note (2026-11-10): these are PostgreSQL/Supabase migrations. The current
+> single-instance executable adapter uses SQLite, initialized by RuntimeStore.
+> Running these migrations does not connect that adapter to PostgreSQL. See
+> `docs/OPERATIONS.md` at the repository root for the supported runtime and backup procedure.
+
 ## Decision
 
 RefCheckID uses the **Supabase CLI** as the official PostgreSQL/Supabase migration executor.

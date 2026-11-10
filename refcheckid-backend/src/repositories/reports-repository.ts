@@ -17,6 +17,7 @@ export interface MatchReportRepositoryPort {
   create(input: CreateMatchReportInput): Promise<MatchReport>;
   updateContent(id: UUID, input: UpdateMatchReportInput): Promise<MatchReport>;
   updateStatus(id: UUID, status: MatchReportStatus): Promise<MatchReport>;
+  resetByMatch?(matchId: UUID): Promise<void>;
 }
 
 export class MatchReportRepository
@@ -29,8 +30,19 @@ export class MatchReportRepository
 
   findByMatch(matchId: UUID): Promise<MatchReport | null> {
     return Promise.resolve(
-      [...this.values()].reverse().find((report) => report.matchId === matchId) ?? null,
+      [...this.values()].reverse().find((report) => report.matchId === matchId && report.deletedAt === null) ?? null,
     );
+  }
+
+  async resetByMatch(matchId: UUID): Promise<void> {
+    for (const row of this.values().filter((report) => report.matchId === matchId && report.deletedAt === null)) {
+      await this.update(row.id, { deletedAt: new Date().toISOString() });
+    }
+  }
+
+  override async findById(id: UUID): Promise<MatchReport | null> {
+    const report = await super.findById(id);
+    return report?.deletedAt === null ? report : null;
   }
 
   create(input: CreateMatchReportInput): Promise<MatchReport> {
@@ -51,3 +63,9 @@ export class MatchReportRepository
 }
 
 export class ReportsRepository extends MatchReportRepository {}
+
+export class ReportDraftRepository extends DrizzleRepository<{
+  id: UUID; createdAt: string; updatedAt?: string; deletedAt: string | null; matchId: UUID; summary: string;
+}> {
+  constructor() { super({ tableName: 'report_drafts' }); }
+}

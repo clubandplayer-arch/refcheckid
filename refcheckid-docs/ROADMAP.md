@@ -1,8 +1,12 @@
 # Roadmap RefCheckID
 
 **Versione:** v1.0
-**Stato:** Recovery-4 implementazione completata; audit conclusivo approvato; Ready for Merge
-**Ultimo aggiornamento:** 2026-07-15
+**Stato:** Consolidamento runtime Backend/Web per istanza singola in verifica; deployment federale non certificato
+**Ultimo aggiornamento:** 2026-11-10
+
+La verifica attuale e i limiti del runtime sono descritti in
+`docs/RELEASE_READINESS.md` e `docs/OPERATIONS.md` alla radice del repository.
+Gli stati delle recovery riportati sotto descrivono le milestone storiche.
 
 ## Indice
 

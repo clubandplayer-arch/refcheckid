@@ -137,7 +137,7 @@ describe('ARCH-1 photo backend foundations', () => {
           seasonId: '2026',
           mimeType: 'image/jpeg',
           fileSizeBytes: 100,
-          sha256: 'sha',
+          sha256: 'a'.repeat(64),
           actorRole: 'admin',
         },
       }),
@@ -193,7 +193,7 @@ describe('ARCH-1 photo backend foundations', () => {
       container.services.photos.createPhotoVersion(
         photoVersion({
           versionNumber: 2,
-          sha256: 'sha-2',
+          sha256: 'b'.repeat(64),
           storageOriginalKey: 'subjects/s/v2/original',
           status: 'active',
         }),

@@ -26,6 +26,9 @@ import {
   fetchRefereeReport,
   lockSubmittedSheetsAndStartRecognition,
   submitRefereeReport,
+  saveRecognitionDecision,
+  fetchRecognitionWorkflow,
+  saveRefereeReportDraft,
 } from "@/lib/referee-api-client";
 import type {
   MatchReportDraft,
@@ -70,6 +73,14 @@ export function RefereeMatchWorkflow() {
     queryKey: [...queryKeys.referees, "dashboard"],
   });
   const matchId = dashboardQuery.data?.nextMatch?.id ?? "";
+  const workflowQuery = useQuery({ enabled: Boolean(matchId), queryKey: [...queryKeys.recognitions, matchId, 'workflow'], queryFn: () => fetchRecognitionWorkflow(matchId) });
+  useEffect(() => {
+    if (workflowQuery.data?.status === 'locked') {
+      setFullRecognitionComplete(true);
+      setRecognitionClosed(true);
+      setStep(2);
+    }
+  }, [workflowQuery.data?.status]);
 
   if (!session) return <ErrorState message="Sessione richiesta." />;
   if (dashboardQuery.isLoading) return <SkeletonBlock />;
@@ -316,6 +327,10 @@ function RecognitionStep({
     Record<string, RecognitionDecision>
   >({});
   const [decisionOrder, setDecisionOrder] = useState<readonly string[]>([]);
+  const [decisionNotes, setDecisionNotes] = useState('');
+  const [decisionError, setDecisionError] = useState('');
+  const [savingDecision, setSavingDecision] = useState(false);
+  const [photoUnavailable, setPhotoUnavailable] = useState(false);
   const [isRecognitionClosed, setIsRecognitionClosed] = useState(false);
   const query = useQuery({
     ...manifestQueryOptions,
@@ -324,9 +339,15 @@ function RecognitionStep({
   });
   const mutation = useMutation({
     mutationFn: () => completeRecognition(matchId),
-    onMutate: onComplete,
+    onSuccess: () => { setIsRecognitionClosed(true); onComplete(); },
   });
   const allSubjects = useMemo(() => query.data ?? [], [query.data]);
+  useEffect(() => { setPhotoUnavailable(false); }, [index, selectedTeamName, decisionOrder.length]);
+  useEffect(() => {
+    const saved = allSubjects.filter((subject) => subject.decision !== 'pending');
+    setDecisions(Object.fromEntries(saved.map((subject) => [subject.id, subject.decision])));
+    setDecisionOrder(saved.map((subject) => subject.id));
+  }, [allSubjects]);
   useEffect(() => {
     const imageUrls = allSubjects
       .filter(
@@ -420,8 +441,12 @@ function RecognitionStep({
     completedCount === allSubjects.length &&
     hasHomeRecognition &&
     hasAwayRecognition;
-  function decide(decision: Exclude<RecognitionDecision, "pending">) {
+  async function decide(decision: Exclude<RecognitionDecision, "pending">) {
     if (!currentSubject) return;
+    setSavingDecision(true);
+    setDecisionError('');
+    try {
+      await saveRecognitionDecision(matchId, currentSubject.id, decision, decisionNotes);
     setDecisions((current) => ({ ...current, [currentSubject.id]: decision }));
     setDecisionOrder((current) => [
       ...current.filter((subjectId) => subjectId !== currentSubject.id),
@@ -429,10 +454,16 @@ function RecognitionStep({
     ]);
     setShowDocument(false);
     setIndex(0);
+    setDecisionNotes('');
+    } catch (error) { setDecisionError(error instanceof Error ? error.message : 'Salvataggio non riuscito.'); }
+    finally { setSavingDecision(false); }
   }
-  function goBackToPreviousSubject() {
+  async function goBackToPreviousSubject() {
     const previousSubjectId = currentTeamDecisionOrder.at(-1);
     if (!previousSubjectId) return;
+    setSavingDecision(true);
+    try {
+      await saveRecognitionDecision(matchId, previousSubjectId, 'pending', '');
     const previousSubject = allSubjects.find(
       (subject) => subject.id === previousSubjectId,
     );
@@ -441,10 +472,12 @@ function RecognitionStep({
       delete next[previousSubjectId];
       return next;
     });
-    setDecisionOrder((current) => current.slice(0, -1));
+    setDecisionOrder((current) => current.filter((id) => id !== previousSubjectId));
     if (previousSubject) setSelectedTeamName(previousSubject.teamName);
     setShowDocument(false);
     setIndex(0);
+    } catch (error) { setDecisionError(error instanceof Error ? error.message : 'Operazione non riuscita.'); }
+    finally { setSavingDecision(false); }
   }
   if (allSubjects.length === 0)
     return <EmptyState message="Nessun tesserato da riconoscere." />;
@@ -502,7 +535,6 @@ function RecognitionStep({
             }
             disabled={mutation.isPending || isRecognitionClosed}
             onClick={() => {
-              setIsRecognitionClosed(true);
               mutation.mutate();
             }}
             type="button"
@@ -517,6 +549,7 @@ function RecognitionStep({
             riconoscimento.
           </p>
         )}
+        {mutation.isError ? <p role="alert" className="text-red-700">{mutation.error.message}</p> : null}
       </Card>
     );
   return (
@@ -540,6 +573,8 @@ function RecognitionStep({
             {(currentSubject.photoStatus ?? "missing") === "active" &&
             currentSubject.photoUrl ? (
               <Image
+                unoptimized
+                onError={() => setPhotoUnavailable(true)}
                 alt={`Foto ${currentSubject.firstName} ${currentSubject.lastName}`}
                 className="h-full w-full object-cover"
                 height={360}
@@ -550,6 +585,7 @@ function RecognitionStep({
               "Foto non disponibile"
             )}
           </div>
+          {photoUnavailable ? <div role="alert"><p>Foto non raggiungibile. Ricaricala o documenta l’anomalia nelle note.</p><Button type="button" onClick={() => { setPhotoUnavailable(false); void query.refetch(); }}>Ricarica foto</Button></div> : null}
           <div className="space-y-2 rounded-xl border bg-slate-50 p-3 text-sm">
             <p className="font-semibold">
               Stato foto manifest:{" "}
@@ -610,10 +646,14 @@ function RecognitionStep({
               </p>
             )}
           </button>
+          <label className="block text-sm">Note del riconoscimento (obbligatorie per anomalie o foto assente)
+            <textarea className="mt-2 w-full rounded-xl border p-3" value={decisionNotes} onChange={(event) => setDecisionNotes(event.target.value)} />
+          </label>
+          {decisionError ? <p role="alert" className="text-red-700">{decisionError}</p> : null}
           <div className="grid gap-2 sm:grid-cols-2">
             <Button
               className="bg-slate-700"
-              disabled={currentTeamDecisionOrder.length === 0}
+              disabled={savingDecision || currentTeamDecisionOrder.length === 0}
               onClick={goBackToPreviousSubject}
               type="button"
             >
@@ -621,11 +661,13 @@ function RecognitionStep({
             </Button>
             <Button
               className="bg-green-600"
+              disabled={savingDecision || (photoUnavailable && !decisionNotes.trim())}
               onClick={() => decide("approved")}
               type="button"
             >
               Conferma riconoscimento
             </Button>
+            <Button className="bg-red-700" disabled={savingDecision || !decisionNotes.trim()} onClick={() => void decide('rejected')} type="button">Registra anomalia / non riconosciuto</Button>
           </div>
         </div>
       </div>
@@ -671,6 +713,10 @@ function MatchReportStep({
       void queryClient.invalidateQueries({ queryKey: queryKeys.matchReports });
     },
   });
+  const saveDraftMutation = useMutation({
+    mutationFn: () => currentReport ? saveRefereeReportDraft(matchId, currentReport) : Promise.reject(new Error('Nessuna bozza disponibile.')),
+    onSuccess: () => notify('Bozza salvata', 'success'),
+  });
   if (query.isLoading) return <SkeletonBlock />;
   if (query.isError)
     return (
@@ -684,6 +730,9 @@ function MatchReportStep({
   const currentStep = reportSteps[step];
   return (
     <Card className="space-y-4">
+      <Button type="button" disabled={isReadOnly || !fullRecognitionComplete || saveDraftMutation.isPending} onClick={() => saveDraftMutation.mutate()}>Salva bozza</Button>
+      {saveDraftMutation.isError ? <p role="alert" className="text-red-700">{saveDraftMutation.error.message}</p> : null}
+      {submitMutation.isError ? <p role="alert" className="text-red-700">{submitMutation.error.message}</p> : null}
       <div>
         <h2 className="text-xl font-bold">Referto</h2>
         <p className="text-sm text-slate-500">

@@ -21,7 +21,7 @@ describe("regression: referee smoke workflow", () => {
     expect(source).toContain("Puoi proseguire solo con il referto");
     expect(source).toContain("Conferma chiusura riconoscimento");
     expect(source).toContain("Riconoscimento chiuso");
-    expect(source).toContain("onMutate: onComplete");
+    expect(source).toContain("setIsRecognitionClosed(true); onComplete();");
   });
 
   it("exposes editable report sections for goals, cards, dismissals and substitutions", () => {

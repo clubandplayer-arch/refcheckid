@@ -14,6 +14,7 @@ import type {
   UUID,
 } from '../domain/index.js';
 import { DrizzleRepository } from './base-repository.js';
+import { storagePath } from '../config/storage-paths.js';
 
 abstract class PersistentPhotoRepository<
   TEntity extends { id: UUID; createdAt: string },
@@ -53,6 +54,7 @@ abstract class PersistentPhotoRepository<
   }
 
   private persist(): void {
+    if (this.store) return; // Legacy JSON is imported once; the database is now authoritative.
     if (this.persistencePath === null) return;
 
     mkdirSync(dirname(this.persistencePath), { recursive: true });
@@ -77,7 +79,7 @@ export function resolvePhotoMetadataRoot(): string | null {
     return process.env.REFCHECKID_PHOTO_METADATA_ROOT;
   }
   if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') return null;
-  return join(process.cwd(), 'storage', 'refcheckid-photo-metadata-dev');
+  return storagePath('refcheckid-photo-metadata-dev');
 }
 
 export class PhotoRepository extends PersistentPhotoRepository<Photo> {

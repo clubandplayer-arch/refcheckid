@@ -4,7 +4,7 @@ RefCheckID is a pnpm workspace with a lightweight Node.js backend runtime and a 
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 24+ (24.22.1 validated; see `.nvmrc`)
 - pnpm 9.15+
 
 ## Install
@@ -15,6 +15,23 @@ Install dependencies for both apps:
 pnpm -C refcheckid-backend install --frozen-lockfile
 pnpm -C refcheckid-web install --frozen-lockfile
 ```
+
+## Runtime persistence
+
+The single-instance runtime now uses a transactional SQLite database at
+`refcheckid-backend/storage/refcheckid.sqlite`, including lineups, recognition
+workflows and decisions, reports, photo metadata, upload sessions and audit.
+Legacy photo JSON files are imported once per repository and left unchanged.
+Photo objects remain in the configured filesystem store. Paths are independent
+of the shell's working directory. Do not delete the database to reset a match.
+
+This runtime is distinct from the PostgreSQL/Supabase schema and migration work;
+those migrations do not configure this SQLite adapter. Multi-instance PostgreSQL
+operation has not been implemented or validated by this change.
+
+See [Operations](docs/OPERATIONS.md) for production configuration, secure user
+provisioning, backups and recovery, and [Release verification](docs/RELEASE_READINESS.md)
+for acceptance checks and the limits of the current release.
 
 ## Environment
 
@@ -44,7 +61,8 @@ In Codespaces, set `NEXT_PUBLIC_API_BASE_URL` to the forwarded backend URL endin
 
 Use these local MVP credentials to verify role-based redirects without manually entering actor IDs or roles:
 
-- Dirigente: `dirigente@refcheckid.local` / `Password123!`
+- Dirigente casa: `dirigente@refcheckid.local` / `Password123!`
+- Dirigente ospite: `dirigenteospite@refcheckid.local` / `Password123!`
 - Arbitro: `arbitro@refcheckid.local` / `Password123!`
 - Federazione: `federazione@refcheckid.local` / `Password123!`
 

@@ -8,15 +8,21 @@ import {
   submitRefereeReport,
 } from "../../src/lib/referee-api-client";
 
+function stubFetch(mock: unknown) {
+  const implementation = mock as typeof fetch;
+  vi.stubGlobal('fetch', (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    if (String(input).includes('/recognitions?')) return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    return implementation(input, init);
+  });
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe("unit: referee workflow API client", () => {
   it("maps referee dashboard club ids to team names", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
+    stubFetch(vi.fn(async () => ({
         ok: true,
         status: 200,
         json: async () => [
@@ -42,9 +48,7 @@ describe("unit: referee workflow API client", () => {
   });
 
   it("labels home and away sheets clearly with status details", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
+    stubFetch(vi.fn(async () => ({
         ok: true,
         status: 200,
         json: async () => [
@@ -133,7 +137,7 @@ describe("unit: referee workflow API client", () => {
         }),
       };
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await expect(fetchRefereeMatchSheets("match-1")).resolves.toEqual([
       expect.objectContaining({
@@ -163,7 +167,7 @@ describe("unit: referee workflow API client", () => {
         json: async () => ({ status: "in_progress" }),
       };
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await expect(
       lockSubmittedSheetsAndStartRecognition("match-1"),
@@ -216,7 +220,7 @@ describe("unit: referee workflow API client", () => {
       }
       throw new Error(`Unexpected request: ${url}`);
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await expect(
       lockSubmittedSheetsAndStartRecognition("match-1"),
@@ -225,16 +229,14 @@ describe("unit: referee workflow API client", () => {
 
   it("does not synthesize recognition subjects from local snapshots or pilot data", async () => {
     const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await expect(fetchRecognitionSubjects()).resolves.toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("keeps the report id so report submission uses the report resource", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
+    stubFetch(vi.fn(async () => ({
         ok: true,
         status: 200,
         json: async () => ({
@@ -266,7 +268,7 @@ describe("unit: referee workflow API client", () => {
         summary: null,
       }),
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await submitRefereeReport("match-1", {
       awayGoals: 0,
@@ -290,17 +292,13 @@ describe("unit: referee workflow API client", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      expect.stringContaining("/match-reports/report-1"),
+      expect.stringContaining("/matches/match-1/final-report"),
       expect.objectContaining({
         body: expect.stringContaining("Rossi"),
-        method: "PATCH",
+        method: "POST",
       }),
     );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining("/match-reports/report-1/submit"),
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -339,7 +337,7 @@ describe("unit: referee manifest client", () => {
         ],
       }),
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await expect(fetchRecognitionSubjects("match-1")).resolves.toEqual([
       expect.objectContaining({
@@ -359,9 +357,7 @@ describe("unit: referee manifest client", () => {
   });
 
   it("translates raw lineup roles in recognition subjects", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
+    stubFetch(vi.fn(async () => ({
         ok: true,
         status: 200,
         json: async () => ({
@@ -422,9 +418,7 @@ describe("unit: referee manifest client", () => {
   });
 
   it("does not expose local file signed photo URLs in recognition subjects", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
+    stubFetch(vi.fn(async () => ({
         ok: true,
         status: 200,
         json: async () => ({
@@ -483,7 +477,7 @@ describe("unit: referee manifest cache guards", () => {
         subjects: [],
       }),
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     vi.stubGlobal("window", {
       localStorage: {
         getItem: () =>

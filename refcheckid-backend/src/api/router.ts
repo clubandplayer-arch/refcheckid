@@ -1,5 +1,5 @@
 import type { ApplicationContainer } from '../config/application-container.js';
-import { loginHandler, logoutHandler, meHandler, refreshHandler } from './auth.js';
+import { authenticateBearerToken, loginHandler, logoutHandler, meHandler, refreshHandler } from './auth.js';
 import { createControllers } from './controllers.js';
 import { ApiRouter } from './http.js';
 import {
@@ -12,17 +12,57 @@ import {
 } from './middleware.js';
 import { createOpenApiDocument } from './openapi.js';
 import { createSwaggerHtml } from './swagger.js';
+import { resourceAccess } from './resource-access.js';
+import { requestContext } from './request-context.js';
 
 export function createRestApiRouter(container: ApplicationContainer): ApiRouter {
   const router = new ApiRouter();
   const controllers = createControllers(container);
 
+  // Rejections are audited after the command transaction has rolled back.
+  router.use((next) => async (request) => {
+    const response = await next(request);
+    if (response.status >= 400) {
+      await container.store.transaction(async () => {
+        const auth = request.auth ?? requestContext.run({ store: container.store }, () => authenticateBearerToken(request.headers.authorization));
+        if (auth) await container.repositories.audit.createAuditLog({ action: 'command.rejected', occurredAt: new Date().toISOString(),
+          metadata: { actorId: auth.actorId, method: request.method, path: request.path, status: response.status, correlationId: response.headers?.['x-correlation-id'] },
+        });
+      });
+    }
+    return response;
+  });
+
   router.use(errorHandlingMiddleware);
+  router.use((next) => (request) => container.store.transaction(async () => {
+    const response = await requestContext.run({ store: container.store }, () => next(request));
+    // Handler error responses must roll back just like thrown domain errors.
+    if (response.status >= 400) throw new RejectedResponse(response);
+    return response;
+  }).catch((error: unknown) => {
+    if (error instanceof RejectedResponse) return error.response;
+    throw error;
+  }));
   router.use(requestIdMiddleware);
   router.use(correlationIdMiddleware);
   router.use(loggingMiddleware);
   router.use(authenticationMiddleware);
   router.use(authorizationMiddleware);
+  router.use(resourceAccess(container));
+  router.use((next) => (request) => requestContext.run({ store: container.store, ...(request.auth ? { auth: request.auth } : {}) }, async () => {
+    const response = await next(request);
+    if (request.method !== 'GET' && response.status < 400 && request.auth) {
+      const sheet = request.path.includes('/match-sheets/') && request.params.id ? await container.repositories.matchSheets.findById(request.params.id) : null;
+      const result = response.body as Record<string, unknown> | null;
+      const body = request.body as Record<string, unknown> | undefined;
+      await container.repositories.audit.createAuditLog({
+        action: `${request.method} ${request.path}`, occurredAt: new Date().toISOString(),
+        matchId: sheet?.matchId ?? (typeof result?.matchId === 'string' ? result.matchId : typeof body?.matchId === 'string' ? body.matchId : null),
+        metadata: { actorId: request.auth.actorId, roles: request.auth.roles, correlationId: request.correlationId },
+      });
+    }
+    return response;
+  }));
 
   router.register('GET', '/api/health', controllers.health);
   const openApiHandler = () => ({
@@ -83,16 +123,22 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/referees/:id', controllers.getReferee);
   router.register('GET', '/api/v1/matches', controllers.listMatches);
   router.register('GET', '/api/v1/matches/:id', controllers.getMatch);
+  router.register('GET', '/api/v1/matches/:id/readiness', controllers.getMatchReadiness);
   router.register('POST', '/api/v1/matches/:id/status', controllers.transitionMatch);
   router.register('GET', '/api/v1/match-sheets', controllers.listMatchSheets);
   router.register('GET', '/api/v1/match-sheets/:id', controllers.getMatchSheet);
   router.register('POST', '/api/v1/match-sheets/:id/submit', controllers.submitMatchSheet);
+  router.register('POST', '/api/v1/match-sheets/:id/draft', controllers.saveMatchSheetDraft);
   router.register('POST', '/api/v1/match-sheets/:id/lock', controllers.lockMatchSheet);
   router.register('POST', '/api/v1/match-sheets/:id/reset-smoke', controllers.resetSmokeMatchSheet);
   router.register('GET', '/api/v1/recognitions', controllers.listRecognitions);
+  router.register('GET', '/api/v1/recognitions/workflow', controllers.getRecognitionWorkflow);
   router.register('GET', '/api/v1/recognitions/:id', controllers.getRecognition);
   router.register('POST', '/api/v1/recognitions/start', controllers.startRecognition);
   router.register('POST', '/api/v1/recognitions/complete', controllers.completeRecognition);
+  router.register('POST', '/api/v1/recognitions/decision', controllers.recordRecognitionDecision);
+  router.register('POST', '/api/v1/matches/:id/final-report', controllers.finalizeMatchReport);
+  router.register('POST', '/api/v1/matches/:id/report-draft', controllers.saveReportDraft);
   router.register('GET', '/api/v1/match-reports', controllers.getMatchReportByMatch);
   router.register('GET', '/api/v1/match-reports/:id', controllers.getMatchReport);
   router.register('POST', '/api/v1/match-reports', controllers.createMatchReport);
@@ -174,7 +220,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
       status: 200,
       headers: {
         'content-type': contentType,
-        'cache-control': 'private, max-age=300',
+        'cache-control': 'private, no-store',
         'content-length': String(bytes.byteLength),
       },
       body: bytes,
@@ -204,4 +250,8 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/identity-documents', controllers.listIdentityDocuments);
 
   return router;
+}
+
+class RejectedResponse extends Error {
+  constructor(readonly response: import('./http.js').ApiResponse) { super('Request rejected'); }
 }

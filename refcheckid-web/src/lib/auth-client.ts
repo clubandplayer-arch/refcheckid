@@ -51,7 +51,6 @@ export async function authenticateWithPassword(input: {
   const responseText = await response.text();
   const responseBody = parseResponseBody(responseText);
   console.info("[RefCheckID][auth] login response", {
-    body: responseBody,
     status: response.status,
     url,
   });
@@ -69,9 +68,12 @@ export async function authenticateWithPassword(input: {
 }
 
 export async function logoutSession(refreshToken: string): Promise<void> {
+  const stored = typeof window === 'undefined' ? null : window.localStorage.getItem('refcheckid.session');
+  let accessToken = '';
+  try { accessToken = stored ? (JSON.parse(stored) as AppSession).accessToken : ''; } catch { /* Already logged out. */ }
   await fetch(`${getApiBaseUrl()}/auth/logout`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", authorization: `Bearer ${accessToken}` },
     body: JSON.stringify({ refreshToken }),
   });
 }

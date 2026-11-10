@@ -454,11 +454,19 @@ async function completeMatchWorkflow(
     sessions.awayManager.accessToken,
   );
 
-  await postJson<RecognitionWorkflow>(
+  const started = await postJson<RecognitionWorkflow>(
     `${apiBaseUrl}/recognitions/start`,
     { matchId: workflow.matchId },
     sessions.referee.accessToken,
   );
+  if (started.status !== 'locked') {
+    for (const participant of photoPlan) {
+      await postJson(`${apiBaseUrl}/recognitions/decision`, {
+        matchId: workflow.matchId, registrationId: participant.registrationId,
+        status: 'recognized', notes: 'Automated demo fixture; not a human identity verification.',
+      }, sessions.referee.accessToken);
+    }
+  }
   const recognition = await postJson<RecognitionWorkflow>(
     `${apiBaseUrl}/recognitions/complete`,
     { matchId: workflow.matchId },
@@ -603,9 +611,7 @@ async function prepareDraftMatchReport(
       : existingReport;
 
   if (report.status === 'submitted') {
-    throw new Error(
-      `Match report ${report.id} is already submitted and cannot be prepared for manual demo compilation.`,
-    );
+    return; // A repeated bootstrap never reopens or replaces a submitted report.
   }
 
   const updated = await patchJson<MatchReport>(

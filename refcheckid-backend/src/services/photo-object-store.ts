@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import type { UUID } from '../domain/index.js';
+import { storagePath } from '../config/storage-paths.js';
 
 export interface PhotoUploadIntentInput {
   readonly objectKey: string;
@@ -118,7 +119,10 @@ export class LocalPhotoObjectStore implements PhotoObjectStore {
     if (input.bytes) await this.putObject(input.renditionObjectKey, input.bytes);
   }
   private pathFor(objectKey: string): string {
-    return join(this.root, objectKey);
+    const root = resolve(this.root);
+    const path = resolve(root, objectKey);
+    if (!path.startsWith(`${root}${sep}`) || objectKey.includes('\0')) throw new Error('Invalid photo object key.');
+    return path;
   }
 }
 
@@ -128,7 +132,7 @@ function defaultPhotoObjectStoreRoot(): string {
   if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') {
     return join(tmpdir(), 'refcheckid-photos-test');
   }
-  return join(process.cwd(), 'storage', 'refcheckid-photos-dev');
+  return storagePath('refcheckid-photos-dev');
 }
 
 export class StubPhotoObjectStore extends LocalPhotoObjectStore {}

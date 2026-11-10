@@ -1,7 +1,13 @@
 import type { PlayerRegistration, StaffMember, StaffRegistration, UUID } from '../domain/index.js';
 import { DrizzleRepository } from './base-repository.js';
+import type { RuntimeStore } from './runtime-store.js';
 
 export class RegistrationRepository extends DrizzleRepository<PlayerRegistration> {
+  override bindStore(store: RuntimeStore): void {
+    super.bindStore(store);
+    this.staffMembers.bindStore(store);
+    this.staffRegistrations.bindStore(store);
+  }
   private readonly staffMembers = new DrizzleRepository<StaffMember>({
     tableName: 'staff_members',
   });

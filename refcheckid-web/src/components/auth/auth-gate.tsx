@@ -7,6 +7,7 @@ import { logoutSession } from "@/lib/auth-client";
 import { useSession, type AppRole } from "@/lib/session";
 
 export const roleRedirects: Record<AppRole, string> = {
+  admin: '/federation',
   federation: "/federation",
   manager: "/manager",
   referee: "/referee",
@@ -25,12 +26,12 @@ export function AuthGate({
       router.replace("/");
       return;
     }
-    if (session.user.role !== allowedRole) {
+    if (session.user.role !== allowedRole && session.user.role !== 'admin') {
       router.replace(roleRedirects[session.user.role]);
     }
   }, [allowedRole, isReady, router, session]);
 
-  if (!isReady || !session || session.user.role !== allowedRole) {
+  if (!isReady || !session || (session.user.role !== allowedRole && session.user.role !== 'admin')) {
     return <main className="mx-auto max-w-6xl p-6">Verifica sessione…</main>;
   }
 

@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["*.app.github.dev"],
   outputFileTracingRoot: path.join(process.cwd(), ".."),
   reactStrictMode: true,
+  images: { unoptimized: true }, // Private signed photos must not be cached by the public optimizer.
   async rewrites() {
     return [
       {

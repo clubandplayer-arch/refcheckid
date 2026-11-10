@@ -1,6 +1,6 @@
 import type { MatchReport, MatchReportStatus, UUID } from '../domain/index.js';
 import type { EventPublisher } from '../events/index.js';
-import type { MatchRepositoryPort, MatchReportRepositoryPort } from '../repositories/index.js';
+import type { MatchRepositoryPort, MatchReportRepositoryPort, RecognitionRepositoryPort } from '../repositories/index.js';
 
 const editableMatchReportStatuses: readonly MatchReportStatus[] = ['draft', 'in_compilation'];
 const allowedMatchReportSubmitTransitions: readonly MatchReportStatus[] = [
@@ -54,6 +54,7 @@ export class InvalidMatchReportStatusTransitionError extends Error {
 }
 
 export interface MatchReportServiceDependencies {
+  readonly recognitionsRepository?: RecognitionRepositoryPort;
   readonly eventPublisher?: EventPublisher;
   readonly matchesRepository: MatchRepositoryPort;
   readonly reportsRepository: MatchReportRepositoryPort;
@@ -102,6 +103,11 @@ export class MatchReportService {
 
   async submitMatchReport(matchReportId: UUID): Promise<MatchReport> {
     const matchReport = await this.getExistingMatchReport(matchReportId);
+    if (this.dependencies.recognitionsRepository) {
+      const match = await this.dependencies.matchesRepository.findById(matchReport.matchId);
+      const workflow = await this.dependencies.recognitionsRepository.getWorkflowByMatch(matchReport.matchId);
+      if (match?.status !== 'completed' || workflow.status !== 'locked') throw new Error('Complete the match and recognition before submitting its report.');
+    }
 
     if (matchReport.status === 'submitted') {
       throw new SubmittedMatchReportError(matchReportId);

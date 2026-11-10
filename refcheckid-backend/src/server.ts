@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { URL } from 'node:url';
 import { createRestApiRouter, type HttpMethod } from './api/index.js';
 import { createApplicationContainer } from './config/application-container.js';
+import { validateAuthConfiguration } from './api/auth.js';
 
 const defaultPort = 4000;
 const allowedMethods = new Set<HttpMethod>(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
@@ -12,16 +13,40 @@ export interface RuntimeServerOptions {
 }
 
 export function createRuntimeServer() {
-  const router = createRestApiRouter(createApplicationContainer());
+  if (process.env.NODE_ENV === 'production' && ((process.env.AUTH_SECRET?.length ?? 0) < 32 || !process.env.AUTH_USERS_FILE || !process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '*')) {
+    throw new Error('Production requires AUTH_SECRET (at least 32 characters), AUTH_USERS_FILE and an explicit CORS_ORIGIN.');
+  }
+  validateAuthConfiguration();
+  const container = createApplicationContainer();
+  const router = createRestApiRouter(container);
+  const loginAttempts = new Map<string, { count: number; until: number }>();
 
-  return createServer((request, response) => {
+  const server = createServer((request, response) => {
+    if (request.url?.split('?')[0] === '/api/v1/auth/login') {
+      const key = request.socket.remoteAddress ?? 'unknown';
+      const now = Date.now();
+      for (const [id, entry] of loginAttempts) if (entry.until < now) loginAttempts.delete(id);
+      const entry = loginAttempts.get(key) ?? { count: 0, until: now + 60_000 };
+      entry.count++;
+      if (entry.count > 60 || loginAttempts.size > 1000) {
+        response.setHeader('retry-after', '60');
+        writeJson(response, 429, { error: 'RATE_LIMITED', message: 'Too many login attempts. Try again later.' });
+        request.resume();
+        return;
+      }
+      loginAttempts.set(key, entry);
+    }
     handleRequest(router, request, response).catch((error: unknown) => {
-      writeJson(response, 500, {
-        error: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Unexpected runtime error.',
+      writeJson(response, error instanceof SyntaxError ? 400 : error instanceof RequestTooLargeError ? 413 : 500, {
+        error: error instanceof SyntaxError ? 'INVALID_JSON' : error instanceof RequestTooLargeError ? 'REQUEST_TOO_LARGE' : 'INTERNAL_ERROR',
+        message: 'Request could not be processed.',
       });
     });
   });
+  server.on('close', () => container.store.close());
+  server.requestTimeout = 30_000;
+  server.headersTimeout = 15_000;
+  return server;
 }
 
 export function startRuntimeServer(options: RuntimeServerOptions = {}) {
@@ -137,6 +162,7 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
   for await (const chunk of request) {
     const bodyChunk = chunk as string | Buffer;
     rawBody += typeof bodyChunk === 'string' ? bodyChunk : bodyChunk.toString('utf8');
+    if (Buffer.byteLength(rawBody) > 12 * 1024 * 1024) throw new RequestTooLargeError();
   }
 
   if (rawBody.length === 0) {
@@ -151,6 +177,8 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
 }
 
 function setCorsHeaders(response: ServerResponse): void {
+  response.setHeader('x-content-type-options', 'nosniff');
+  response.setHeader('referrer-policy', 'no-referrer');
   response.setHeader('access-control-allow-origin', process.env.CORS_ORIGIN ?? '*');
   response.setHeader('access-control-allow-methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
   response.setHeader(
@@ -159,7 +187,10 @@ function setCorsHeaders(response: ServerResponse): void {
   );
 }
 
+class RequestTooLargeError extends Error {}
+
 function writeJson(response: ServerResponse, status: number, body: unknown): void {
+  response.setHeader('cache-control', 'private, no-store');
   response.setHeader('content-type', 'application/json');
   response.writeHead(status);
   response.end(JSON.stringify(body));

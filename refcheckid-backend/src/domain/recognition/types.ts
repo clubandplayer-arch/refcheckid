@@ -4,6 +4,9 @@ export type RecognitionStatus = 'recognized' | 'rejected';
 export type RecognitionWorkflowStatus = 'not_started' | 'in_progress' | 'locked';
 
 export interface Recognition extends BaseEntity {
+  registrationId?: UUID;
+  snapshotId?: UUID;
+  actorId?: UUID;
   matchId: UUID;
   refereeId: UUID;
   matchSheetPlayerId: UUID | null;

@@ -27,6 +27,21 @@
     "demo:bootstrap:dry-run": "pnpm -C refcheckid-backend demo:bootstrap:dry-run",
     "demo:verify": "pnpm -C refcheckid-backend demo:verify",
     "demo:init": "node scripts/demo-init.mjs",
-    "demo:diagnose-roster": "node scripts/diagnose-manager-roster.mjs"
+    "demo:diagnose-roster": "node scripts/diagnose-manager-roster.mjs",
+    "test:acceptance": "pnpm -C refcheckid-backend build && node scripts/acceptance.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "next>postcss": "8.5.32",
+      "sharp": "0.35.5",
+      "postcss>nanoid": "3.3.18",
+      "postcss>source-map-js": "1.2.2"
+    }
   }
 }

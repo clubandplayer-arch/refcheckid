@@ -23,7 +23,7 @@ import {
   lineupRoleOptions,
   validateMatchSheet,
 } from "@/lib/match-sheet-validation";
-import { managerTeamConfig, getCurrentManagerTeam } from "@/lib/manager-team";
+import { getCurrentManagerConfig, getCurrentManagerTeam } from "@/lib/manager-team";
 import { uploadOfficialSubjectPhoto } from "@/lib/manager-photo-backend";
 import { getPhotoFeatureFlags } from "@/lib/photo-feature-flags";
 import {
@@ -33,6 +33,9 @@ import {
   queryKeys,
   resetSmokeMatchSheet,
   submitMatchSheet,
+  saveMatchSheetDraft,
+  fetchMatches,
+  selectOperationalMatch,
 } from "@/lib/api-client";
 import type {
   PlayerLineupRole,
@@ -60,8 +63,7 @@ export function MatchSheetWorkflow() {
   } | null>(null);
   const [photoError, setPhotoError] = useState<PhotoErrorState | null>(null);
   const managerTeam = getCurrentManagerTeam();
-  const managerTeamLabel = managerTeamConfig[managerTeam].label;
-  const managerClubId = managerTeamConfig[managerTeam].clubId;
+  const managerClubId = getCurrentManagerConfig().clubId;
   const officialPhotoUploadEnabled =
     getPhotoFeatureFlags().officialBackendUpload;
   const queryClient = useQueryClient();
@@ -75,8 +77,14 @@ export function MatchSheetWorkflow() {
     queryKey: [...queryKeys.staff, managerTeam],
   });
   const sheetsQuery = useQuery({
-    queryFn: () =>
-      fetchMatchSheets(`?clubId=${encodeURIComponent(managerClubId)}`),
+    queryFn: async () => {
+      const [sheets, matches] = await Promise.all([
+        fetchMatchSheets(`?clubId=${encodeURIComponent(managerClubId)}`),
+        fetchMatches(`?clubId=${encodeURIComponent(managerClubId)}`),
+      ]);
+      const match = selectOperationalMatch(matches);
+      return match ? sheets.filter((sheet) => sheet.matchId === match.id) : [];
+    },
     queryKey: [...queryKeys.matchSheets, managerClubId],
   });
   const [selectedPlayers, setSelectedPlayers] = useState<
@@ -93,25 +101,7 @@ export function MatchSheetWorkflow() {
         throw new Error(
           "Distinta già inviata. Usa il ripristino della distinta di prova per crearne una nuova.",
         );
-      return submitMatchSheet(firstSheet.id, {
-        players: calledPlayers
-          .filter((player) => player.registrationId)
-          .map((player, lineupOrder) => ({
-            playerRegistrationId: player.registrationId as string,
-            role: player.role,
-            shirtNumber: player.shirtNumber,
-            lineupOrder,
-            isGoalkeeper: player.isGoalkeeper,
-            isCaptain: player.isCaptain,
-            isViceCaptain: player.isViceCaptain,
-          })),
-        staff: calledStaff
-          .filter((staffMember) => staffMember.registrationId)
-          .map((staffMember) => ({
-            staffRegistrationId: staffMember.registrationId as string,
-            role: staffMember.role,
-          })),
-      });
+      return submitMatchSheet(firstSheet.id, buildCurrentLineup());
     },
     onSuccess() {
       notify("Distinta inviata", "success");
@@ -121,15 +111,25 @@ export function MatchSheetWorkflow() {
       notify(error.message, "error");
     },
   });
+  const draftMutation = useMutation({
+    mutationFn: () => {
+      const sheet = sheetsQuery.data?.[0];
+      if (!sheet) throw new Error('Nessuna distinta disponibile.');
+      return saveMatchSheetDraft(sheet.id, buildCurrentLineup());
+    },
+    onSuccess() { notify('Bozza distinta salvata', 'success'); void queryClient.invalidateQueries({ queryKey: queryKeys.matchSheets }); },
+    onError(error) { notify(error.message, 'error'); },
+  });
+  const [playersEdited, setPlayersEdited] = useState(false);
+  const [staffEdited, setStaffEdited] = useState(false);
   const resetSmokeMutation = useMutation({
     mutationFn: async () => {
       const firstSheet = sheetsQuery.data?.[0];
       if (!firstSheet) throw new Error("Nessuna distinta disponibile.");
-      setSelectedPlayers([]);
-      setSelectedStaff([]);
       return resetSmokeMatchSheet(firstSheet.id);
     },
     onSuccess() {
+      setSelectedPlayers([]); setSelectedStaff([]); setPlayersEdited(false); setStaffEdited(false);
       notify(
         "Partita demo ripristinata: distinte e riconoscimento sono nuovamente disponibili",
         "success",
@@ -146,10 +146,10 @@ export function MatchSheetWorkflow() {
   const matchSheetStatus = sheetsQuery.data?.[0]?.status ?? "draft";
   const isReadOnly = matchSheetStatus !== "draft";
   const submittedSheet = sheetsQuery.data?.[0];
+  const managerTeamLabel = submittedSheet?.clubName ?? getCurrentManagerConfig().label;
   const players = useMemo(() => {
-    if (!isReadOnly) {
-      return selectedPlayers.length > 0 ? selectedPlayers : fetchedPlayers;
-    }
+    if (!isReadOnly && playersEdited) return selectedPlayers;
+    if (!isReadOnly && !submittedSheet?.players?.length) return fetchedPlayers;
     const lineupByRegistration = new Map(
       (submittedSheet?.players ?? []).map((line) => [
         line.playerRegistrationId,
@@ -178,11 +178,10 @@ export function MatchSheetWorkflow() {
       })
       .sort((left, right) => left.lineupOrder - right.lineupOrder)
       .map(({ lineupOrder: _lineupOrder, ...player }) => player);
-  }, [fetchedPlayers, isReadOnly, selectedPlayers, submittedSheet?.players]);
+  }, [fetchedPlayers, isReadOnly, playersEdited, selectedPlayers, submittedSheet?.players]);
   const staff = useMemo(() => {
-    if (!isReadOnly) {
-      return selectedStaff.length > 0 ? selectedStaff : fetchedStaff;
-    }
+    if (!isReadOnly && staffEdited) return selectedStaff;
+    if (!isReadOnly && !submittedSheet?.staff?.length) return fetchedStaff;
     const submittedRegistrationIds = new Set(
       (submittedSheet?.staff ?? []).map((line) => line.staffRegistrationId),
     );
@@ -192,7 +191,7 @@ export function MatchSheetWorkflow() {
         member.registrationId !== null &&
         submittedRegistrationIds.has(member.registrationId),
     }));
-  }, [fetchedStaff, isReadOnly, selectedStaff, submittedSheet?.staff]);
+  }, [fetchedStaff, isReadOnly, staffEdited, selectedStaff, submittedSheet?.staff]);
   const filteredPlayers = useMemo(
     () =>
       players
@@ -207,16 +206,39 @@ export function MatchSheetWorkflow() {
   const calledPlayers = players.filter((player) => player.selected);
   const orderedCalledPlayers = players.filter((player) => player.selected);
   const calledStaff = staff.filter((staffMember) => staffMember.selected);
+  function buildCurrentLineup() {
+    return {
+        players: calledPlayers
+          .filter((player) => player.registrationId)
+          .map((player, lineupOrder) => ({
+            playerRegistrationId: player.registrationId as string,
+            role: player.role,
+            shirtNumber: player.shirtNumber,
+            lineupOrder,
+            isGoalkeeper: player.isGoalkeeper,
+            isCaptain: player.isCaptain,
+            isViceCaptain: player.isViceCaptain,
+          })),
+        staff: calledStaff
+          .filter((staffMember) => staffMember.registrationId)
+          .map((staffMember) => ({
+            staffRegistrationId: staffMember.registrationId as string,
+            role: staffMember.role,
+          })),
+    };
+  }
   function setPlayerList(
     updater: (current: readonly PlayerListItem[]) => readonly PlayerListItem[],
   ) {
     if (isReadOnly) return;
+    setPlayersEdited(true);
     setSelectedPlayers(updater(players));
   }
   function setStaffList(
     updater: (current: readonly StaffListItem[]) => readonly StaffListItem[],
   ) {
     if (isReadOnly) return;
+    setStaffEdited(true);
     setSelectedStaff(updater(staff));
   }
   async function updatePlayerPhoto(playerId: string, photoUrl: string) {
@@ -233,7 +255,7 @@ export function MatchSheetWorkflow() {
         subjectId: playerId,
         registrationId: player.registrationId,
         clubId: managerClubId,
-        federationId: managerTeamConfig[managerTeam].federationId,
+        federationId: getCurrentManagerConfig().federationId,
         seasonId: player.season,
         dataUrl: photoUrl,
       });
@@ -277,7 +299,7 @@ export function MatchSheetWorkflow() {
         subjectId: staffId,
         registrationId: staffMember.registrationId,
         clubId: managerClubId,
-        federationId: managerTeamConfig[managerTeam].federationId,
+        federationId: getCurrentManagerConfig().federationId,
         seasonId: staffMember.season,
         dataUrl: photoUrl,
       });
@@ -455,6 +477,8 @@ export function MatchSheetWorkflow() {
     );
   }
   function handleDragEnd(event: DragEndEvent) {
+    if (isReadOnly) return;
+    setPlayersEdited(true);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = players.findIndex((player) => player.id === active.id);
@@ -505,6 +529,7 @@ export function MatchSheetWorkflow() {
             per correggere la distinta, avvisa l’arbitro o la segreteria.
           </p>
         ) : null}
+        {!isReadOnly ? <Button className="mt-3" type="button" disabled={draftMutation.isPending} onClick={() => draftMutation.mutate()}>Salva distinta in bozza</Button> : null}
         {isSmokeResetAvailable() ? (
           <Button
             className="mt-3"
@@ -742,6 +767,7 @@ function SubjectPhotoThumbnail({
       {displayPhotoUrl ? (
         <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-lg border bg-white shadow-sm">
           <Image
+                unoptimized
             alt={alt}
             className="h-full w-full object-cover"
             height={96}
@@ -803,6 +829,7 @@ function PhotoComparison({
       <span>Foto ufficiale corrente</span>
       {currentPhotoUrl ? (
         <Image
+                unoptimized
           alt="Foto ufficiale corrente"
           className="h-12 w-9 rounded border object-cover"
           height={48}
@@ -814,6 +841,7 @@ function PhotoComparison({
       )}
       <span>↓</span>
       <Image
+                unoptimized
         alt="Nuova foto proposta"
         className="h-12 w-9 rounded border object-cover"
         height={48}
@@ -958,6 +986,7 @@ function PhotoCaptureControls({
         <div className="space-y-2 rounded-lg bg-muted p-2">
           <div className="relative mx-auto flex aspect-[3/4] h-36 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
             <Image
+                unoptimized
               alt={`Preview foto ${subjectLabel}`}
               className="h-full w-full object-contain"
               height={144}
@@ -1152,6 +1181,7 @@ function SortablePlayerRow({
       <div className="flex min-w-0 items-center gap-3">
         {player.photoUrl ? (
           <Image
+                unoptimized
             alt={`Foto ${player.lastName} ${player.firstName}`}
             className="h-14 w-10 rounded-md border bg-white object-cover shadow-sm"
             height={56}

@@ -2,6 +2,7 @@ import { authenticateBearerToken } from './auth.js';
 import type { ApiMiddleware } from './http.js';
 import { json } from './http.js';
 import { ValidationError } from './validation.js';
+import { validPhotoContentToken } from './photo-content-token.js';
 
 export const requestIdMiddleware: ApiMiddleware = (next) => async (request) => {
   const requestId = request.headers['x-request-id'] ?? randomUUID();
@@ -44,9 +45,10 @@ export const authorizationMiddleware: ApiMiddleware = (next) => (request) => {
     request.path === '/api/v1/swagger' ||
     request.path === '/api/v1/auth/login' ||
     request.path === '/api/v1/auth/refresh' ||
+    request.path === '/api/v1/auth/logout' ||
     (request.method === 'GET' &&
       request.path.startsWith('/api/v1/photos/versions/') &&
-      request.path.endsWith('/content'))) {
+      request.path.endsWith('/content') && validPhotoContentToken(request.params.id ?? '', request.query))) {
     return next(request);
   }
 
@@ -66,6 +68,7 @@ export const errorHandlingMiddleware: ApiMiddleware = (next) => async (request) 
     }
 
     if (error instanceof Error) {
+      if ('code' in error && typeof error.code === 'string' && error.code.startsWith('ERR_SQLITE')) return json(503, { error: 'STORAGE_UNAVAILABLE', message: 'Storage temporarily unavailable. No command changes were committed.' });
       return json(409, { error: error.name, message: error.message });
     }
 

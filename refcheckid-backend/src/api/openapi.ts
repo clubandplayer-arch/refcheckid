@@ -215,10 +215,16 @@ export function createOpenApiDocument(): OpenApiDocument {
 
   Object.assign(paths, {
     '/api/v1/matches/{id}/status': mutationPath('transitionMatchStatus', 'Match'),
+    '/api/v1/matches/{id}/readiness': contractPath('getMatchReadiness', 'Match', 'implemented'),
+    '/api/v1/matches/{id}/final-report': mutationPath('finalizeMatchReport', 'MatchReport'),
+    '/api/v1/matches/{id}/report-draft': mutationPath('saveReportDraft', 'MatchReport'),
+    '/api/v1/match-sheets/{id}/draft': mutationPath('saveMatchSheetDraft', 'MatchSheet'),
     '/api/v1/match-sheets/{id}/submit': mutationPath('submitMatchSheet', 'MatchSheet'),
     '/api/v1/match-sheets/{id}/lock': mutationPath('lockMatchSheet', 'MatchSheet'),
     '/api/v1/recognitions/start': mutationPath('startRecognition', 'Recognition'),
     '/api/v1/recognitions/complete': mutationPath('completeRecognition', 'Recognition'),
+    '/api/v1/recognitions/decision': mutationPath('recordRecognitionDecision', 'Recognition'),
+    '/api/v1/recognitions/workflow': contractPath('getRecognitionWorkflow', 'Recognition', 'implemented'),
     '/api/v1/match-reports/{id}/submit': mutationPath('submitMatchReport', 'MatchReport'),
   });
 

@@ -18,6 +18,8 @@ export interface ApiRequest<
 }
 
 export interface AuthContext {
+  readonly displayName?: string;
+  readonly sessionId?: string;
   readonly actorId: UUID;
   readonly roles: readonly string[];
   readonly clubIds?: readonly UUID[];

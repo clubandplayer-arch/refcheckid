@@ -7,8 +7,8 @@ import {
   fetchMatchSheets,
   lockMatchSheet,
   startRecognition,
-  submitMatchReport,
-  updateMatchReport,
+  request,
+  selectOperationalMatch,
 } from "./api-client";
 import { managerTeamConfig } from "./manager-team";
 import type { ApiMatch, ApiMatchSheet, ApiReport } from "./api-client";
@@ -21,10 +21,7 @@ import type {
 
 export async function fetchRefereeDashboard(): Promise<RefereeDashboard> {
   const matches = await fetchMatches();
-  const nextMatch =
-    [...matches].sort((a, b) =>
-      a.scheduledAt.localeCompare(b.scheduledAt),
-    )[0] ?? null;
+  const nextMatch = selectOperationalMatch(matches);
   return {
     nextMatch: nextMatch ? toRefereeMatch(nextMatch) : null,
     notifications: nextMatch
@@ -61,9 +58,11 @@ export async function fetchRecognitionSubjects(
   if (!matchId) return [];
   const manifest = await fetchMatchPhotoManifest(matchId);
   if (manifest.status !== "available") return [];
+  const saved = await request<readonly { registrationId?: string; status: string }[]>(`/recognitions?matchId=${encodeURIComponent(matchId)}`);
+  if (!Array.isArray(saved)) throw new Error('Invalid recognition decisions response.');
   return manifest.subjects.map((subject) => ({
     ...subject,
-    decision: "pending",
+    decision: saved.find((entry) => entry.registrationId === subject.id)?.status === 'recognized' ? 'approved' : saved.find((entry) => entry.registrationId === subject.id)?.status === 'rejected' ? 'rejected' : 'pending',
     photoUrl: normalizeBrowserPhotoUrl(subject.photoUrl),
     roleLabel: formatSubjectRoleLabel(subject.roleLabel, subject.subjectKind),
     teamName: formatClubName(subject.teamName),
@@ -107,16 +106,23 @@ export async function lockSubmittedSheetsAndStartRecognition(
 
 export { completeRecognition };
 
+export async function saveRecognitionDecision(matchId: string, registrationId: string, decision: 'approved' | 'rejected' | 'pending', notes: string) {
+  return request('/recognitions/decision', { method: 'POST', body: JSON.stringify({ matchId, registrationId, status: decision === 'approved' ? 'recognized' : decision, notes }) });
+}
+
+export function fetchRecognitionWorkflow(matchId: string) {
+  return request<{ status: 'not_started' | 'in_progress' | 'locked' }>(`/recognitions/workflow?matchId=${encodeURIComponent(matchId)}`);
+}
+
 export async function submitRefereeReport(
   matchId: string,
   report: MatchReportDraft,
 ): Promise<ApiReport> {
-  const reportId = report.id ?? matchId;
-  await updateMatchReport(
-    reportId,
-    JSON.stringify(toSubmittedReportSummary(matchId, report)),
-  );
-  return submitMatchReport(reportId);
+  return request<ApiReport>(`/matches/${encodeURIComponent(matchId)}/final-report`, { method: 'POST', body: JSON.stringify({ summary: JSON.stringify(toSubmittedReportSummary(matchId, report)) }) });
+}
+
+export async function saveRefereeReportDraft(matchId: string, report: MatchReportDraft) {
+  return request(`/matches/${encodeURIComponent(matchId)}/report-draft`, { method: 'POST', body: JSON.stringify({ summary: JSON.stringify(toSubmittedReportSummary(matchId, report)) }) });
 }
 
 function toSubmittedReportSummary(matchId: string, report: MatchReportDraft) {
@@ -156,8 +162,8 @@ function toRefereeMatch(
 ): NonNullable<RefereeDashboard["nextMatch"]> {
   return {
     id: match.id,
-    awayTeam: formatClubName(match.awayClubId),
-    homeTeam: formatClubName(match.homeClubId),
+    awayTeam: match.awayClubName ?? formatClubName(match.awayClubId),
+    homeTeam: match.homeClubName ?? formatClubName(match.homeClubId),
     scheduledAt: match.scheduledAt,
     status:
       match.status === "completed"
@@ -185,11 +191,11 @@ async function fetchManifestCountsByClub(
       { playerCount: number; staffCount: number }
     >();
     manifest.subjects.forEach((subject) => {
-      const current = counts.get(subject.teamName) ?? {
+      const current = counts.get(subject.clubId ?? subject.teamName) ?? {
         playerCount: 0,
         staffCount: 0,
       };
-      counts.set(subject.teamName, {
+      counts.set(subject.clubId ?? subject.teamName, {
         playerCount:
           current.playerCount + (subject.subjectKind === "player" ? 1 : 0),
         staffCount:
@@ -220,10 +226,10 @@ function toTeamSheetVerification(
     { readonly playerCount: number; readonly staffCount: number }
   >,
 ): TeamSheetVerification {
-  const team = sheet.clubId === managerTeamConfig.away.clubId ? "away" : "home";
+  const team = sheet.team ?? (sheet.clubId === managerTeamConfig.away.clubId ? "away" : "home");
   return {
     id: sheet.id,
-    clubName: formatClubName(sheet.clubId),
+    clubName: sheet.clubName ?? formatClubName(sheet.clubId),
     playerCount:
       sheet.playerCount && sheet.playerCount > 0
         ? sheet.playerCount
@@ -244,15 +250,18 @@ function toTeamSheetVerification(
 }
 
 function toReportDraft(report: ApiReport | null): MatchReportDraft {
+  let stored: Record<string, unknown> = {};
+  try { stored = JSON.parse(report?.summary ?? '{}') as Record<string, unknown>; } catch { /* Older reports contain plain text notes. */ }
+  const result = stored.result as { homeGoals?: number; awayGoals?: number } | undefined;
   return {
     id: report?.id ?? null,
     status: report?.status ?? "draft",
-    awayGoals: 0,
-    cautions: [],
-    expulsions: [],
-    goals: [],
-    homeGoals: 0,
-    refereeNotes: report?.summary ?? "",
-    substitutions: [],
+    awayGoals: result?.awayGoals ?? 0,
+    cautions: Array.isArray(stored.cautions) ? stored.cautions : [],
+    expulsions: Array.isArray(stored.expulsions) ? stored.expulsions : [],
+    goals: Array.isArray(stored.goals) ? stored.goals : [],
+    homeGoals: result?.homeGoals ?? 0,
+    refereeNotes: typeof stored.refereeNotes === 'string' ? stored.refereeNotes : report?.summary ?? '',
+    substitutions: Array.isArray(stored.substitutions) ? stored.substitutions : [],
   };
 }

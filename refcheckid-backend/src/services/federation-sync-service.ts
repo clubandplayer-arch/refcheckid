@@ -9,6 +9,7 @@ import type {
   StaffRegistration,
 } from '../domain/index.js';
 import type { EventPublisher } from '../events/index.js';
+import { randomUUID } from 'node:crypto';
 import type {
   ClubRepository,
   FederationRepository,
@@ -16,6 +17,7 @@ import type {
   PlayerRepository,
   RefereeRepository,
   RegistrationRepository,
+  MatchSheetRepository,
 } from '../repositories/index.js';
 
 export interface FederationSyncPayload {
@@ -48,6 +50,7 @@ export interface FederationSyncServiceDependencies {
   readonly playersRepository: PlayerRepository;
   readonly registrationsRepository: RegistrationRepository;
   readonly matchesRepository: MatchRepositoryPort & { upsert(entity: Match): Promise<Match> };
+  readonly matchSheetsRepository?: MatchSheetRepository;
 }
 
 export class FederationSyncService {
@@ -108,7 +111,19 @@ export class FederationSyncService {
   }
 
   async syncMatches(matches: readonly Match[]): Promise<number> {
-    await Promise.all(matches.map((match) => this.dependencies.matchesRepository.upsert(match)));
+    for (const match of matches) {
+      const existing = await this.dependencies.matchesRepository.findById(match.id);
+      if (!existing && match.status !== 'scheduled') throw new Error('A new match must start in scheduled status.');
+      if (match.homeClubId === match.awayClubId) throw new Error('A match requires two distinct clubs.');
+      if (existing && existing.status !== 'scheduled' && (existing.homeClubId !== match.homeClubId || existing.awayClubId !== match.awayClubId || existing.season !== match.season || existing.refereeId !== match.refereeId)) throw new Error('Cannot reassign a match after its workflow has started.');
+      await this.dependencies.matchesRepository.upsert({ ...match, status: existing?.status ?? match.status });
+      if (this.dependencies.matchSheetsRepository) {
+        const sheets = await this.dependencies.matchSheetsRepository.listByMatch(match.id);
+        for (const clubId of [match.homeClubId, match.awayClubId]) {
+          if (!sheets.some((sheet) => sheet.clubId === clubId)) await this.dependencies.matchSheetsRepository.create({ id: randomUUID(), matchId: match.id, clubId, status: 'draft', submittedAt: null });
+        }
+      }
+    }
     return matches.length;
   }
 

@@ -1,6 +1,6 @@
 import type { Match, MatchStatus, UUID } from '../domain/index.js';
 import type { EventPublisher } from '../events/index.js';
-import type { MatchRepositoryPort } from '../repositories/index.js';
+import type { MatchRepositoryPort, RecognitionRepositoryPort } from '../repositories/index.js';
 
 const allowedMatchStatusTransitions: Readonly<Record<MatchStatus, readonly MatchStatus[]>> = {
   scheduled: ['in_progress', 'cancelled'],
@@ -26,6 +26,7 @@ export class InvalidMatchStatusTransitionError extends Error {
 export interface MatchServiceDependencies {
   readonly eventPublisher?: EventPublisher;
   readonly matchesRepository: MatchRepositoryPort;
+  readonly recognitionsRepository?: RecognitionRepositoryPort;
 }
 
 export class MatchService {
@@ -56,6 +57,11 @@ export class MatchService {
 
     if (match.status === nextStatus) {
       return match;
+    }
+
+    if ((nextStatus === 'in_progress' || nextStatus === 'completed') && this.dependencies.recognitionsRepository) {
+      const workflow = await this.dependencies.recognitionsRepository.getWorkflowByMatch(matchId);
+      if (workflow.status !== 'locked') throw new Error('Recognition must be completed before advancing the match.');
     }
 
     if (!allowedMatchStatusTransitions[match.status].includes(nextStatus)) {
