@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { Pool } from 'pg';
+import { postgresTlsOptions } from '../src/cloud/postgres-tls.ts';
 
 // Accounts are created/invited in Supabase Auth separately. This command only
 // assigns application scopes and preserves the original application's actor ID.
@@ -14,7 +15,7 @@ if (!uuid.test(profile.id) || !uuid.test(profile.actorId) || typeof profile.emai
   ['clubIds', 'federationIds', 'refereeIds', 'authorizedMatchIds'].some((name) => !Array.isArray(profile[name]) || profile[name].some((id) => !uuid.test(id)))) {
   throw new Error('Invalid profile. Specify all scope arrays explicitly.');
 }
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+const pool = new Pool(postgresTlsOptions({ connectionString: process.env.DATABASE_URL, max: 1 }));
 const client = await pool.connect();
 try {
   await client.query('BEGIN');

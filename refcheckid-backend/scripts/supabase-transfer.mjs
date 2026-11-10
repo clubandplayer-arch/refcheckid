@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve, join, sep } from 'node:path';
 import { Pool } from 'pg';
+import { postgresTlsOptions } from '../src/cloud/postgres-tls.ts';
 
 const args = process.argv.slice(2);
 const apply = args.includes('--apply');
@@ -59,7 +60,7 @@ async function storage(path, init = {}) {
   const headers = { apikey: serverKey, ...(!serverKey.startsWith('sb_secret_') ? { authorization: `Bearer ${serverKey}` } : {}), ...init.headers };
   return fetch(`${origin.origin}/storage/v1${path}`, { ...init, headers, redirect: 'error', signal: AbortSignal.timeout(20_000) });
 }
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+const pool = new Pool(postgresTlsOptions({ connectionString: process.env.DATABASE_URL, max: 1 }));
 const client = await pool.connect();
 try {
   await client.query('BEGIN');
