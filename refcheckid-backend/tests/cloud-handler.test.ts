@@ -3,7 +3,7 @@ const mocks = vi.hoisted(() => ({ handle: vi.fn() }));
 vi.mock('../src/config/application-container.js', () => ({ createApplicationContainer: vi.fn() }));
 vi.mock('../src/api/router.js', () => ({ createRestApiRouter: () => ({ handle: mocks.handle }) }));
 import { handleCloudRequest } from '../src/cloud/vercel-handler.js';
-afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); vi.restoreAllMocks(); });
 
 it('fails closed when cloud runtime is missing and never falls back to local SQLite', async () => {
   vi.stubEnv('REFCHECKID_RUNTIME', '');
@@ -30,8 +30,11 @@ it('passes API context through and rejects oversized or base64 requests before t
 });
 
 it('does not expose internal database errors or credentials', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   vi.stubEnv('REFCHECKID_RUNTIME', 'supabase');
   mocks.handle.mockRejectedValue(new Error('postgresql://sensitive-credentials'));
   const response = await handleCloudRequest(new Request('https://app.example/api/health'));
   expect(response.status).toBe(503); expect(await response.text()).not.toContain('sensitive');
+  expect(response.headers.get('x-refcheckid-error-id')).toMatch(/^[a-f\d-]{36}$/);
+  expect(JSON.stringify(log.mock.calls)).not.toContain('sensitive');
 });
