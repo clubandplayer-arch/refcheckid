@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Pool, type PoolClient, type PoolConfig } from 'pg';
 import type { RuntimePersistence } from '../repositories/runtime-persistence.js';
+import { postgresTlsOptions } from './postgres-tls.js';
 
 /** Durable PostgreSQL store. No request state is kept in Vercel's filesystem. */
 export class PostgresStore implements RuntimePersistence {
@@ -9,7 +10,7 @@ export class PostgresStore implements RuntimePersistence {
 
   constructor(config: PoolConfig, pool?: Pool) {
     this.pool = pool ?? new Pool({ max: 2, idleTimeoutMillis: 10_000,
-      connectionTimeoutMillis: 10_000, ...config });
+      connectionTimeoutMillis: 10_000, ...postgresTlsOptions(config) });
     // Avoid unhandled idle connection errors; queries still reject normally.
     this.pool.on('error', () => console.error('[RefCheckID] PostgreSQL idle connection failed'));
   }

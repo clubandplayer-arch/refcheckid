@@ -5,6 +5,7 @@ import { SupabaseRequestError } from './supabase-http.js';
 // Never log error messages, stack traces, URLs, request bodies or configuration
 // values. PostgreSQL and URL parsers can include credentials in those fields.
 const databaseCodes: Record<string, string> = {
+  CONFIG_DATABASE_CA_INVALID: 'CONFIG_DATABASE_CA_INVALID',
   MODULE_NOT_FOUND: 'RUNTIME_DEPENDENCY_MISSING', ERR_MODULE_NOT_FOUND: 'RUNTIME_DEPENDENCY_MISSING',
   ERR_UNKNOWN_BUILTIN_MODULE: 'RUNTIME_NODE_VERSION_UNSUPPORTED', EROFS: 'RUNTIME_READONLY_FILESYSTEM',
   'XX000': 'DATABASE_PROVIDER_ERROR',

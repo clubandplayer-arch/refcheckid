@@ -65,6 +65,7 @@ Variables**, senza prefisso `NEXT_PUBLIC_` per i segreti:
 | `SUPABASE_URL` | URL HTTPS del progetto |
 | `SUPABASE_SERVER_KEY` | Secret key server o legacy service_role, mai anon/publishable |
 | `DATABASE_URL` | Connection string Supavisor transaction pooler, porta 6543, con `sslmode=verify-full` |
+| `SUPABASE_DB_CA_CERT` | Certificato CA PEM scaricato dalle impostazioni SSL database Supabase; necessario se la catena non è nel trust store Node |
 | `AUTH_SECRET` | Valore casuale nuovo di almeno 32 caratteri per firmare URL foto |
 | `REFCHECKID_DEMO_AUTO_BOOTSTRAP` | `false` |
 | `NEXT_PUBLIC_API_BASE_URL` | `/api/v1` |
@@ -190,3 +191,21 @@ Codice, migrazione e strumenti sono verificabili localmente. La creazione dei
 progetti, migrazione SQL remota, trasferimento effettivo, provisioning account,
 deploy Preview e verifica su Supabase/Vercel reali richiedono accessi configurati.
 Non sono dichiarati eseguiti da questo documento.
+
+## Diagnosi TLS del database
+
+`TLS_UNTRUSTED_CERTIFICATE` indica che Node non riconosce la CA presentata
+dal database. Scaricare il certificato CA dal progetto Supabase, sezione
+impostazioni database/SSL, e copiare l'intero PEM (incluse le righe
+`BEGIN CERTIFICATE` e `END CERTIFICATE`) nella variabile server
+`SUPABASE_DB_CA_CERT` su Vercel, per gli ambienti del progetto staging.
+Il certificato CA è pubblico; non usare chiavi private o certificati da fonti
+non verificate. Ripetere il deploy dopo avere salvato la variabile.
+
+La URL mantiene `sslmode=verify-full`. Internamente il driver riceve la CA
+esplicita con `rejectUnauthorized=true`; i parametri SSL della URL vengono
+rimossi dalla copia passata a pg perché altrimenti sovrascriverebbero la CA.
+La verifica di catena e hostname resta attiva. Non impostare
+`NODE_TLS_REJECT_UNAUTHORIZED=0`, `sslmode=no-verify` o `rejectUnauthorized=false`.
+I CLI di trasferimento/provisioning condividono lo stesso helper tramite il
+supporto TypeScript nativo di Node 24.
