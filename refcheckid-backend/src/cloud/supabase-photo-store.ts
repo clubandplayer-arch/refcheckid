@@ -30,7 +30,7 @@ export class SupabasePhotoObjectStore implements PhotoObjectStore {
 
   async putObject(key: string, bytes: Buffer): Promise<void> {
     await supabaseRequest(`/storage/v1/object/${this.bucket}/${objectPath(key)}`, {
-      method: 'POST', headers: { 'content-type': 'application/octet-stream', 'x-upsert': 'false' },
+      method: 'POST', headers: { 'content-type': key.endsWith('.webp') ? 'image/webp' : 'application/octet-stream', 'x-upsert': 'false' },
       body: new Uint8Array(bytes),
     });
   }

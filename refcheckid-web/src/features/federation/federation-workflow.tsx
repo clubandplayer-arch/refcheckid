@@ -15,10 +15,13 @@ import {
   fetchFederationReports,
   approvePhotoRequest,
   federationRejectReasonCodes,
-  fetchPhotoRequests,
+  fetchPhotoRequestPage,
+  fetchPhotoApprovalClubs,
+  type PhotoRequestPage,
   rejectPhotoRequest,
 } from "@/lib/federation-api-client";
 import type {
+  FederationDashboard,
   FederationHistoryItem,
   FederationMatchListItem,
   FederationReport,
@@ -685,7 +688,7 @@ function ReadOnlyNotes({
   );
 }
 
-function PhotoRequestsPanel() {
+export function PhotoRequestsPanel() {
   const queryClient = useQueryClient();
   const { notify } = useToast();
   const [statusFilter, setStatusFilter] = useState<PhotoRequestStatus | "all">(
@@ -693,18 +696,17 @@ function PhotoRequestsPanel() {
   );
   const [slaFilter, setSlaFilter] = useState("all");
   const [clubFilter, setClubFilter] = useState("");
+  const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const clubsQuery = useQuery({ queryKey: [...queryKeys.federation, "photo-clubs"], queryFn: fetchPhotoApprovalClubs, staleTime: 300_000 });
   const query = useQuery({
-    queryFn: () =>
-      fetchPhotoRequests({
-        clubId: clubFilter.trim() || undefined,
-        sla: slaFilter as "all" | "overdue" | "on_track" | "not_set" | "closed",
-        status: statusFilter,
-      }),
-    queryKey: [...queryKeys.photos, statusFilter, slaFilter, clubFilter],
+    queryFn: () => fetchPhotoRequestPage({
+      clubId: clubFilter || undefined,
+      sla: slaFilter as "all" | "overdue" | "on_track" | "not_set" | "closed",
+      status: statusFilter,
+    }, cursors.at(-1) ?? null),
+    queryKey: [...queryKeys.photos, "page", statusFilter, slaFilter, clubFilter, cursors.at(-1)],
+    staleTime: 60_000,
   });
-  const [localStatuses, setLocalStatuses] = useState<
-    Record<string, PhotoRequestStatus>
-  >({});
 
   async function transitionRequest(
     requestId: string,
@@ -712,21 +714,25 @@ function PhotoRequestsPanel() {
     reasonCode = status === "approved" ? "identity_verified" : "quality_issue",
     notes = "Decisione operatore federale",
   ) {
-    if (status === "approved") {
-      await approvePhotoRequest(requestId, reasonCode);
-    } else {
-      await rejectPhotoRequest(requestId, reasonCode, notes);
+    try {
+      if (status === "approved") await approvePhotoRequest(requestId, reasonCode);
+      else await rejectPhotoRequest(requestId, reasonCode, notes);
+      queryClient.setQueriesData<PhotoRequestPage>({ queryKey: [...queryKeys.photos, "page", statusFilter, slaFilter, clubFilter] }, (page) => {
+        if (!page) return page;
+        return { ...page, total: Math.max(0, page.total - ((page.filterStatus ?? statusFilter) === "pending" ? 1 : 0)),
+          items: page.items.map((item) => item.id === requestId ? { ...item, status } : item) };
+      });
+      queryClient.setQueryData<FederationDashboard>([...queryKeys.federation, "dashboard"], (dashboard) => dashboard
+        ? { ...dashboard, pendingPhotoRequests: Math.max(0, dashboard.pendingPhotoRequests - 1),
+            notifications: dashboard.notifications.map((line) => line.includes("richieste foto") ? `${Math.max(0, dashboard.pendingPhotoRequests - 1)} richieste foto in attesa` : line) } : dashboard);
+      notify(status === "approved" ? "Nuova foto approvata e resa disponibile al Club" : "Nuova foto rifiutata: il Club mantiene la foto attuale", "success");
+      // Mark stale without reloading the list or every full-size photo after each decision.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.photos, refetchType: "none" });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.players, refetchType: "none" });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.staff, refetchType: "none" });
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Decisione non riuscita. Riprova.", "error");
     }
-    setLocalStatuses((current) => ({ ...current, [requestId]: status }));
-    notify(
-      status === "approved"
-        ? "Nuova foto approvata e resa disponibile al Club"
-        : "Nuova foto rifiutata: il Club mantiene la foto attuale",
-      "success",
-    );
-    void queryClient.invalidateQueries({ queryKey: queryKeys.photos });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.players });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.staff });
   }
 
   if (query.isLoading) return <SkeletonBlock />;
@@ -737,10 +743,7 @@ function PhotoRequestsPanel() {
         onRetry={() => void query.refetch()}
       />
     );
-  const requests = (query.data ?? []).map((request) => ({
-    ...request,
-    status: localStatuses[request.id] ?? request.status,
-  }));
+  const requests = query.data?.items ?? [];
   return (
     <Card className="space-y-4">
       <div>
@@ -754,9 +757,7 @@ function PhotoRequestsPanel() {
           Stato
           <select
             className="w-full rounded-lg border bg-background px-3 py-2"
-            onChange={(event) =>
-              setStatusFilter(event.target.value as PhotoRequestStatus | "all")
-            }
+            onChange={(event) => { setStatusFilter(event.target.value as PhotoRequestStatus | "all"); setCursors([null]); }}
             value={statusFilter}
           >
             {[
@@ -777,7 +778,7 @@ function PhotoRequestsPanel() {
           SLA
           <select
             className="w-full rounded-lg border bg-background px-3 py-2"
-            onChange={(event) => setSlaFilter(event.target.value)}
+            onChange={(event) => { setSlaFilter(event.target.value); setCursors([null]); }}
             value={slaFilter}
           >
             {["all", "overdue", "on_track", "not_set", "closed"].map((sla) => (
@@ -789,12 +790,20 @@ function PhotoRequestsPanel() {
         </label>
         <label className="space-y-1 text-sm font-medium">
           Società
-          <Input
-            onChange={(event) => setClubFilter(event.target.value)}
-            placeholder="Club ID"
-            value={clubFilter}
-          />
+          <select className="w-full rounded-lg border bg-background px-3 py-2" value={clubFilter}
+            onChange={(event) => { setClubFilter(event.target.value); setCursors([null]); }}>
+            <option value="">Tutte le società</option>
+            {(clubsQuery.data ?? []).map((club) => <option key={club.id} value={club.id}>{club.name}</option>)}
+          </select>
         </label>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm" aria-live="polite">
+        <span>{query.data?.total ?? 0} richieste · Pagina {cursors.length}</span>
+        <div className="flex gap-2">
+          <Button type="button" disabled={query.isFetching} onClick={() => void query.refetch()}>Aggiorna elenco</Button>
+          <Button type="button" disabled={cursors.length === 1 || query.isFetching} onClick={() => setCursors((values) => values.slice(0, -1))}>Precedente</Button>
+          <Button type="button" disabled={!query.data?.nextCursor || query.isFetching} onClick={() => setCursors((values) => [...values, query.data!.nextCursor])}>Successiva</Button>
+        </div>
       </div>
       {requests.length === 0 ? (
         <EmptyState message="Nessuna richiesta foto." />
@@ -826,6 +835,13 @@ function PhotoRequestCard({
 }>) {
   const [reasonCode, setReasonCode] = useState("quality_issue");
   const [notes, setNotes] = useState("");
+  const [decision, setDecision] = useState<"approved" | "rejected" | null>(null);
+  async function decide(status: "approved" | "rejected") {
+    if (decision) return;
+    setDecision(status);
+    try { await transitionRequest(request.id, status, status === "approved" ? "identity_verified" : reasonCode, notes); }
+    finally { setDecision(null); }
+  }
   return (
     <div className="space-y-3 rounded-xl border p-4">
       <div className="flex items-start justify-between gap-3">
@@ -847,10 +863,11 @@ function PhotoRequestCard({
         <StatusBadge label={request.status} />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <PhotoBox label="Foto attuale" photoUrl={request.currentPhotoUrl} />
+        <PhotoBox label={request.status === "approved" ? "Foto precedente" : "Foto attuale"} photoUrl={request.currentPhotoUrl} fullPhotoUrl={request.currentFullPhotoUrl} />
         <PhotoBox
-          label="Nuova foto da approvare"
+          label={request.status === "approved" ? "Foto approvata" : "Nuova foto da approvare"}
           photoUrl={request.proposedPhotoUrl}
+          fullPhotoUrl={request.proposedFullPhotoUrl}
         />
       </div>
       {request.status === "rejected" ? (
@@ -868,7 +885,7 @@ function PhotoRequestCard({
       <div className="grid gap-2 sm:grid-cols-2">
         <select
           className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-          disabled={request.status !== "pending"}
+          disabled={request.status !== "pending" || decision !== null}
           onChange={(event) => setReasonCode(event.target.value)}
           value={reasonCode}
         >
@@ -879,27 +896,25 @@ function PhotoRequestCard({
           ))}
         </select>
         <Input
-          disabled={request.status !== "pending"}
+          disabled={request.status !== "pending" || decision !== null}
           onChange={(event) => setNotes(event.target.value)}
           placeholder="Note rigetto"
           value={notes}
         />
         <Button
-          disabled={request.status !== "pending"}
-          onClick={() => transitionRequest(request.id, "approved")}
+          disabled={request.status !== "pending" || decision !== null}
+          onClick={() => void decide("approved")}
           type="button"
         >
-          Approva
+          {decision === "approved" ? "Approvazione…" : "Approva"}
         </Button>
         <Button
           className="bg-red-600"
-          disabled={request.status !== "pending"}
-          onClick={() =>
-            transitionRequest(request.id, "rejected", reasonCode, notes)
-          }
+          disabled={request.status !== "pending" || decision !== null}
+          onClick={() => void decide("rejected")}
           type="button"
         >
-          Rifiuta
+          {decision === "rejected" ? "Rifiuto…" : "Rifiuta"}
         </Button>
       </div>
     </div>
@@ -909,7 +924,8 @@ function PhotoRequestCard({
 function PhotoBox({
   label,
   photoUrl,
-}: Readonly<{ label: string; photoUrl: string | null }>) {
+  fullPhotoUrl,
+}: Readonly<{ label: string; photoUrl: string | null; fullPhotoUrl?: string | null | undefined }>) {
   return (
     <div className="space-y-2">
       <p className="text-sm font-semibold">{label}</p>
@@ -917,13 +933,18 @@ function PhotoBox({
         {photoUrl ? (
           <img
             alt={label}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
+            loading="lazy"
+            decoding="async"
+            width={320}
+            height={320}
             src={photoUrl}
           />
         ) : (
           "Nessuna immagine"
         )}
       </div>
+      {fullPhotoUrl ? <a className="text-sm text-blue-700 underline" href={fullPhotoUrl} target="_blank" rel="noopener noreferrer">Apri immagine completa</a> : null}
     </div>
   );
 }

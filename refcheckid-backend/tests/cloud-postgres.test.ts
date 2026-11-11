@@ -121,3 +121,16 @@ it('rolls back a command even when its operation catches a failed SQL statement'
   })).rejects.toThrow();
   expect(await store.get('clubs', 'rolled-back')).toBeNull();
 });
+
+it('keeps photo queue read transactions read-only and outside the global command lock', async () => {
+  const { db, store } = await setup();
+  const query = vi.spyOn(db, 'query');
+  await store.readTransaction(async () => {
+    expect(await store.list('clubs')).toEqual([]);
+    await expect(store.put('clubs', { id: 'forbidden' })).rejects.toThrow('read-only');
+  });
+  expect(query.mock.calls.some(([sql]) => sql === 'BEGIN READ ONLY')).toBe(true);
+  expect(query.mock.calls.some(([sql]) => sql.includes('pg_advisory_xact_lock'))).toBe(false);
+  expect(await store.get('clubs', 'forbidden')).toBeNull();
+  query.mockRestore();
+});

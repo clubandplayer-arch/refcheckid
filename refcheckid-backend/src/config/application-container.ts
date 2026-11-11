@@ -94,13 +94,13 @@ export interface ApplicationContainer {
   };
 }
 
-export function createApplicationContainer(options: { databasePath?: string; seedDemo?: boolean } = {}): ApplicationContainer {
+export function createApplicationContainer(options: { databasePath?: string; seedDemo?: boolean; store?: RuntimePersistence } = {}): ApplicationContainer {
   const test = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
   const cloud = cloudEnabled();
   if (process.env.VERCEL && !cloud) throw new Error("Vercel requires REFCHECKID_RUNTIME=supabase.");
   if (cloud) validateCloudConfiguration();
-  const store: RuntimePersistence = cloud ? new PostgresStore({ connectionString: process.env.DATABASE_URL! }) : new RuntimeStore(options.databasePath ?? process.env.REFCHECKID_DATABASE_PATH ??
-    (test ? ':memory:' : storagePath('refcheckid.sqlite')));
+  const store: RuntimePersistence = options.store ?? (cloud ? new PostgresStore({ connectionString: process.env.DATABASE_URL! }) : new RuntimeStore(options.databasePath ?? process.env.REFCHECKID_DATABASE_PATH ??
+    (test ? ':memory:' : storagePath('refcheckid.sqlite'))));
   const seedDemo = cloud ? false : options.seedDemo ?? process.env.NODE_ENV !== 'production';
   const legacy = <T>(table: string, file: string): readonly T[] => {
     if (cloud) return [];

@@ -5,9 +5,9 @@ function signature(id: string, rendition: string, expires: string): string {
     .update(`photo-content:${id}:${rendition}:${expires}`).digest('base64url');
 }
 
-export function signedPhotoContentUrl(id: string): string {
+export function signedPhotoContentUrl(id: string, rendition: 'normalized' | 'thumb_320' = 'normalized'): string {
   const expires = String(Math.floor(Date.now() / 1000) + 900);
-  return `/api/v1/photos/versions/${id}/content?rendition=normalized&expires=${expires}&signature=${signature(id, 'normalized', expires)}`;
+  return `/api/v1/photos/versions/${id}/content?rendition=${rendition}&expires=${expires}&signature=${signature(id, rendition, expires)}`;
 }
 
 export function validPhotoContentToken(id: string, query: Record<string, string | undefined>): boolean {

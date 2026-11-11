@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { Pool, type PoolClient, type PoolConfig, type QueryResult, type QueryResultRow } from 'pg';
 import type { RuntimePersistence } from '../repositories/runtime-persistence.js';
 import { postgresTlsOptions } from './postgres-tls.js';
+import { photoApprovalPageSql, type PhotoApprovalPageQuery, type PhotoApprovalPageResult } from '../repositories/photo-approval-page.js';
 
 interface TransactionContext {
   client: PoolClient;
@@ -10,6 +11,7 @@ interface TransactionContext {
   queue: Promise<void>;
   failed: boolean;
   failure: unknown;
+  readOnly: boolean;
 }
 
 /** Durable PostgreSQL store. No request state is kept in Vercel's filesystem. */
@@ -77,6 +79,7 @@ export class PostgresStore implements RuntimePersistence {
   async put<T extends { id: string }>(name: string, row: T): Promise<void> {
     const context = this.context.getStore();
     if (!context) throw new Error('Cloud writes require a command transaction.');
+    if (context.readOnly) throw new Error('Writes are forbidden in a read-only transaction.');
     await this.query(`INSERT INTO refcheckid.entities(repository,id,document) VALUES ($1,$2,$3::jsonb)
       ON CONFLICT(repository,id) DO UPDATE SET document=excluded.document`, [name, row.id, JSON.stringify(row)]);
     context.lists.delete(name);
@@ -84,18 +87,39 @@ export class PostgresStore implements RuntimePersistence {
   }
 
   async transaction<T>(operation: () => Promise<T>): Promise<T> {
+    return this.runTransaction(operation, false);
+  }
+
+  async readTransaction<T>(operation: () => Promise<T>): Promise<T> {
+    return this.runTransaction(operation, true);
+  }
+
+  async find<T>(name: string, filter: Record<string, unknown>): Promise<readonly T[]> {
+    const result = await this.query<{ document: T }>(
+      'SELECT document FROM refcheckid.entities WHERE repository=$1 AND document @> $2::jsonb ORDER BY ordinal', [name, JSON.stringify(filter)]);
+    return result.rows.map((row) => row.document);
+  }
+
+  async photoApprovalPage(input: PhotoApprovalPageQuery): Promise<PhotoApprovalPageResult> {
+    const result = await this.query<PhotoApprovalPageResult>(photoApprovalPageSql,
+      [input.federationIds, input.status ?? null, input.clubId ?? null, input.sla ?? null, input.now,
+        input.afterRequestedAt ?? null, input.afterId ?? null, input.limit]);
+    return result.rows[0];
+  }
+
+  private async runTransaction<T>(operation: () => Promise<T>, readOnly: boolean): Promise<T> {
     if (this.context.getStore()) return operation();
     const client = await this.pool.connect();
     const context: TransactionContext = { client, lists: new Map(), entities: new Map(),
-      queue: Promise.resolve(), failed: false, failure: undefined };
+      queue: Promise.resolve(), failed: false, failure: undefined, readOnly };
     try {
-      await client.query('BEGIN');
+      await client.query(readOnly ? 'BEGIN READ ONLY' : 'BEGIN');
       // All application instances use this lock. Preserve existing read/check/write
       // invariants (one active photo, immutable submitted sheets, refresh rotation).
       // A pilot starts serialized; per-match locks require a separate load-tested change.
       await client.query("SET LOCAL lock_timeout = '10s'");
       await client.query("SET LOCAL statement_timeout = '20s'");
-      await client.query('SELECT pg_advisory_xact_lock(724391, 1)');
+      if (!readOnly) await client.query('SELECT pg_advisory_xact_lock(724391, 1)');
       const result = await this.context.run(context, operation);
       await context.queue;
       if (context.failed) throw context.failure;

@@ -100,11 +100,7 @@ export class PhotoSubjectRepository extends PersistentPhotoRepository<PhotoSubje
   }
 
   async findByDedupeKeyHash(dedupeKeyHash: string): Promise<PhotoSubject | null> {
-    return Promise.resolve(
-      (await this.values()).find(
-        (subject) => subject.dedupeKeyHash === dedupeKeyHash && subject.deletedAt === null,
-      ) ?? null,
-    );
+    return (await this.matching({ dedupeKeyHash, deletedAt: null }))[0] ?? null;
   }
 }
 
@@ -114,11 +110,7 @@ export class GlobalOfficialPhotoRepository extends PersistentPhotoRepository<Glo
   }
 
   async findBySubject(photoSubjectId: UUID): Promise<GlobalOfficialPhoto | null> {
-    return Promise.resolve(
-      (await this.values()).find(
-        (photo) => photo.photoSubjectId === photoSubjectId && photo.deletedAt === null,
-      ) ?? null,
-    );
+    return (await this.matching({ photoSubjectId, deletedAt: null }))[0] ?? null;
   }
 
   async listActiveBySubject(photoSubjectId: UUID): Promise<readonly GlobalOfficialPhoto[]> {
@@ -150,14 +142,7 @@ export class SeasonRegistrationPhotoRepository extends PersistentPhotoRepository
     registrationId: UUID,
     seasonId: string,
   ): Promise<SeasonRegistrationPhoto | null> {
-    return Promise.resolve(
-      (await this.values()).find(
-        (photo) =>
-          photo.registrationId === registrationId &&
-          photo.seasonId === seasonId &&
-          photo.deletedAt === null,
-      ) ?? null,
-    );
+    return (await this.matching({ registrationId, seasonId, deletedAt: null }))[0] ?? null;
   }
 
   async listByFederation(federationId: UUID): Promise<readonly SeasonRegistrationPhoto[]> {
@@ -169,11 +154,7 @@ export class SeasonRegistrationPhotoRepository extends PersistentPhotoRepository
   }
 
   async listByVersion(photoVersionId: UUID): Promise<readonly SeasonRegistrationPhoto[]> {
-    return Promise.resolve(
-      (await this.values()).filter(
-        (photo) => photo.effectiveVersionId === photoVersionId && photo.deletedAt === null,
-      ),
-    );
+    return this.matching({ effectiveVersionId: photoVersionId, deletedAt: null });
   }
 }
 
@@ -183,23 +164,11 @@ export class PhotoVersionRepository extends PersistentPhotoRepository<PhotoVersi
   }
 
   async listByGlobalPhoto(globalOfficialPhotoId: UUID): Promise<readonly PhotoVersion[]> {
-    return Promise.resolve(
-      (await this.values()).filter(
-        (version) =>
-          version.globalOfficialPhotoId === globalOfficialPhotoId && version.deletedAt === null,
-      ),
-    );
+    return this.matching({ globalOfficialPhotoId, deletedAt: null });
   }
 
   async listActiveByGlobalPhoto(globalOfficialPhotoId: UUID): Promise<readonly PhotoVersion[]> {
-    return Promise.resolve(
-      (await this.values()).filter(
-        (version) =>
-          version.globalOfficialPhotoId === globalOfficialPhotoId &&
-          version.status === 'active' &&
-          version.deletedAt === null,
-      ),
-    );
+    return this.matching({ globalOfficialPhotoId, status: 'active', deletedAt: null });
   }
 }
 
@@ -212,34 +181,15 @@ export class PhotoApprovalRepository extends PersistentPhotoRepository<PhotoAppr
     registrationId: UUID,
     seasonId: string,
   ): Promise<readonly PhotoApproval[]> {
-    return Promise.resolve(
-      (await this.values()).filter(
-        (approval) =>
-          approval.registrationId === registrationId &&
-          approval.seasonId === seasonId &&
-          approval.status === 'pending' &&
-          approval.deletedAt === null,
-      ),
-    );
+    return this.matching({ registrationId, seasonId, status: 'pending', deletedAt: null });
   }
 
   async listPendingByRegistration(registrationId: UUID): Promise<readonly PhotoApproval[]> {
-    return Promise.resolve(
-      (await this.values()).filter(
-        (approval) =>
-          approval.registrationId === registrationId &&
-          approval.status === 'pending' &&
-          approval.deletedAt === null,
-      ),
-    );
+    return this.matching({ registrationId, status: 'pending', deletedAt: null });
   }
 
   async listByFederation(federationId: UUID): Promise<readonly PhotoApproval[]> {
-    return Promise.resolve(
-      (await this.values()).filter(
-        (approval) => approval.federationId === federationId && approval.deletedAt === null,
-      ),
-    );
+    return this.matching({ federationId, deletedAt: null });
   }
 }
 
