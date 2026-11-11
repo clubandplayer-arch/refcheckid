@@ -37,8 +37,8 @@ describe("regression: manager photo capture flow", () => {
     );
     expect(source).toContain("Foto ufficiale corrente");
     expect(source).toContain("Missing");
-    expect(source).toContain("backend è la Source of Truth");
-    expect(source).toContain("Upload Intent");
+    expect(source).toContain("La dirigenza carica solo la foto");
+    expect(source).toContain("anno solare");
   });
 
   it("opens crop controls before saving the photo", () => {

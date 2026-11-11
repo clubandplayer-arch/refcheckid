@@ -560,8 +560,8 @@ function RecognitionStep({
         <div>
           <h2 className="text-xl font-bold">Riconoscimento</h2>
           <p className="text-sm text-slate-500">
-            Controlla foto, dati e documento. Conferma il tesserato o torna
-            indietro per rivedere.
+            Confronta il volto con la foto approvata dalla federazione.
+            In caso di dubbio puoi chiedere un documento: la verifica non è obbligatoria.
           </p>
         </div>
         <span className="rounded-full bg-muted px-3 py-2 text-sm">
@@ -630,12 +630,12 @@ function RecognitionStep({
             onClick={() => setShowDocument((current) => !current)}
             type="button"
           >
-            <span className="font-semibold">Documento</span>
+            <span className="font-semibold">Documento — verifica facoltativa</span>
             {showDocument ? (
               <dl className="mt-3 grid gap-2 text-sm text-slate-600">
                 <div className="flex justify-between">
                   <dt>Tipo</dt>
-                  <dd>{currentSubject.document.type}</dd>
+                  <dd>{currentSubject.document.type === "Documento da verificare dal vivo" ? "Da richiedere solo in caso di dubbio" : currentSubject.document.type}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt>Numero</dt>
@@ -644,7 +644,7 @@ function RecognitionStep({
               </dl>
             ) : (
               <p className="mt-1 text-sm text-slate-500">
-                Tocca per aprire i dati documento.
+                Solo in caso di dubbio: puoi chiedere il documento a conferma dell’identità.
               </p>
             )}
           </button>
