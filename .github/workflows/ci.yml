@@ -25,6 +25,10 @@ jobs:
         run: pnpm -C refcheckid-web install --frozen-lockfile
       - name: Lint
         run: pnpm lint
+      - name: Typecheck application and tests
+        run: |
+          pnpm -C refcheckid-backend typecheck
+          pnpm -C refcheckid-web exec tsc --noEmit
       - name: Unit tests
         run: pnpm test:unit
       - name: Integration tests
