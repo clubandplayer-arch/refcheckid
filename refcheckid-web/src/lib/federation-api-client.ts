@@ -11,17 +11,14 @@ import type {
 } from "./federation-types";
 
 export async function fetchFederationDashboard(): Promise<FederationDashboard> {
-  const [reports, photos, matches] = await Promise.all([
+  const [reports, pendingPhotoRequests, matches] = await Promise.all([
     fetchFederationReports(),
-    fetchPhotoRequests(),
+    fetchPhotoRequestCount(),
     fetchFederationMatches(),
   ]);
   const pendingMatches = matches.filter(
     (match) =>
       match.reportStatus !== "submitted" && match.reportStatus !== "reviewed",
-  ).length;
-  const pendingPhotoRequests = photos.filter(
-    (photo) => photo.status === "pending",
   ).length;
   return {
     matchesPending: pendingMatches,
@@ -77,6 +74,8 @@ export interface ApiPhotoApproval {
   currentVersionId?: string | null;
   proposedVersionId?: string | null;
   currentPhotoUrl?: string | null;
+  currentFullPhotoUrl?: string | null;
+  proposedFullPhotoUrl?: string | null;
   proposedPhotoUrl?: string | null;
   photoEtag?: string | null;
   slaStatus?: string | null;
@@ -109,6 +108,32 @@ export async function fetchPhotoRequests(
     `/photo-approvals${query ? `?${query}` : ""}`,
   );
   return approvals.map(toPhotoRequest);
+}
+
+export interface PhotoRequestPage {
+  filterStatus?: PhotoRequestStatus | "all";
+  items: readonly PhotoRequest[];
+  total: number;
+  nextCursor: string | null;
+}
+
+export async function fetchPhotoRequestCount(): Promise<number> {
+  const result = await request<{ pending: number }>("/photo-approvals/summary");
+  return result.pending;
+}
+
+export async function fetchPhotoRequestPage(filters: PhotoRequestFilters = {}, cursor: string | null = null): Promise<PhotoRequestPage> {
+  const params = new URLSearchParams();
+  if (filters.status && filters.status !== "all") params.set("status", filters.status);
+  if (filters.sla && filters.sla !== "all") params.set("sla", filters.sla);
+  if (filters.clubId) params.set("clubId", filters.clubId);
+  if (cursor) params.set("cursor", cursor);
+  const page = await request<{ items: ApiPhotoApproval[]; total: number; nextCursor: string | null }>(`/photo-approvals/page?${params}`);
+  return { ...page, filterStatus: filters.status ?? "all", items: page.items.map(toPhotoRequest) };
+}
+
+export function fetchPhotoApprovalClubs(): Promise<readonly { id: string; name: string }[]> {
+  return request("/clubs");
 }
 
 export function approvePhotoRequest(
@@ -471,6 +496,8 @@ function toPhotoRequest(approval: ApiPhotoApproval): PhotoRequest {
     proposedPhotoUrl:
       normalizeBrowserPhotoUrl(approval.proposedPhotoUrl) ??
       photoVersionContentUrl(approval.proposedVersionId ?? approval.photoVersionId),
+    currentFullPhotoUrl: approval.currentFullPhotoUrl ?? null,
+    proposedFullPhotoUrl: approval.proposedFullPhotoUrl ?? null,
     requestedAt: approval.requestedAt,
     status: approval.status,
     reasonCode: approval.decisionReasonCode,

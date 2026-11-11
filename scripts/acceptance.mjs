@@ -183,6 +183,40 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('input[type="checkbox"]:checked').length === 1);
   await page.screenshot({ path: join(directory, 'manager-draft-resumed.png'), fullPage: true });
   check('Real Chromium: logout, role switch, demo reset and saved lineup draft restored after reload');
+  // Synthetic approval queue exercise; all data belongs to this temporary run.
+  const intentForReview = await api('/photos/upload-intent', home, {
+    subjectKind: participant.subjectKind, subjectId: participant.subjectId, registrationId: participant.registrationId,
+    federationId: dataset.federationSyncPayload.federations[0].id, seasonId: dataset.seasonId,
+    mimeType: 'image/png', fileSizeBytes: oldBytes.length, sha256: createHash('sha256').update(oldBytes).digest('hex'),
+  });
+  await api(`/photos/uploads/${intentForReview.intent.uploadId}/complete`, home, {
+    objectKey: intentForReview.intent.objectKey, contentBase64: oldBytes.toString('base64'),
+  });
+  await page.getByRole('button', { name: 'Logout', exact: true }).click();
+  await page.getByLabel('Email', { exact: true }).fill(dataset.auth.federation.email);
+  await page.getByLabel('Password', { exact: true }).fill(dataset.auth.federation.password);
+  await page.getByRole('button', { name: 'ACCEDI', exact: true }).click();
+  await page.waitForURL((url) => url.pathname === '/federation', { waitUntil: 'commit' });
+  let photoPageLoads = 0;
+  const countPhotoPages = (request) => { if (request.method() === 'GET' && request.url().includes('/photo-approvals/page')) photoPageLoads++; };
+  page.on('request', countPhotoPages);
+  await page.getByRole('button', { name: 'Foto', exact: true }).click();
+  await page.getByRole('button', { name: 'Approva', exact: true }).first().waitFor();
+  await page.waitForFunction(() => {
+    const images = [...document.querySelectorAll('img')];
+    return images.length >= 2 && images.every((image) => image.complete && image.naturalWidth > 0 && image.naturalWidth <= 320);
+  });
+  const pagesBeforeDecision = photoPageLoads;
+  const [decision] = await Promise.all([
+    page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/approve')),
+    page.getByRole('button', { name: 'Approva', exact: true }).first().click(),
+  ]);
+  assert.equal(decision.status(), 200);
+  await page.getByText('Foto approvata: la nuova immagine è subito disponibile al Club.', { exact: true }).waitFor();
+  assert.equal(photoPageLoads, pagesBeforeDecision);
+  await page.screenshot({ path: join(directory, 'photo-approval-no-reload.png'), fullPage: true });
+  page.off('request', countPhotoPages);
+  check('Real Chromium: bounded photo queue, decoded small previews, approval confirmation without list reload');
   assert.deepEqual(await fingerprints(join(backendRoot, 'storage/refcheckid-photos-dev')), originalPhotoState);
   assert.deepEqual(await fingerprints(join(backendRoot, 'storage/refcheckid-photo-metadata-dev')), originalMetadataState);
   check('Existing workspace photos and JSON metadata unchanged');

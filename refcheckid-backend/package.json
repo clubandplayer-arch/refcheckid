@@ -40,7 +40,8 @@
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "sharp": "0.35.5"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16",

@@ -124,6 +124,11 @@ export class DrizzleRepository<
     return this.store ? this.store.list<TEntity>(this.context.tableName) : [...this.rows.values()];
   }
 
+  protected async matching(filter: Partial<TEntity>): Promise<readonly TEntity[]> {
+    if (this.store?.find) return this.store.find<TEntity>(this.context.tableName, filter);
+    return (await this.values()).filter((row) => Object.entries(filter).every(([key, value]) => row[key as keyof TEntity] === value));
+  }
+
   private async save(row: TEntity): Promise<void> {
     if (this.store) await this.store.put(this.context.tableName, row);
     else this.rows.set(row.id, row);

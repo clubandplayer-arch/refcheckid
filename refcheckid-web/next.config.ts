@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(process.cwd(), ".."),
   reactStrictMode: true,
   transpilePackages: ["refcheckid-backend"],
-  serverExternalPackages: ["pg"],
+  serverExternalPackages: ["pg", "sharp"],
   webpack(config) {
     config.resolve.extensionAlias = { ...config.resolve.extensionAlias, ".js": [".ts", ".tsx", ".js"] };
     return config;

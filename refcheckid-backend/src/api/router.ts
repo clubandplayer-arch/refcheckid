@@ -1,4 +1,6 @@
 import { cloudEnabled } from '../cloud/config.js';
+import { photoApprovalQueue } from './photo-approval-queue.js';
+import { ensurePhotoThumbnail } from '../services/photo-thumbnail.js';
 import type { ApplicationContainer } from '../config/application-container.js';
 import { authenticateBearerToken, loginHandler, logoutHandler, meHandler, refreshHandler } from './auth.js';
 import { createControllers } from './controllers.js';
@@ -35,15 +37,22 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   });
 
   router.use(errorHandlingMiddleware);
-  router.use((next) => (request) => container.store.transaction(async () => {
+  router.use((next) => (request) => {
+    const readOnly = request.method === 'GET' && (
+      ['/api/v1/photo-approvals/page', '/api/v1/photo-approvals/summary'].includes(request.path) ||
+      /^\/api\/v1\/photos\/versions\/[^/]+\/content$/.test(request.path));
+    const operation = async () => {
     const response = await requestContext.run({ store: container.store }, () => next(request));
     // Handler error responses must roll back just like thrown domain errors.
     if (response.status >= 400) throw new RejectedResponse(response);
     return response;
-  }).catch((error: unknown) => {
+    };
+    const run = readOnly && container.store.readTransaction ? container.store.readTransaction(operation) : container.store.transaction(operation);
+    return run.catch((error: unknown) => {
     if (error instanceof RejectedResponse) return error.response;
     throw error;
-  }));
+    });
+  });
   router.use(requestIdMiddleware);
   router.use(correlationIdMiddleware);
   router.use(loggingMiddleware);
@@ -185,11 +194,12 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
       };
     }
 
-    const rendition = request.query.rendition === 'original' ? 'original' : 'normalized';
-    const objectKey =
+    const rendition = request.query.rendition === 'original' ? 'original' : request.query.rendition === 'thumb_320' ? 'thumb_320' : 'normalized';
+    let objectKey =
       rendition === 'original'
         ? version.storageOriginalKey
         : (version.storageNormalizedKey ?? version.storageOriginalKey);
+    if (rendition === 'thumb_320') objectKey = await ensurePhotoThumbnail(container.objectStores.photos, version.storageOriginalKey);
 
     if (cloudEnabled()) {
       const signed = await container.objectStores.photos.createSignedReadUrl({ objectKey, rendition,
@@ -220,7 +230,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
     const contentType =
       rendition === 'original'
         ? version.mimeType
-        : (version.normalizedMimeType ?? version.mimeType ?? 'application/octet-stream');
+        : rendition === 'thumb_320' ? 'image/webp' : (version.normalizedMimeType ?? version.mimeType ?? 'application/octet-stream');
 
     return {
       status: 200,
@@ -233,6 +243,8 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
     };
   });
   router.register('GET', '/api/v1/photo-approvals', controllers.listPhotoApprovals);
+  router.register('GET', '/api/v1/photo-approvals/page', (request) => photoApprovalQueue(container, request));
+  router.register('GET', '/api/v1/photo-approvals/summary', (request) => photoApprovalQueue(container, request, true));
   router.register('GET', '/api/v1/photo-approvals/:id', controllers.getPhotoApproval);
   router.register('POST', '/api/v1/photo-approvals/:id/approve', controllers.approvePhotoApproval);
   router.register('POST', '/api/v1/photo-approvals/:id/reject', controllers.rejectPhotoApproval);

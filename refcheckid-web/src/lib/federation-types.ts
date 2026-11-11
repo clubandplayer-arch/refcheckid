@@ -57,6 +57,8 @@ export interface PhotoRequest {
   playerName: string;
   clubName: string;
   currentPhotoUrl: string | null;
+  currentFullPhotoUrl?: string | null;
+  proposedFullPhotoUrl?: string | null;
   proposedPhotoUrl: string | null;
   status: PhotoRequestStatus;
   requestedAt: string;

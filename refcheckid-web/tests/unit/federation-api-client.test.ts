@@ -144,6 +144,7 @@ describe("regression: federation report reception", () => {
 
   it("maps backend photo approvals as the federation photo source", async () => {
     vi.mocked(request).mockImplementation(async (path: string) => {
+      if (path === "/photo-approvals/summary") return { pending: 1 };
       if (path === "/photo-approvals") {
         return [
           {
@@ -184,11 +185,12 @@ describe("regression: federation report reception", () => {
     expect(dashboard.pendingPhotoRequests).toBe(1);
     expect(dashboard.notifications).toContain("1 richieste foto in attesa");
     expect(dashboard.notifications).not.toContain("2 richieste foto");
-    expect(request).toHaveBeenCalledWith("/photo-approvals");
+    expect(request).toHaveBeenCalledWith("/photo-approvals/summary");
   });
 
   it("rewrites local file photo URLs to browser-safe version content URLs", async () => {
     vi.mocked(request).mockImplementation(async (path: string) => {
+      if (path === "/photo-approvals/summary") return { pending: 1 };
       if (path === "/photo-approvals") {
         return [
           {
