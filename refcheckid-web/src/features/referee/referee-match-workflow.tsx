@@ -62,6 +62,7 @@ const manifestQueryOptions = {
 
 export function RefereeMatchWorkflow({requestedMatchId=""}:{requestedMatchId?:string}={}) {
   const [step, setStep] = useState(0);
+  const [isPlatformGame,setIsPlatformGame]=useState<boolean|null>(null);
   const [recognitionClosed, setRecognitionClosed] = useState(false);
   const [fullRecognitionComplete, setFullRecognitionComplete] = useState(false);
   const [initialRecognitionTeamName, setInitialRecognitionTeamName] = useState<
@@ -96,7 +97,7 @@ export function RefereeMatchWorkflow({requestedMatchId=""}:{requestedMatchId?:st
 
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-      <ActiveGameUpdates matchId={matchId} />
+      <ActiveGameUpdates matchId={matchId} onResolved={setIsPlatformGame} />
       <aside className="space-y-2">
         {steps.map((label, index) => {
           const isRecognitionStepDisabled = recognitionClosed && index < 2;
@@ -137,7 +138,7 @@ export function RefereeMatchWorkflow({requestedMatchId=""}:{requestedMatchId?:st
           }}
         />
       ) : null}
-      {step === 2 ? (
+      {step === 2 ? isPlatformGame===null?<SkeletonBlock/>:isPlatformGame?<Card className="space-y-2"><h2 className="text-xl font-bold">Referto e aggiornamenti gara</h2><p>Apri Aggiornamenti gara qui sopra: registra gli eventi, conferma la fine di ogni periodo e della gara, quindi invia il referto finale.</p></Card>:(
         <MatchReportStep
           fullRecognitionComplete={fullRecognitionComplete}
           matchId={matchId}

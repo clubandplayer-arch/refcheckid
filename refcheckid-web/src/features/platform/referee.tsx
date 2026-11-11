@@ -15,6 +15,7 @@ import {
   type GameEvent,
   type Page,
 } from "./api";
+import { NotificationInbox } from "./notifications";
 import { ActionForm, Pager } from "./forms";
 import { statusName } from "./workspace";
 interface Mine extends Appointment {
@@ -62,6 +63,7 @@ export function MyAppointments() {
   return (
     <Card className="space-y-3">
       <h2 className="text-xl font-bold">Le tue designazioni</h2>
+      <NotificationInbox />
       {query.isError ? <p role="alert">{query.error.message}</p> : null}
       {error ? <p role="alert">{error}</p> : null}
       {query.data?.items.length === 0 ? (
@@ -193,6 +195,8 @@ export function PeriodPanel({
     refetchOnWindowFocus: false,
   });
   const storageKey = `refcheckid:period:${session?.user.id}:${fixtureId}`;
+  const draftKey = `${storageKey}:draft`;
+  const [draftBase, setDraftBase] = useState<number | null>(null);
   const [events, setEvents] = useState<GameEvent[]>([]),
     [period, setPeriod] = useState(1),
     [correctionReason, setCorrectionReason] = useState(""),
@@ -225,14 +229,62 @@ export function PeriodPanel({
         setMessage(
           "Aggiornamento non ancora confermato dal server. Controlla e sincronizza.",
         );
+      } else {
+        const draft = localStorage.getItem(draftKey);
+        if (draft) {
+          const saved = JSON.parse(draft) as {
+            events: GameEvent[];
+            period: number;
+            revision: number;
+            correctionReason: string;
+          };
+          if (
+            Array.isArray(saved.events) &&
+            Number.isInteger(saved.period) &&
+            Number.isInteger(saved.revision)
+          ) {
+            setEvents(saved.events);
+            setPeriod(saved.period);
+            setDraftBase(saved.revision);
+            setCorrectionReason(saved.correctionReason ?? "");
+            setDirty(true);
+            setMessage(
+              "Bozza locale recuperata. Controlla gli eventi prima della conferma.",
+            );
+          }
+        }
       }
     } catch {
       setError("Impossibile recuperare la bozza locale.");
     }
-  }, [storageKey]);
+  }, [storageKey, draftKey]);
   const context = query.data;
   const summary = context?.summary;
   const refetch = query.refetch;
+  useEffect(() => {
+    if (!dirty || pending || !context) return;
+    const revision = draftBase ?? context.summary?.revision ?? 0;
+    if (draftBase === null) setDraftBase(revision);
+    try {
+      localStorage.setItem(
+        draftKey,
+        JSON.stringify({ events, period, revision, correctionReason }),
+      );
+    } catch {
+      setError(
+        "Impossibile salvare la bozza sul dispositivo: non chiudere la schermata.",
+      );
+    }
+  }, [
+    events,
+    period,
+    correctionReason,
+    dirty,
+    pending,
+    context,
+    draftBase,
+    draftKey,
+  ]);
   let homeScore = 0,
     awayScore = 0;
   for (const event of events)
@@ -249,6 +301,8 @@ export function PeriodPanel({
       try {
         await platformPost(`games/${fixtureId}/periods`, body);
         localStorage.removeItem(storageKey);
+        localStorage.removeItem(draftKey);
+        setDraftBase(null);
         setPending(null);
         setDirty(false);
         setMessage("Aggiornamento ricevuto e salvato dal server.");
@@ -263,7 +317,7 @@ export function PeriodPanel({
         setBusy(false);
       }
     },
-    [fixtureId, storageKey, refetch],
+    [fixtureId, storageKey, draftKey, refetch],
   );
   useEffect(() => {
     const retry = () => {
@@ -275,7 +329,7 @@ export function PeriodPanel({
   function submit(state: string) {
     const body = {
       operationId: crypto.randomUUID(),
-      revision: summary?.revision ?? 0,
+      revision: draftBase ?? summary?.revision ?? 0,
       period,
       homeScore,
       awayScore,
@@ -495,7 +549,10 @@ export function PeriodPanel({
           <textarea
             className="block w-full rounded border p-2"
             value={correctionReason}
-            onChange={(e) => setCorrectionReason(e.target.value)}
+            onChange={(e) => {
+              setCorrectionReason(e.target.value);
+              setDirty(true);
+            }}
             maxLength={2000}
           />
         </label>
@@ -537,7 +594,13 @@ export function PeriodPanel({
   );
 }
 
-export function ActiveGameUpdates({ matchId }: { matchId: string }) {
+export function ActiveGameUpdates({
+  matchId,
+  onResolved,
+}: {
+  matchId: string;
+  onResolved?: (value: boolean) => void;
+}) {
   const { session } = useSession();
   const query = useQuery({
     queryKey: ["platform", "match-game", matchId, session?.user.id],
@@ -547,6 +610,18 @@ export function ActiveGameUpdates({ matchId }: { matchId: string }) {
       ),
     enabled: !!matchId,
   });
+  useEffect(() => {
+    if (query.data) onResolved?.(!!query.data.fixtureId);
+  }, [query.data, onResolved]);
+  if (query.isError)
+    return (
+      <div className="lg:col-span-2" role="alert">
+        <p>{query.error.message}</p>
+        <Button type="button" onClick={() => void query.refetch()}>
+          Riprova caricamento gara
+        </Button>
+      </div>
+    );
   return query.data?.fixtureId ? (
     <div className="lg:col-span-2">
       <PeriodPanel fixtureId={query.data.fixtureId} role={query.data.role} />

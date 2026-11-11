@@ -160,6 +160,24 @@ export function OrganizationWorkspace() {
       (name === "Importazioni" &&
         (can("people") || can("competitions") || can("designate"))),
   );
+  const offeredTabs = visibleTabs.filter(
+    (name) =>
+      organization?.kind !== "refereeing" ||
+      !["Società e squadre", "Tesserati", "Deleghe"].includes(name),
+  );
+  const importKinds: import("./api").ImportKind[] =
+    organization?.kind === "refereeing"
+      ? [
+          ...(can("people") ? (["officials"] as const) : []),
+          ...(can("designate") ? (["appointments"] as const) : []),
+        ]
+      : [
+          ...(can("people")
+            ? (["clubs", "teams", "players", "staff", "officials"] as const)
+            : []),
+          ...(can("competitions") ? (["fixtures"] as const) : []),
+          ...(can("designate") ? (["appointments"] as const) : []),
+        ];
   const fixtures = useQuery({
     queryKey: ["platform", "fixtures", compId, cursor, session?.user.id],
     queryFn: () =>
@@ -196,6 +214,7 @@ export function OrganizationWorkspace() {
     setNotice("");
   }, [orgId, currentUnit?.id, tab]);
   useEffect(() => {
+    setTab("Struttura");
     setCompetitionId("");
     setCompetitionSearch("");
     setCompetitionCursor(null);
@@ -315,6 +334,7 @@ export function OrganizationWorkspace() {
               Ente
               <select
                 className="block w-full rounded-lg border p-2"
+                aria-label="Ente"
                 value={orgId}
                 onChange={(e) => {
                   setOrganizationId(e.target.value);
@@ -333,6 +353,7 @@ export function OrganizationWorkspace() {
               Struttura
               <select
                 className="block w-full rounded-lg border p-2"
+                aria-label="Struttura"
                 value={scope.unitId}
                 onChange={(e) => setUnitId(e.target.value)}
               >
@@ -380,7 +401,7 @@ export function OrganizationWorkspace() {
       {enabled ? (
         <>
           <div className="flex flex-wrap gap-2">
-            {visibleTabs.map((name) => (
+            {offeredTabs.map((name) => (
               <button
                 key={name}
                 className={`rounded-lg px-3 py-2 text-sm ${tab === name ? "bg-primary text-white" : "bg-muted"}`}
@@ -655,36 +676,45 @@ export function OrganizationWorkspace() {
           ) : null}
           {tab === "Campionati" ? (
             <Card className="space-y-4">
-              <ActionForm
-                title="Crea campionato e girone"
-                fields={[
-                  nameField,
-                  { key: "sport", label: "Disciplina", options: sports },
-                  { key: "season", label: "Stagione", value: "2026/2027" },
-                  { key: "category", label: "Categoria" },
-                  { key: "group", label: "Girone", optional: true },
-                  {
-                    key: "periods",
-                    label: "Numero periodi (vuoto: regole standard)",
-                    type: "number",
-                    optional: true,
-                  },
-                  {
-                    key: "minutesPerPeriod",
-                    label: "Minuti per periodo (vuoto: regole standard)",
-                    type: "number",
-                    optional: true,
-                  },
-                  {
-                    key: "starters",
-                    label: "Titolari (vuoto: regole standard)",
-                    type: "number",
-                    optional: true,
-                  },
-                ]}
-                onSubmit={(data) => change("competitions", data)}
-              />
+              {organization?.kind === "sports" && can("competitions") ? (
+                <ActionForm
+                  title="Crea campionato e girone"
+                  fields={[
+                    nameField,
+                    { key: "sport", label: "Disciplina", options: sports },
+                    { key: "season", label: "Stagione", value: "2026/2027" },
+                    { key: "category", label: "Categoria" },
+                    { key: "group", label: "Girone", optional: true },
+                    {
+                      key: "periods",
+                      label: "Numero periodi (vuoto: regole standard)",
+                      type: "number",
+                      optional: true,
+                    },
+                    {
+                      key: "minutesPerPeriod",
+                      label: "Minuti per periodo (vuoto: regole standard)",
+                      type: "number",
+                      optional: true,
+                    },
+                    {
+                      key: "starters",
+                      label: "Titolari (vuoto: regole standard)",
+                      type: "number",
+                      optional: true,
+                    },
+                  ]}
+                  onSubmit={(data) => change("competitions", data)}
+                />
+              ) : null}
               {selectCompetition}
+              {compId ? (
+                <Records
+                  title="Squadre iscritte al campionato"
+                  endpoint={`competitions/${compId}/entries?choices=1`}
+                  fields={["code", "name", "season"]}
+                />
+              ) : null}
               {selectedCompetition ? (
                 <p className="text-sm">
                   Regole: {selectedCompetition.rules.periods} periodi ·{" "}
@@ -693,18 +723,22 @@ export function OrganizationWorkspace() {
                   {selectedCompetition.rules.version}.
                 </p>
               ) : null}
-              <ActionForm
-                title="Iscrivi una squadra al campionato"
-                fields={[
-                  {
-                    key: "competitionId",
-                    label: "Campionato",
-                    remote: `competitions?${params(scope)}`,
-                  },
-                  { key: "teamId", label: "Squadra", remote: remote("teams") },
-                ]}
-                onSubmit={(data) => change("entries", data)}
-              />
+              {organization?.kind === "sports" && can("competitions") ? (
+                <ActionForm
+                  title="Iscrivi una squadra al campionato"
+                  fields={[
+                    {
+                      key: "teamId",
+                      label: "Squadra",
+                      remote: `competitions/${compId}/eligible-teams?choices=1`,
+                    },
+                  ]}
+                  disabled={!compId}
+                  onSubmit={(data) =>
+                    change("entries", { ...data, competitionId: compId })
+                  }
+                />
+              ) : null}
             </Card>
           ) : null}
           {tab === "Arbitri" ? (
@@ -878,12 +912,14 @@ export function OrganizationWorkspace() {
                     {
                       key: "homeTeamId",
                       label: "Squadra casa",
-                      remote: remote("teams"),
+                      remote: `competitions/${compId}/entries?choices=1`,
+                      valueKey: "teamId",
                     },
                     {
                       key: "awayTeamId",
                       label: "Squadra ospite",
-                      remote: remote("teams"),
+                      remote: `competitions/${compId}/entries?choices=1`,
+                      valueKey: "teamId",
                     },
                     { key: "round", label: "Giornata" },
                     {
@@ -1063,6 +1099,7 @@ export function OrganizationWorkspace() {
               scope={scope}
               competitions={compOptions}
               competitionId={compId}
+              allowedKinds={importKinds}
             />
           ) : null}
         </>

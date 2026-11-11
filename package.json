@@ -28,7 +28,8 @@
     "demo:verify": "pnpm -C refcheckid-backend demo:verify",
     "demo:init": "node scripts/demo-init.mjs",
     "demo:diagnose-roster": "node scripts/diagnose-manager-roster.mjs",
-    "test:acceptance": "pnpm -C refcheckid-backend build && node scripts/acceptance.mjs"
+    "test:acceptance": "pnpm -C refcheckid-backend build && node scripts/acceptance.mjs",
+    "verify:cloud-bundle": "node scripts/verify-platform-cloud-bundle.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.58.2"

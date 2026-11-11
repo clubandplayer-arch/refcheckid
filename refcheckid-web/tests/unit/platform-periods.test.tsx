@@ -112,3 +112,40 @@ it("allows an assistant to send provisional updates and reserves official confir
     screen.getByRole("button", { name: "Invia aggiornamento provvisorio" }),
   ).toBeTruthy();
 });
+
+it("restores an unsent draft with its original server revision instead of silently overwriting a newer update", async () => {
+  const key = "refcheckid:period:referee-test:fixture:draft";
+  localStorage.setItem(
+    key,
+    JSON.stringify({
+      events: [],
+      period: 1,
+      revision: 0,
+      correctionReason: "",
+    }),
+  );
+  mock.get.mockResolvedValue({
+    ...context,
+    summary: {
+      revision: 2,
+      period: 1,
+      state: "provisional",
+      homeScore: 0,
+      awayScore: 0,
+      confirmedAt: new Date().toISOString(),
+    },
+  });
+  show();
+  await screen.findByText(/Bozza locale recuperata/);
+  fireEvent.click(screen.getByText(/Aggiornamenti gara/));
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Conferma fine periodo, anche senza eventi",
+    }),
+  );
+  await screen.findByRole("alert");
+  expect(mock.post).toHaveBeenCalledWith(
+    "games/fixture/periods",
+    expect.objectContaining({ revision: 0 }),
+  );
+});

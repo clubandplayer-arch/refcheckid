@@ -23,10 +23,7 @@ export class Catalog extends Organizations {
   async listCompetitions(organizationId: string, unitId: string) {
     await this.scope(organizationId, unitId, 'read');
     const result: Competition[] = [];
-    for (const row of await this.db.find<Competition>('competitions', { organizationId, unitId })) {
-      await this.competition(row.id, 'read');
-      result.push(row);
-    }
+    result.push(...(await this.db.find<Competition>('competitions', { organizationId, unitId })));
     for (const grant of await this.db.find<Delegation>('delegations', {
       recipientOrganizationId: organizationId,
       recipientUnitId: unitId,
@@ -211,6 +208,9 @@ export class Catalog extends Organizations {
       organizationId: competition.organizationId,
       competitionId: competition.id,
       teamId: team.id,
+      name: team.name,
+      code: team.code,
+      season: team.season,
     });
   }
   async createOfficial(body: Record<string, unknown>) {

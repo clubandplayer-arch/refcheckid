@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ActionForm } from "@/features/platform/forms";
 import { platformPost } from "@/features/platform/api";
@@ -10,7 +10,10 @@ export default function ActivatePage() {
       code: string;
       message: string;
     } | null>(null);
+  const initialized = useRef(false);
   useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
     setToken(window.location.hash.slice(1));
     window.history.replaceState(null, "", "/activate");
   }, []);

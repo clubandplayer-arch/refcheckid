@@ -41,6 +41,8 @@ jobs:
         run: pnpm test:security
       - name: Build
         run: pnpm build
+      - name: Verify isolated cloud runtime and imports
+        run: pnpm verify:cloud-bundle
       - name: Coverage
         run: pnpm coverage
       - name: Smoke test

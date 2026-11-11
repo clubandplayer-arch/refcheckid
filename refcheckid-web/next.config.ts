@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["*.app.github.dev"],
   outputFileTracingRoot: path.join(process.cwd(), ".."),
   // Loaded dynamically by ExcelJS through the ES intrinsic helpers.
-  outputFileTracingIncludes: { "/api/**": ["../node_modules/.pnpm/generator-function@*/node_modules/generator-function/**/*"] },
+  outputFileTracingIncludes: { "/api/**": ["../node_modules/.pnpm/generator-function@*/node_modules/generator-function/*.{js,mjs,json}", "../node_modules/.pnpm/async-function@*/node_modules/async-function/*.{js,mjs,json}"] },
   reactStrictMode: true,
   transpilePackages: ["refcheckid-backend"],
   serverExternalPackages: ["pg", "sharp", "exceljs"],

@@ -216,8 +216,10 @@ export class Imports extends Results {
       throw new PlatformError(400, 'Dimensione o checksum non validi.');
     const id = randomUUID(),
       objectKey = `platform/imports/${organizationId}/${id}.${filename.toLowerCase().endsWith('.xlsx') ? 'xlsx' : 'csv'}`;
-    const row = await this.app.store.transaction(() =>
-      this.db.put<Upload>('uploads', {
+    const row = await this.app.store.transaction(async () => {
+      this.resetScopeCache();
+      await this.importScope(organizationId, unitId, kind, competitionId);
+      return this.db.put<Upload>('uploads', {
         id,
         organizationId,
         unitId,
@@ -229,8 +231,8 @@ export class Imports extends Results {
         size,
         actorId: this.auth.actorId,
         expiresAt: new Date(Date.now() + 600000).toISOString(),
-      }),
-    );
+      });
+    });
     const intent = await this.app.objectStores.photos.createUploadIntent({
       objectKey,
       mimeType: 'application/octet-stream',
@@ -331,6 +333,13 @@ export class Imports extends Results {
       chunks.push(chunk);
     }
     return this.app.store.transaction(async () => {
+      this.resetScopeCache();
+      await this.importScope(
+        upload.organizationId,
+        upload.unitId,
+        upload.kind,
+        upload.competitionId ?? undefined,
+      );
       const raced = await this.db.get<ImportJob>('imports', key);
       return (
         raced ??
@@ -660,6 +669,7 @@ export class Imports extends Results {
       this.app.store.bulkTransaction?.bind(this.app.store) ??
       this.app.store.transaction.bind(this.app.store);
     return transact(async () => {
+      this.resetScopeCache();
       const current = await this.job(id);
       if (
         current.validated !== snapshot.validated ||

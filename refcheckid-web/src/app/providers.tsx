@@ -31,7 +31,7 @@ function SessionQueries({ children }: Readonly<{ children: React.ReactNode }>) {
   );
 
   return (
-        <QueryClientProvider client={queryClient}>
+        <QueryClientProvider key={actorId??"anonymous"} client={queryClient}>
           <ToastProvider>{children}</ToastProvider>
         </QueryClientProvider>
   );

@@ -1,4 +1,5 @@
 "use client";
+import {useSession} from "@/lib/session";
 import { MyAppointments } from "@/features/platform/referee";
 
 import { AuthGate } from "@/components/auth/auth-gate";
@@ -11,7 +12,9 @@ import { queryKeys } from "@/lib/api-client";
 import { fetchRefereeDashboard } from "@/lib/referee-api-client";
 
 export default function RefereeDashboardPage() {
+  const {session}=useSession();
   const dashboardQuery = useQuery({
+    enabled:!!session,
     queryFn: fetchRefereeDashboard,
     queryKey: [...queryKeys.referees, "dashboard"],
   });

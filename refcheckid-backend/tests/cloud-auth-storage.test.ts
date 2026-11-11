@@ -81,3 +81,15 @@ it('allows a dedicated staging project in the Vercel Production slot without all
   vi.stubEnv('VERCEL_ENV', 'preview');
   expect(validateCloudConfiguration).toThrow('staging');
 });
+
+it('binds provider sessions on password login and prevents recovered accounts from reusing old access or refresh sessions',async()=>{
+ env();const store=new RuntimeStore(':memory:');const token=(sessionId:string)=>`header.${Buffer.from(JSON.stringify({session_id:sessionId})).toString('base64url')}.signature`;let current=token('old-session');
+ vi.stubGlobal('fetch',vi.fn().mockImplementation((url:string)=>Promise.resolve(url.includes('/token?')?Response.json({access_token:current,refresh_token:'refresh',expires_in:3600}):Response.json({id:'bound-user'}))));
+ const profile={id:'bound-user',actorId:'actor',email:'bound@example.invalid',displayName:'Bound referee',role:'referee',enabled:true,requiresBoundSessions:true,sessionVersion:0};store.put('auth_profiles',profile);
+ const request={method:'POST' as const,path:'/api/v1/auth/login',params:{},query:{},headers:{},body:{email:profile.email,password:'verified-password'}};
+ try{await requestContext.run({store},async()=>{
+  expect(await authenticateSupabaseToken(`Bearer ${current}`)).toBeNull();expect((await cloudSession(request,'password')).status).toBe(200);expect(await authenticateSupabaseToken(`Bearer ${current}`)).not.toBeNull();
+  store.put('auth_profiles',{...profile,sessionVersion:1});expect(await authenticateSupabaseToken(`Bearer ${current}`)).toBeNull();expect((await cloudSession({...request,body:{refreshToken:'old-refresh'}},'refresh_token')).status).toBe(401);
+  current=token('new-session');expect((await cloudSession(request,'password')).status).toBe(200);expect(await authenticateSupabaseToken(`Bearer ${current}`)).not.toBeNull();
+ });}finally{store.close();}
+});

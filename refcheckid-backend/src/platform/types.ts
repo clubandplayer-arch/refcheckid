@@ -109,6 +109,9 @@ export interface Team extends Entity {
   category: string;
 }
 export interface Entry extends Entity {
+  name?: string;
+  code?: string;
+  season?: string;
   organizationId: string;
   competitionId: string;
   teamId: string;

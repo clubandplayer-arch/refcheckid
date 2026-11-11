@@ -59,12 +59,14 @@ export function ImportPanel({
   scope,
   competitions,
   competitionId,
+  allowedKinds = Object.keys(names) as ImportKind[],
 }: {
   scope: { organizationId: string; unitId: string };
   competitions: { id: string; name: string }[];
   competitionId: string;
+  allowedKinds?: readonly ImportKind[];
 }) {
-  const [kind, setKind] = useState<ImportKind>("clubs"),
+  const [kind, setKind] = useState<ImportKind>(allowedKinds[0] ?? "clubs"),
     [comp, setComp] = useState(competitionId),
     [file, setFile] = useState<File | null>(null),
     [uploadId, setUploadId] = useState(""),
@@ -238,11 +240,13 @@ export function ImportPanel({
               setMapping({});
             }}
           >
-            {Object.entries(names).map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
+            {Object.entries(names)
+              .filter(([kind]) => allowedKinds.includes(kind as ImportKind))
+              .map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
           </select>
         </label>
         {["fixtures", "appointments"].includes(kind) ? (

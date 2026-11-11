@@ -52,6 +52,9 @@ export class Organizations {
   ) {
     this.db = new PlatformStore(app.store);
   }
+  protected resetScopeCache() {
+    this.scopeCache.clear();
+  }
   async context() {
     const memberships = await this.db.find<Membership>('memberships', {
       actorId: this.auth.actorId,
@@ -78,6 +81,11 @@ export class Organizations {
     const name = text(body, 'name');
     const kind = body.kind === 'refereeing' ? 'refereeing' : 'sports';
     const federationId = optional(body, 'federationId');
+    if (kind === 'refereeing' && federationId)
+      throw new PlatformError(
+        400,
+        'Il collegamento a una federazione esistente è riservato agli enti sportivi. Crea l’organizzazione arbitrale senza questo collegamento.',
+      );
     if (
       federationId &&
       !this.auth.roles.includes('admin') &&

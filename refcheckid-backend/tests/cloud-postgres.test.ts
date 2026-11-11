@@ -5,6 +5,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { PostgresStore } from '../src/cloud/postgres-store.js';
 import { DrizzleRepository } from '../src/repositories/base-repository.js';
 
+// PGlite's cold WASM start is slower under V8 coverage on shared CI workers.
+vi.setConfig({testTimeout:20000});
 const databases: PGlite[] = [];
 afterEach(async () => { for (const db of databases.splice(0)) await db.close(); });
 

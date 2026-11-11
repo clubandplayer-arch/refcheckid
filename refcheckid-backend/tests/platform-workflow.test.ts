@@ -1,5 +1,5 @@
 import { randomUUID, createHash } from 'node:crypto';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { preparedApp, dataset } from './runtime-fixtures.js';
 import { createRestApiRouter } from '../src/api/router.js';
 import type { AuthContext } from '../src/api/http.js';
@@ -17,6 +17,7 @@ import type {
   GameSummary,
 } from '../src/platform/types.js';
 import { PlatformStore } from '../src/platform/store.js';
+import { Imports } from '../src/platform/imports.js';
 import { parseSpreadsheet } from '../src/platform/import-files.js';
 
 it('isolates territorial organizations, activates a referee by code, designates a delegated game, confirms periods and honors revocation on legacy APIs', async () => {
@@ -49,6 +50,16 @@ it('isolates territorial organizations, activates a referee by code, designates 
     return response.body as T;
   }
   try {
+    expect(
+      (
+        await call('POST', 'platform/organizations', {
+          name: 'Wrong linked refereeing organization',
+          kind: 'refereeing',
+          federationId: auth.federationIds![0],
+        })
+      ).status,
+    ).toBe(400);
+    expect(await db.get('organizations', auth.federationIds![0])).toBeNull();
     const sport = await post<Organization>('organizations', {
       name: 'Lega test',
       kind: 'sports',
@@ -160,6 +171,24 @@ it('isolates territorial organizations, activates a referee by code, designates 
       );
     for (const team of teams)
       await post('entries', { competitionId: competition.id, teamId: team.id });
+    expect(
+      (await call('GET', `platform/competitions/${competition.id}/eligible-teams`, undefined, auth))
+        .status,
+    ).toBe(200);
+    expect(
+      (
+        await call(
+          'GET',
+          `platform/competitions/${competition.id}/eligible-teams`,
+          undefined,
+          competitor,
+        )
+      ).status,
+    ).toBe(403);
+    expect(
+      (await call('GET', `platform/competitions/${competition.id}/entries`, undefined, competitor))
+        .body,
+    ).toMatchObject({ total: 2 });
     const fixture = await post<Fixture>('fixtures', {
       competitionId: competition.id,
       code: 'G001',
@@ -181,6 +210,38 @@ it('isolates territorial organizations, activates a referee by code, designates 
       },
       competitor,
     );
+    const unrelatedSection = await post<Unit>('units', {
+      organizationId: arbitration.id,
+      parentId: arbitration.rootUnitId,
+      name: 'Sezione non delegata',
+      kind: 'section',
+    });
+    await db.put<Membership>('memberships', {
+      organizationId: arbitration.id,
+      unitId: unrelatedSection.id,
+      actorId: competitor.actorId,
+      role: 'designator',
+      active: true,
+      descendants: false,
+    });
+    const unrelatedOfficial = await post<Official>('officials', {
+      organizationId: arbitration.id,
+      unitId: unrelatedSection.id,
+      code: 'OUTSIDE',
+      firstName: 'Outside',
+      lastName: 'Official',
+      sports: 'football',
+    });
+    expect(
+      (
+        await call(
+          'POST',
+          'platform/appointments',
+          { fixtureId: fixture.id, officialId: unrelatedOfficial.id, role: 'assistant' },
+          competitor,
+        )
+      ).status,
+    ).toBe(403);
     const invitation = await post<{ code: string; token: string; id: string }>(
       'invitations',
       {
@@ -731,3 +792,133 @@ it('imports 10,000 players in resumable blocks and pages the resulting registry'
     await app.store.close();
   }
 }, 60000);
+
+it('rechecks revoked import permissions after reading a private chunk and before committing it', async () => {
+  const app = await preparedApp();
+  const root = new Imports(app, {
+    actorId: randomUUID(),
+    roles: ['federation'],
+    federationIds: [dataset.federationSyncPayload.federations[0].id],
+  });
+  try {
+    const org = await app.store.transaction(() =>
+      root.create({
+        name: 'Permission boundary',
+        kind: 'sports',
+        federationId: dataset.federationSyncPayload.federations[0].id,
+      }),
+    );
+    const actorId = randomUUID(),
+      db = new PlatformStore(app.store);
+    const membership = await db.put<Membership>('memberships', {
+      organizationId: org.id,
+      unitId: org.rootUnitId,
+      actorId,
+      role: 'registrar',
+      active: true,
+      descendants: false,
+    });
+    const registrar = new Imports(app, { actorId, roles: ['federation'], federationIds: [] });
+    const bytes = Buffer.from('code;name\nSAFE;Scoped club');
+    const upload = await registrar.upload({
+      organizationId: org.id,
+      unitId: org.rootUnitId,
+      kind: 'clubs',
+      filename: 'clubs.csv',
+      size: bytes.length,
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+    });
+    const job = (await registrar.prepare({
+      uploadId: upload.id,
+      contentBase64: bytes.toString('base64'),
+    })) as ImportJob;
+    const original = app.objectStores.photos.readObject.bind(app.objectStores.photos);
+    const spy = vi
+      .spyOn(app.objectStores.photos, 'readObject')
+      .mockImplementationOnce(async (key) => {
+        const result = await original(key);
+        await app.store.transaction(() =>
+          db.update<Membership>('memberships', membership.id, { active: false }),
+        );
+        return result;
+      });
+    await expect(registrar.runAdvance(job.id, 'advance')).rejects.toMatchObject({ status: 403 });
+    spy.mockRestore();
+    expect(await db.get<ImportJob>('imports', job.id)).toHaveProperty('validated', 0);
+    expect(await db.find('import_rows', { jobId: job.id })).toHaveLength(0);
+  } finally {
+    await app.store.close();
+  }
+});
+
+it('removes invited club-manager access from legacy routes when the membership is revoked', async () => {
+  const app = await preparedApp(),
+    router = createRestApiRouter(app),
+    auth: AuthContext = {
+      actorId: randomUUID(),
+      roles: ['federation'],
+      federationIds: [dataset.federationSyncPayload.federations[0].id],
+    };
+  const post = async (path: string, body: unknown) => {
+    const response = await router.handle({
+      method: 'POST',
+      path: `/api/v1/platform/${path}`,
+      headers: {},
+      query: {},
+      body,
+      auth,
+    });
+    expect(response.status, JSON.stringify(response.body)).toBeLessThan(300);
+    return response.body as { id: string; rootUnitId: string; token: string; code: string };
+  };
+  try {
+    const org = await post('organizations', {
+        name: 'Club manager access',
+        kind: 'sports',
+        federationId: auth.federationIds![0],
+      }),
+      club = dataset.federationSyncPayload.clubs[0];
+    const invitation = await post('invitations', {
+      organizationId: org.id,
+      unitId: org.rootUnitId,
+      role: 'club_manager',
+      clubId: club.id,
+      displayName: 'New manager',
+    });
+    const activation = await router.handle({
+      method: 'POST',
+      path: '/api/v1/platform/activate',
+      headers: {},
+      query: {},
+      body: { token: invitation.token, password: 'Club-manager-test-password-2026!' },
+    });
+    expect(activation.status).toBe(200);
+    const login = await router.handle({
+      method: 'POST',
+      path: '/api/v1/auth/login',
+      headers: {},
+      query: {},
+      body: { email: invitation.code, password: 'Club-manager-test-password-2026!' },
+    });
+    expect(login.status).toBe(200);
+    const session = login.body as { accessToken: string; user: { id: string } },
+      headers = { authorization: `Bearer ${session.accessToken}` };
+    expect(
+      (await router.handle({ method: 'GET', path: `/api/v1/clubs/${club.id}`, headers, query: {} }))
+        .status,
+    ).toBe(200);
+    const membership = (
+      await new PlatformStore(app.store).find<Membership>('memberships', {
+        actorId: session.user.id,
+        active: true,
+      })
+    )[0];
+    await post(`memberships/${membership.id}/revoke`, {});
+    expect(
+      (await router.handle({ method: 'GET', path: `/api/v1/clubs/${club.id}`, headers, query: {} }))
+        .status,
+    ).toBe(403);
+  } finally {
+    await app.store.close();
+  }
+});

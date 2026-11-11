@@ -72,7 +72,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
       await container.store.transaction(()=>container.repositories.audit.createAuditLog({
         action: `${request.method} ${request.path}`, occurredAt: new Date().toISOString(),
         matchId: sheet?.matchId ?? (typeof result?.matchId === 'string' ? result.matchId : typeof body?.matchId === 'string' ? body.matchId : null),
-        metadata: { actorId: request.auth!.actorId, roles: request.auth!.roles, correlationId: request.correlationId },
+        metadata: { actorId: request.auth!.actorId, roles: request.auth!.roles, correlationId: request.correlationId,...(typeof result?.id==='string'?{entityId:result.id}:{}),...(typeof result?.organizationId==='string'?{organizationId:result.organizationId}:typeof body?.organizationId==='string'?{organizationId:body.organizationId}:{}),...(typeof result?.unitId==='string'?{unitId:result.unitId}:{}) },
       }));
     }
     return response;

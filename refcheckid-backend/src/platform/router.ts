@@ -8,6 +8,7 @@ import { PlatformStore } from './store.js';
 import { appointmentValid } from './appointments.js';
 import type {
   Team,
+  Entry,
   Unit,
   Organization,
   Official,
@@ -16,6 +17,7 @@ import type {
   Invitation,
   Competition,
   GameSummary,
+  Notification,
 } from './types.js';
 
 const body = (request: ApiRequest): Record<string, unknown> => {
@@ -62,6 +64,52 @@ export function registerPlatformRoutes(app: ApplicationContainer, router: ApiRou
     platformHandler(async (request) =>
       json(200, await service(request).competition(request.params.id!, 'read')),
     ),
+  );
+  router.register(
+    'GET',
+    '/api/v1/platform/competitions/:id/eligible-teams',
+    platformHandler(async (request) => {
+      const s = service(request),
+        competition = await s.competition(request.params.id!, 'competitions');
+      return json(
+        200,
+        await s.db.page<Team>(
+          'teams',
+          {
+            organizationId: competition.organizationId,
+            sport: competition.sport,
+            season: competition.season,
+          },
+          request.query.cursor,
+          request.query.search,
+        ),
+      );
+    }),
+  );
+  router.register(
+    'GET',
+    '/api/v1/platform/competitions/:id/entries',
+    platformHandler(async (request) => {
+      const s = service(request),
+        competition = await s.competition(request.params.id!, 'read');
+      const page = await s.db.page<Entry>(
+        'entries',
+        { competitionId: competition.id },
+        request.query.cursor,
+        request.query.search,
+      );
+      const items = [];
+      for (const entry of page.items) {
+        const team = await s.db.get<Team>('teams', entry.teamId);
+        items.push({
+          ...entry,
+          name: team?.name ?? entry.name,
+          code: team?.code ?? entry.code,
+          season: team?.season ?? entry.season,
+        });
+      }
+      return json(200, { ...page, items });
+    }),
   );
   router.register(
     'GET',
@@ -326,6 +374,13 @@ export function registerPlatformRoutes(app: ApplicationContainer, router: ApiRou
         request.query.cursor,
         request.query.search,
       );
+      await app.store.prefetch?.(
+        page.items.flatMap((row) => [
+          { repository: 'platform_teams', id: row.homeTeamId },
+          { repository: 'platform_teams', id: row.awayTeamId },
+          { repository: 'platform_summaries', id: row.id },
+        ]),
+      );
       const items = [];
       for (const row of page.items)
         items.push({
@@ -358,6 +413,9 @@ export function registerPlatformRoutes(app: ApplicationContainer, router: ApiRou
         scope,
         request.query.cursor,
         request.query.search,
+      );
+      await app.store.prefetch?.(
+        page.items.map((row) => ({ repository: 'platform_officials', id: row.officialId })),
       );
       const items = [];
       for (const row of page.items) {
@@ -449,6 +507,22 @@ export function registerPlatformRoutes(app: ApplicationContainer, router: ApiRou
         ),
       ),
     ),
+  );
+  router.register(
+    'POST',
+    '/api/v1/platform/notifications/:id/read',
+    platformHandler(async (request) => {
+      const s = service(request),
+        notice = await s.db.get<Notification>('notifications', request.params.id!);
+      if (!notice || notice.actorId !== request.auth!.actorId)
+        throw new PlatformError(404, 'Comunicazione non trovata.');
+      return json(
+        200,
+        await s.db.update<Notification>('notifications', notice.id, {
+          readAt: new Date().toISOString(),
+        }),
+      );
+    }),
   );
   router.register(
     'GET',

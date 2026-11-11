@@ -280,7 +280,8 @@ try {
   }
   const fixture=await api('/platform/fixtures',federation,{competitionId:competition.id,code:'BROWSER-GAME',homeTeamId:teams[0].id,awayTeamId:teams[1].id,round:'1',scheduledAt:'2026-12-12T15:00:00+01:00',venue:'Campo browser test'});
   await api('/platform/appointments',federation,{fixtureId:fixture.id,officialId:official.id,role:'principal',send:true});
-  await refereePage.reload();await refereePage.getByRole('button',{name:'Accetta gara',exact:true}).click();await refereePage.getByText('Accettata',{exact:false}).waitFor();await refereePage.screenshot({path:join(directory,'platform-referee-appointment.png'),fullPage:true});
+  await refereePage.reload();await refereePage.getByRole('button',{name:'Accetta gara',exact:true}).click();await refereePage.getByText('Accettata',{exact:false}).waitFor();await refereePage.getByRole('link',{name:'Apri distinta e riconoscimento di questa gara',exact:true}).waitFor();await refereePage.getByRole('heading',{name:'Prossima gara',exact:true}).locator('..').getByText(teams[0].name+' - '+teams[1].name,{exact:true}).waitFor();await refereePage.screenshot({path:join(directory,'platform-referee-appointment.png'),fullPage:true});
+  await refereePage.getByRole('link',{name:'Apri distinta e riconoscimento di questa gara',exact:true}).click();await refereePage.waitForURL(url=>url.pathname==='/referee/match'&&url.searchParams.get('matchId')===fixture.matchId);await refereePage.getByRole('heading',{name:'Verifica distinte',exact:true}).waitFor();
   await page.getByRole('button',{name:'Designazioni',exact:true}).click();await page.screenshot({path:join(directory,'platform-delegated-designations.png'),fullPage:true});
   await refereeContext.close();assert.deepEqual(browserErrors,[]);
   check('Real Chromium: territorial competition, guided CSV import, referee activation/login by code and accepted delegated appointment');

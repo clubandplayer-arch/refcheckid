@@ -2,6 +2,10 @@
 
 RefCheckID is a pnpm workspace with a lightweight Node.js backend runtime and a Next.js frontend.
 
+For territorial federation management, imports and referee appointments, see the
+[operations guide](docs/ORGANIZATION_PLATFORM_OPERATIONS.md) and
+[API reference](docs/ORGANIZATION_PLATFORM_API.md).
+
 ## Requirements
 
 - Node.js 24+ (24.22.1 validated; see `.nvmrc`)

@@ -6,6 +6,11 @@ staging, nessuna importazione o notifica inviata. Non è un collaudo del sistema
 su migliaia di utenti simultanei. I nomi degli enti citati sono esempi di
 configurazione, non una verifica delle loro attribuzioni istituzionali.
 
+Aggiornamento: l’implementazione successiva a questo audit è descritta in
+[ORGANIZATION_PLATFORM_OPERATIONS.md](ORGANIZATION_PLATFORM_OPERATIONS.md),
+con procedura di avvio, verifiche e limiti effettivi. Le osservazioni della
+baseline qui sotto restano riferite al codice prima dell’intervento.
+
 ## 1. Obiettivo e decisioni di prodotto
 
 La federazione lavora dal sito web. L'arbitro usa principalmente l'app mobile;
