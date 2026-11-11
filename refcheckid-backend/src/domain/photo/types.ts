@@ -98,6 +98,7 @@ export interface SeasonRegistrationPhoto extends BaseEntity {
 }
 
 export interface PhotoVersion extends BaseEntity {
+  replacementReason?: string;
   globalOfficialPhotoId: UUID;
   versionNumber: number;
   uploadedByUserId: UUID;
@@ -126,6 +127,8 @@ export interface PhotoVersion extends BaseEntity {
 }
 
 export interface PhotoApproval extends BaseEntity {
+  replacementReason?: string;
+  additionalAnnualChange?: boolean;
   photoVersionId: UUID;
   federationId: UUID;
   disciplineId: UUID | null;

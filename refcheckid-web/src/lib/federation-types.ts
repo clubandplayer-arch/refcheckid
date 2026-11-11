@@ -53,6 +53,8 @@ export interface FederationReportEvent {
 }
 
 export interface PhotoRequest {
+  replacementReason?: string | null;
+  additionalAnnualChange?: boolean;
   id: string;
   playerName: string;
   clubName: string;
