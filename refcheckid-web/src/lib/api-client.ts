@@ -198,7 +198,7 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
     `?clubId=${encodeURIComponent(managerClubId)}`,
   );
   const registrationByStaffId = new Map(
-    registrations.map((registration) => [
+    registrations.filter((registration) => registration.status !== "ended").map((registration) => [
       registration.staffMemberId,
       registration,
     ]),

@@ -31,7 +31,8 @@
     "backup": "node scripts/backup-runtime.mjs",
     "backup:verify": "node scripts/verify-backup.mjs",
     "supabase:transfer": "node --env-file-if-exists=.env scripts/supabase-transfer.mjs",
-    "supabase:profile": "node --env-file-if-exists=.env scripts/supabase-provision-profile.mjs"
+    "supabase:profile": "node --env-file-if-exists=.env scripts/supabase-provision-profile.mjs",
+    "staging:roster": "pnpm build && node --env-file-if-exists=.env dist/scripts/staging-restore-roster.js"
   },
   "engines": {
     "node": ">=24.0.0",

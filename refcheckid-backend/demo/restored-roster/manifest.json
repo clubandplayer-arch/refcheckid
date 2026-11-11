@@ -1,0 +1,929 @@
+{
+  "format": 1,
+  "batch": "named-roster-20261111",
+  "federationId": "70000000-0000-4000-8000-000000000002",
+  "season": "2026",
+  "clubs": [
+    {
+      "id": "70000000-0000-4000-8000-000000000003",
+      "before": "ASD RefCheck Home",
+      "after": "Atletico Aurora"
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000004",
+      "before": "ASD RefCheck Away",
+      "after": "Sporting Litorale"
+    }
+  ],
+  "subjects": [
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000001",
+      "registrationId": "73000000-0000-4000-8000-000000000001",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Uno"
+      },
+      "after": {
+        "firstName": "Matteo",
+        "lastName": "Rinaldi"
+      },
+      "file": "casa/Rinaldi.png",
+      "sha256": "73e57ba6c1e9f13a643a674fe892baa7713cadc228fd1cd7a4422ccaf9a8c69b",
+      "bytes": 1417321,
+      "width": 700,
+      "height": 1482,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000002",
+      "registrationId": "73000000-0000-4000-8000-000000000002",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Due"
+      },
+      "after": {
+        "firstName": "Luca",
+        "lastName": "Ferrari"
+      },
+      "file": "casa/Ferrari.png",
+      "sha256": "7590be9866c37c4dd72faf04cd3fddd56c637ca8633f44b43e9b37986f5eda05",
+      "bytes": 2230476,
+      "width": 1122,
+      "height": 1402,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000003",
+      "registrationId": "73000000-0000-4000-8000-000000000003",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Tre"
+      },
+      "after": {
+        "firstName": "Andrea",
+        "lastName": "Conti"
+      },
+      "file": "casa/Conti.png",
+      "sha256": "33e2b9144d01123589b974eceb3855ca5d1769f27a2d2aef5f97a62a1c026cc3",
+      "bytes": 2140014,
+      "width": 1023,
+      "height": 1537,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000004",
+      "registrationId": "73000000-0000-4000-8000-000000000004",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Quattro"
+      },
+      "after": {
+        "firstName": "Davide",
+        "lastName": "Moretti"
+      },
+      "file": "casa/Moretti.png",
+      "sha256": "329d83dc9e82a305c3a0a2e78b0c778b74761d017d2e253878460f292caac6f4",
+      "bytes": 1002893,
+      "width": 700,
+      "height": 1052,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000005",
+      "registrationId": "73000000-0000-4000-8000-000000000005",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Cinque"
+      },
+      "after": {
+        "firstName": "Simone",
+        "lastName": "Gallo"
+      },
+      "file": "casa/Gallo.png",
+      "sha256": "d427b7b9e3bb75570bab51657acb1e3a9136d352a1eeee298d0748b19502d3b5",
+      "bytes": 1078765,
+      "width": 700,
+      "height": 1052,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000006",
+      "registrationId": "73000000-0000-4000-8000-000000000006",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Sei"
+      },
+      "after": {
+        "firstName": "Marco",
+        "lastName": "De Luca"
+      },
+      "file": "casa/De Luca.png",
+      "sha256": "0d9568ad533c655936426446b9b8bc2576ffc49ba12efdd62414d0c71945c052",
+      "bytes": 2289989,
+      "width": 1028,
+      "height": 1530,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000007",
+      "registrationId": "73000000-0000-4000-8000-000000000007",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Sette"
+      },
+      "after": {
+        "firstName": "Federico",
+        "lastName": "Romano"
+      },
+      "file": "casa/Romano.png",
+      "sha256": "e2a486636fab35d81288e83f22f4651ea4bebb5241fbb3931d3a71c954a68a6c",
+      "bytes": 1108661,
+      "width": 700,
+      "height": 1052,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000008",
+      "registrationId": "73000000-0000-4000-8000-000000000008",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Otto"
+      },
+      "after": {
+        "firstName": "Alessio",
+        "lastName": "Greco"
+      },
+      "file": "casa/Greco.png",
+      "sha256": "fdc5c635f9cdeeb563445222f4975b828e36d8f686f5087dec69bfdca905a4c1",
+      "bytes": 1046577,
+      "width": 700,
+      "height": 1052,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000009",
+      "registrationId": "73000000-0000-4000-8000-000000000009",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Nove"
+      },
+      "after": {
+        "firstName": "Gabriele",
+        "lastName": "Marini"
+      },
+      "file": "casa/Marini.png",
+      "sha256": "c8fc8cbea5337ee3eab8793f3f849f08a22ce478d27db694358dd7256b8844e9",
+      "bytes": 1065655,
+      "width": 700,
+      "height": 1052,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000010",
+      "registrationId": "73000000-0000-4000-8000-000000000010",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Dieci"
+      },
+      "after": {
+        "firstName": "Tommaso",
+        "lastName": "Leone"
+      },
+      "file": "casa/Leone.png",
+      "sha256": "3a26f371ffd401eda08e7b6b5bd70cb8dfd7e5124a02e4994e634aca5563f189",
+      "bytes": 1074974,
+      "width": 700,
+      "height": 1052,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000011",
+      "registrationId": "73000000-0000-4000-8000-000000000011",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Undici"
+      },
+      "after": {
+        "firstName": "Riccardo",
+        "lastName": "Costa"
+      },
+      "file": "casa/Costa.png",
+      "sha256": "b5fb55abad8b8a69a40eb6e3d383e3383b1f6437435f4b6f1f734b8b538e24f4",
+      "bytes": 2185071,
+      "width": 1023,
+      "height": 1537,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000012",
+      "registrationId": "73000000-0000-4000-8000-000000000012",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Dodici"
+      },
+      "after": {
+        "firstName": "Edoardo",
+        "lastName": "Fontana"
+      },
+      "file": "casa/Fontana.jpg",
+      "sha256": "61a20d06b66f9e33249d7a85c608e96ab74f13662743501c44ecafa0ae4d578c",
+      "bytes": 18643,
+      "width": 229,
+      "height": 507,
+      "mimeType": "image/jpeg"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000013",
+      "registrationId": "73000000-0000-4000-8000-000000000013",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Tredici"
+      },
+      "after": {
+        "firstName": "Nicolò",
+        "lastName": "Serra"
+      },
+      "file": "casa/Serra.png",
+      "sha256": "7bbea7afb8c28ff1db6e3d08d434b4dd2eed1d69b6365bc0326bbfab6a8ae4d6",
+      "bytes": 1011093,
+      "width": 700,
+      "height": 964,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000014",
+      "registrationId": "73000000-0000-4000-8000-000000000014",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Quattordici"
+      },
+      "after": {
+        "firstName": "Pietro",
+        "lastName": "Villa"
+      },
+      "file": "casa/Villa.png",
+      "sha256": "f2a8eb586ed240f4992ace31fbfa4da91d26a28e8ef308daea0ec8be8b36e135",
+      "bytes": 1121867,
+      "width": 700,
+      "height": 1052,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000015",
+      "registrationId": "73000000-0000-4000-8000-000000000015",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Quindici"
+      },
+      "after": {
+        "firstName": "Samuele",
+        "lastName": "Barbieri"
+      },
+      "file": "casa/Barbieri.png",
+      "sha256": "0b530fb6098fcd7dc4bd33ddac64c97d423e21e6d054a14a429ee947b6950089",
+      "bytes": 2235504,
+      "width": 1023,
+      "height": 1537,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000016",
+      "registrationId": "73000000-0000-4000-8000-000000000016",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Sedici"
+      },
+      "after": {
+        "firstName": "Daniele",
+        "lastName": "Ferri"
+      },
+      "file": "casa/Ferri.png",
+      "sha256": "2ba3fade5c2fe749a42c62ca3b962afaa144b35298727d44dbd78fc59053d237",
+      "bytes": 2162586,
+      "width": 1023,
+      "height": 1537,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000017",
+      "registrationId": "73000000-0000-4000-8000-000000000017",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Diciassette"
+      },
+      "after": {
+        "firstName": "Giacomo",
+        "lastName": "Monti"
+      },
+      "file": "casa/Monti.png",
+      "sha256": "d4f0fee5512c4cc9771f203e834a8a06a05959e3b863d44ffcd690410aee2e4e",
+      "bytes": 1052091,
+      "width": 700,
+      "height": 1052,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "athlete",
+      "personId": "71000000-0000-4000-8000-000000000018",
+      "registrationId": "73000000-0000-4000-8000-000000000018",
+      "before": {
+        "firstName": "Home",
+        "lastName": "Diciotto"
+      },
+      "after": {
+        "firstName": "Leonardo",
+        "lastName": "Riva"
+      },
+      "file": "casa/Riva.png",
+      "sha256": "f056dbabf73e4a9c7d45cf4a7b907e94d39a0e1817af1e3d5a6412254661a7ad",
+      "bytes": 1049707,
+      "width": 700,
+      "height": 1052,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "staff_member",
+      "personId": "75000000-0000-4000-8000-000000000001",
+      "registrationId": "77000000-0000-4000-8000-000000000001",
+      "before": {
+        "firstName": "Tecnico",
+        "lastName": "Home"
+      },
+      "after": {
+        "firstName": "Mister",
+        "lastName": ""
+      },
+      "file": "casa/Mister.png",
+      "sha256": "f98db62e6c9de2037017b9002117b25f6a9cb8ac5171e800af69668c3b497fc5",
+      "bytes": 996626,
+      "width": 700,
+      "height": 1048,
+      "mimeType": "image/png",
+      "role": "Allenatore"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "staff_member",
+      "personId": "75000000-0000-4000-8000-000000000003",
+      "registrationId": "77000000-0000-4000-8000-000000000003",
+      "before": {
+        "firstName": "Preparatore",
+        "lastName": "Home"
+      },
+      "after": {
+        "firstName": "Massaggiatore",
+        "lastName": ""
+      },
+      "file": "casa/Massaggiatore.png",
+      "sha256": "abc3175a2685eb933e8ced55ec389b03b699fc975f4f98c38f16b49df3d359e1",
+      "bytes": 1024662,
+      "width": 700,
+      "height": 1052,
+      "mimeType": "image/png",
+      "role": "Massaggiatore"
+    },
+    {
+      "team": "home",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "kind": "staff_member",
+      "personId": "75000000-0000-4000-8000-000000000004",
+      "registrationId": "77000000-0000-4000-8000-000000000004",
+      "before": {
+        "firstName": "Dirigente",
+        "lastName": "Home"
+      },
+      "after": {
+        "firstName": "Dirigente",
+        "lastName": ""
+      },
+      "file": "casa/Dirigente.png",
+      "sha256": "8aaf45be0dd1a509dd737c7d57a43af01fbb884e21e2652e489e586150d27eb1",
+      "bytes": 1913020,
+      "width": 1023,
+      "height": 1537,
+      "mimeType": "image/png",
+      "role": "Dirigente accompagnatore"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000001",
+      "registrationId": "74000000-0000-4000-8000-000000000001",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Uno"
+      },
+      "after": {
+        "firstName": "Antonio",
+        "lastName": "Marchetti"
+      },
+      "file": "ospite/Marchetti.jpg",
+      "sha256": "8516d481e8eeb83703ca699c6b8a93ba37cc59674d7f4176481c84ab0b195663",
+      "bytes": 19266,
+      "width": 231,
+      "height": 489,
+      "mimeType": "image/jpeg"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000002",
+      "registrationId": "74000000-0000-4000-8000-000000000002",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Due"
+      },
+      "after": {
+        "firstName": "Francesco",
+        "lastName": "Lombardi"
+      },
+      "file": "ospite/Lombardi.png",
+      "sha256": "58232e642c233271bc0902d4a847b8963e220d931060fdd696568c3d3db4a65c",
+      "bytes": 2143160,
+      "width": 1023,
+      "height": 1537,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000003",
+      "registrationId": "74000000-0000-4000-8000-000000000003",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Tre"
+      },
+      "after": {
+        "firstName": "Michele",
+        "lastName": "Bianchi"
+      },
+      "file": "ospite/Bianchi.png",
+      "sha256": "b0b5f0a92dfb91967a4d28efac87dd0903f68552bc23d25d6af98531a8487d9e",
+      "bytes": 2169440,
+      "width": 1028,
+      "height": 1530,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000004",
+      "registrationId": "74000000-0000-4000-8000-000000000004",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Quattro"
+      },
+      "after": {
+        "firstName": "Emanuele",
+        "lastName": "Caruso"
+      },
+      "file": "ospite/Caruso.png",
+      "sha256": "84f024e0345aba70593dfe853579c856f4ec8887a262fc351375b117b40966f6",
+      "bytes": 2219524,
+      "width": 1122,
+      "height": 1402,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000005",
+      "registrationId": "74000000-0000-4000-8000-000000000005",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Cinque"
+      },
+      "after": {
+        "firstName": "Giorgio",
+        "lastName": "Pellegrini"
+      },
+      "file": "ospite/Pellegrini.png",
+      "sha256": "34ce7ce54dba69a7bb527defe4570f6db353800994731e3af82fdd9810566566",
+      "bytes": 2184026,
+      "width": 1024,
+      "height": 1536,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000006",
+      "registrationId": "74000000-0000-4000-8000-000000000006",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Sei"
+      },
+      "after": {
+        "firstName": "Vittorio",
+        "lastName": "Sanna"
+      },
+      "file": "ospite/Sanna.jpg",
+      "sha256": "a225b1022999476f7162757926d5e17ea5a931f2ed6b9693bf6048c3aafc8ba9",
+      "bytes": 14646,
+      "width": 232,
+      "height": 321,
+      "mimeType": "image/jpeg"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000007",
+      "registrationId": "74000000-0000-4000-8000-000000000007",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Sette"
+      },
+      "after": {
+        "firstName": "Cristian",
+        "lastName": "Ruggieri"
+      },
+      "file": "ospite/Ruggieri.jpg",
+      "sha256": "4e6429e04fa3e335a64f5aa436c8a9f8be3abca98e4271d3666f1c00efd3f4a6",
+      "bytes": 10343,
+      "width": 176,
+      "height": 266,
+      "mimeType": "image/jpeg"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000008",
+      "registrationId": "74000000-0000-4000-8000-000000000008",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Otto"
+      },
+      "after": {
+        "firstName": "Manuel",
+        "lastName": "Longo"
+      },
+      "file": "ospite/Longo.jpg",
+      "sha256": "377df8a1b90a4e8b5d79bbc0755b7a053d2b552b2c56b782a34323ea12f7de80",
+      "bytes": 10734,
+      "width": 175,
+      "height": 268,
+      "mimeType": "image/jpeg"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000009",
+      "registrationId": "74000000-0000-4000-8000-000000000009",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Nove"
+      },
+      "after": {
+        "firstName": "Fabio",
+        "lastName": "Sala"
+      },
+      "file": "ospite/Sala.jpg",
+      "sha256": "cfdc20089b3a9f0c2320e2ffdaee7dfb6d862902d43fc066e6cd86164ca630f7",
+      "bytes": 14921,
+      "width": 226,
+      "height": 344,
+      "mimeType": "image/jpeg"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000010",
+      "registrationId": "74000000-0000-4000-8000-000000000010",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Dieci"
+      },
+      "after": {
+        "firstName": "Stefano",
+        "lastName": "Neri"
+      },
+      "file": "ospite/Neri.jpg",
+      "sha256": "ba3badd5087a997f71c104a0feb57c1dea0570a460a0c8963758de2481f535f4",
+      "bytes": 15022,
+      "width": 229,
+      "height": 344,
+      "mimeType": "image/jpeg"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000011",
+      "registrationId": "74000000-0000-4000-8000-000000000011",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Undici"
+      },
+      "after": {
+        "firstName": "Lorenzo",
+        "lastName": "Martini"
+      },
+      "file": "ospite/Martini.jpg",
+      "sha256": "48684baade673fe3ece859d439a611fcfa94317da401a000abd5683c20d7dfdf",
+      "bytes": 14254,
+      "width": 227,
+      "height": 343,
+      "mimeType": "image/jpeg"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000012",
+      "registrationId": "74000000-0000-4000-8000-000000000012",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Dodici"
+      },
+      "after": {
+        "firstName": "Filippo",
+        "lastName": "Grassi"
+      },
+      "file": "ospite/Grassi.png",
+      "sha256": "357b7beeaa19a8189bfa63622a83be7120f3f68ca7a3fa9aadc7ab73e83c9a15",
+      "bytes": 2095886,
+      "width": 843,
+      "height": 1866,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000013",
+      "registrationId": "74000000-0000-4000-8000-000000000013",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Tredici"
+      },
+      "after": {
+        "firstName": "Enrico",
+        "lastName": "D'Amico"
+      },
+      "file": "ospite/D'Amico.png",
+      "sha256": "15f419092202a0a636592561d021395c02f600e72ce07be8e60635784b3dd041",
+      "bytes": 2085011,
+      "width": 1028,
+      "height": 1530,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000014",
+      "registrationId": "74000000-0000-4000-8000-000000000014",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Quattordici"
+      },
+      "after": {
+        "firstName": "Claudio",
+        "lastName": "Palmieri"
+      },
+      "file": "ospite/Palmieri.png",
+      "sha256": "c1de3f505512d974a38ea80b24c08c8e892a06066534e007a87c37ad84577e1b",
+      "bytes": 2245484,
+      "width": 1028,
+      "height": 1530,
+      "mimeType": "image/png"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000015",
+      "registrationId": "74000000-0000-4000-8000-000000000015",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Quindici"
+      },
+      "after": {
+        "firstName": "Roberto",
+        "lastName": "Gatti"
+      },
+      "file": "ospite/Gatti.jpg",
+      "sha256": "54c88d287b3ca072de54ea9417cc2d67ce26300067449c9efb42f8778e8263cf",
+      "bytes": 15603,
+      "width": 227,
+      "height": 343,
+      "mimeType": "image/jpeg"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000016",
+      "registrationId": "74000000-0000-4000-8000-000000000016",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Sedici"
+      },
+      "after": {
+        "firstName": "Diego",
+        "lastName": "Fiore"
+      },
+      "file": "ospite/Fiore.jpg",
+      "sha256": "606b69ba0da922a6e10da67e4a96a3351aa9d7253ad8d9bb04796e3d02009d4c",
+      "bytes": 16892,
+      "width": 230,
+      "height": 343,
+      "mimeType": "image/jpeg"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000017",
+      "registrationId": "74000000-0000-4000-8000-000000000017",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Diciassette"
+      },
+      "after": {
+        "firstName": "Massimo",
+        "lastName": "Bernardi"
+      },
+      "file": "ospite/Bernanrdi.jpg",
+      "sha256": "ddbabf1c15e6df794532ccbf6d8eb150aa709da30d316685af6de1a94ce6c48d",
+      "bytes": 14991,
+      "width": 231,
+      "height": 344,
+      "mimeType": "image/jpeg"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "athlete",
+      "personId": "72000000-0000-4000-8000-000000000018",
+      "registrationId": "74000000-0000-4000-8000-000000000018",
+      "before": {
+        "firstName": "Away",
+        "lastName": "Diciotto"
+      },
+      "after": {
+        "firstName": "Giulio",
+        "lastName": "Piras"
+      },
+      "file": "ospite/Piras.jpg",
+      "sha256": "0a7a0f0f677e77d87991be7de9514e1b366abc6d2c74f32c4a34fa032fc60ca4",
+      "bytes": 14785,
+      "width": 230,
+      "height": 345,
+      "mimeType": "image/jpeg"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "staff_member",
+      "personId": "76000000-0000-4000-8000-000000000001",
+      "registrationId": "78000000-0000-4000-8000-000000000001",
+      "before": {
+        "firstName": "Tecnico",
+        "lastName": "Away"
+      },
+      "after": {
+        "firstName": "Mister",
+        "lastName": ""
+      },
+      "file": "ospite/Mister.png",
+      "sha256": "78c53bce5fc995d77b2ecb0b471e29571f7233fa99b5bba7938bd1e7b9cb6cef",
+      "bytes": 2035368,
+      "width": 1025,
+      "height": 1534,
+      "mimeType": "image/png",
+      "role": "Allenatore"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "staff_member",
+      "personId": "76000000-0000-4000-8000-000000000003",
+      "registrationId": "78000000-0000-4000-8000-000000000003",
+      "before": {
+        "firstName": "Preparatore",
+        "lastName": "Away"
+      },
+      "after": {
+        "firstName": "Massaggiatore",
+        "lastName": ""
+      },
+      "file": "ospite/Massaggiatore.png",
+      "sha256": "89b47b939c3f71d91ad86703e301d3c544452ca6fa91e38808f8488f256684fe",
+      "bytes": 1996461,
+      "width": 1023,
+      "height": 1537,
+      "mimeType": "image/png",
+      "role": "Massaggiatore"
+    },
+    {
+      "team": "away",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "kind": "staff_member",
+      "personId": "76000000-0000-4000-8000-000000000004",
+      "registrationId": "78000000-0000-4000-8000-000000000004",
+      "before": {
+        "firstName": "Dirigente",
+        "lastName": "Away"
+      },
+      "after": {
+        "firstName": "Dirigente",
+        "lastName": ""
+      },
+      "file": "ospite/Dirigente.png",
+      "sha256": "227d31f2838374bd9de0aa379a69c2a5e1e4f29b872234be5099a10353ae16c0",
+      "bytes": 1966182,
+      "width": 1025,
+      "height": 1535,
+      "mimeType": "image/png",
+      "role": "Dirigente accompagnatore"
+    }
+  ],
+  "retiredStaff": [
+    {
+      "personId": "75000000-0000-4000-8000-000000000002",
+      "registrationId": "77000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000003",
+      "before": {
+        "firstName": "Assistente",
+        "lastName": "Home"
+      }
+    },
+    {
+      "personId": "76000000-0000-4000-8000-000000000002",
+      "registrationId": "78000000-0000-4000-8000-000000000002",
+      "clubId": "70000000-0000-4000-8000-000000000004",
+      "before": {
+        "firstName": "Assistente",
+        "lastName": "Away"
+      }
+    }
+  ],
+  "targetProjectRef": "mzctnlenvrtjuavzbusa"
+}
