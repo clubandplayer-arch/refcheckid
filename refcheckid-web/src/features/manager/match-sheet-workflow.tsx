@@ -62,6 +62,7 @@ export function MatchSheetWorkflow() {
     offsetX: number;
     offsetY: number;
   } | null>(null);
+  const [photoChangeReason, setPhotoChangeReason] = useState("");
   const [photoError, setPhotoError] = useState<PhotoErrorState | null>(null);
   const managerTeam = getCurrentManagerTeam();
   const managerClubId = getCurrentManagerConfig().clubId;
@@ -277,6 +278,7 @@ export function MatchSheetWorkflow() {
         federationId: getCurrentManagerConfig().federationId,
         seasonId: player.season,
         dataUrl: photoUrl,
+        replacementReason: photoChangeReason,
       });
       setPlayerList((current) =>
         current.map((item) =>
@@ -321,6 +323,7 @@ export function MatchSheetWorkflow() {
         federationId: getCurrentManagerConfig().federationId,
         seasonId: staffMember.season,
         dataUrl: photoUrl,
+        replacementReason: photoChangeReason,
       });
       setStaffList((current) =>
         current.map((item) =>
@@ -359,6 +362,7 @@ export function MatchSheetWorkflow() {
         : current,
     );
     if (!file) return;
+    setPhotoChangeReason("");
     if (!file.type.startsWith("image/")) {
       setPhotoError({
         subjectKind,
@@ -607,6 +611,8 @@ export function MatchSheetWorkflow() {
           photoDraft={photoDraft}
           onPhotoTransform={updatePhotoDraftTransform}
           photoError={photoError}
+          replacementReason={photoChangeReason}
+          onReplacementReasonChange={setPhotoChangeReason}
           officialPhotoUploadEnabled={officialPhotoUploadEnabled}
           players={filteredPlayers}
           onSelectAll={selectAllPlayers}
@@ -642,6 +648,8 @@ export function MatchSheetWorkflow() {
           onPhotoTransform={updatePhotoDraftTransform}
           photoDraft={photoDraft}
           photoError={photoError}
+          replacementReason={photoChangeReason}
+          onReplacementReasonChange={setPhotoChangeReason}
           officialPhotoUploadEnabled={officialPhotoUploadEnabled}
           staff={staff}
           onSelectAll={selectAllStaff}
@@ -663,6 +671,8 @@ export function MatchSheetWorkflow() {
 }
 
 function PlayersStep({
+  replacementReason,
+  onReplacementReasonChange,
   onSelectAll,
   selectAllDisabled,
   selectedCount,
@@ -677,6 +687,8 @@ function PlayersStep({
   setQuery,
   togglePlayer,
 }: Readonly<{
+  replacementReason: string;
+  onReplacementReasonChange: (value: string) => void;
   onSelectAll: () => void;
   selectAllDisabled: boolean;
   selectedCount: number;
@@ -774,6 +786,8 @@ function PlayersStep({
                   proposedPhotoUrl={player.photo?.proposedPhotoUrl ?? null}
                 />
                 <PhotoCaptureControls
+                  replacementReason={replacementReason}
+                  onReplacementReasonChange={onReplacementReasonChange}
                   currentPhotoUrl={
                     player.photo?.currentPhotoUrl ?? player.photoUrl
                   }
@@ -922,11 +936,13 @@ function PhotoApprovalNotice() {
         <p className="font-semibold">Nota foto tesserati</p>
         <p>
           Smartphone consigliato: inquadra tutto il volto. Da desktop puoi
-          caricare un file immagine. L’upload usa Upload Intent e Upload
-          Complete del backend ARCH-1: il backend è la Source of Truth delle
-          foto ufficiali. Se sostituisci una foto attiva, la foto ufficiale
-          corrente resta visibile fino all’approvazione federale e la nuova foto
-          compare come proposta pending.
+          caricare un file immagine. La dirigenza carica solo la foto per il
+          riconoscimento; i dati del tesserato sono gestiti dalla federazione.
+          È consentito un cambio foto ordinario per anno solare. Dal secondo
+          cambio serve una richiesta specifica e motivata alla federazione:
+          un semplice taglio di capelli non è sufficiente. La crescita dei
+          più giovani può giustificare un aggiornamento. La foto attuale
+          resta valida fino all’approvazione della nuova proposta.
         </p>
       </div>
       <PhotoExampleIllustration />
@@ -990,6 +1006,8 @@ function PhotoExampleIllustration() {
 }
 
 function PhotoCaptureControls({
+  replacementReason,
+  onReplacementReasonChange,
   currentPhotoUrl,
   onConfirm,
   onPhotoSelected,
@@ -999,6 +1017,8 @@ function PhotoCaptureControls({
   subjectLabel,
   uploadUnavailableReason,
 }: Readonly<{
+  replacementReason: string;
+  onReplacementReasonChange: (value: string) => void;
   currentPhotoUrl: string | null;
   onConfirm: () => void;
   onPhotoSelected: (file: File | null) => void;
@@ -1102,6 +1122,13 @@ function PhotoCaptureControls({
               type="range"
               value={photoDraft.offsetY}
             />
+          </label>
+          <label className="block space-y-1">
+            <span>Motivazione cambio aggiuntivo</span>
+            <textarea className="block w-full rounded-lg border p-2" maxLength={2000}
+              value={replacementReason} onChange={(event) => onReplacementReasonChange(event.target.value)}
+              placeholder="Dal secondo cambio nell’anno: specifica il motivo (almeno 20 caratteri)." />
+            <span>Non necessaria per il primo caricamento o il primo cambio dell’anno. La federazione valuterà la richiesta.</span>
           </label>
           <Button
             className="w-full py-1 text-xs"
@@ -1331,6 +1358,8 @@ function SortablePlayerRow({
 }
 
 function StaffStep({
+  replacementReason,
+  onReplacementReasonChange,
   onSelectAll,
   selectAllDisabled,
   onConfirmPhoto,
@@ -1342,6 +1371,8 @@ function StaffStep({
   staff,
   toggleStaff,
 }: Readonly<{
+  replacementReason: string;
+  onReplacementReasonChange: (value: string) => void;
   onSelectAll: () => void;
   selectAllDisabled: boolean;
   onConfirmPhoto: (id: string) => void;
@@ -1413,6 +1444,8 @@ function StaffStep({
                   proposedPhotoUrl={staffMember.photo?.proposedPhotoUrl ?? null}
                 />
                 <PhotoCaptureControls
+                  replacementReason={replacementReason}
+                  onReplacementReasonChange={onReplacementReasonChange}
                   currentPhotoUrl={
                     staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl
                   }

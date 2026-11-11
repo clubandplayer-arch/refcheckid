@@ -59,6 +59,8 @@ export async function fetchFederationReports(): Promise<
 }
 
 export interface ApiPhotoApproval {
+  replacementReason?: string;
+  additionalAnnualChange?: boolean;
   id: string;
   photoVersionId: string;
   federationId: string;
@@ -498,6 +500,8 @@ function toPhotoRequest(approval: ApiPhotoApproval): PhotoRequest {
       photoVersionContentUrl(approval.proposedVersionId ?? approval.photoVersionId),
     currentFullPhotoUrl: approval.currentFullPhotoUrl ?? null,
     proposedFullPhotoUrl: approval.proposedFullPhotoUrl ?? null,
+    replacementReason: approval.replacementReason ?? null,
+    additionalAnnualChange: approval.additionalAnnualChange ?? false,
     requestedAt: approval.requestedAt,
     status: approval.status,
     reasonCode: approval.decisionReasonCode,

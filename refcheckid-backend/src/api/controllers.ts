@@ -333,6 +333,7 @@ export function createControllers(container: ApplicationContainer): Record<strin
         mimeType: requireString(body.mimeType, 'mimeType'),
         fileSizeBytes: Number(body.fileSizeBytes ?? 0),
         sha256: requireString(body.sha256, 'sha256'),
+        ...(body.replacementReason === undefined ? {} : { replacementReason: requireString(body.replacementReason, 'replacementReason') }),
         context: photoContext(request, { registrationClubId }),
       });
       return json(202, { intent: { ...intent, uploadUrl: {
@@ -516,7 +517,7 @@ export function createControllers(container: ApplicationContainer): Record<strin
               type:
                 typeof manifest.documentType === 'string'
                   ? manifest.documentType
-                  : 'Documento da verificare dal vivo',
+                  : 'Verifica facoltativa, solo in caso di dubbio',
               number: typeof manifest.documentNumber === 'string' ? manifest.documentNumber : 'Non registrato',
               expiresAt: typeof manifest.documentExpiresAt === 'string' ? manifest.documentExpiresAt : '',
             },

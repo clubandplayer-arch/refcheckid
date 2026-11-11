@@ -72,6 +72,7 @@ export interface PhotoAccessContext {
 }
 
 export interface CreateUploadIntentCommand {
+  readonly replacementReason?: string;
   readonly subjectKind?: 'athlete' | 'staff_member' | 'referee';
   readonly subjectId?: UUID;
   readonly playerId?: UUID;
@@ -136,6 +137,9 @@ export class PhotoService {
         lastApprovedAt: null,
         lastChangedAt: new Date().toISOString(),
       }));
+    const replacementReason = command.replacementReason?.trim();
+    if (replacementReason && replacementReason.length > 2000) throw new PhotoInvariantViolationError('La motivazione non può superare 2000 caratteri.');
+    await this.assertAnnualPhotoChange(global, replacementReason);
     const extension =
       command.mimeType === 'image/png'
         ? '.png'
@@ -230,10 +234,13 @@ export class PhotoService {
       archivedAt: null,
       rejectionReasonCode: null,
       rejectionNotes: null,
+      ...(session.replacementReason?.trim() ? { replacementReason: session.replacementReason.trim() } : {}),
     });
     if (session !== undefined) {
       await this.dependencies.photoApprovals.create({
         photoVersionId: version.id,
+        ...(version.replacementReason ? { replacementReason: version.replacementReason } : {}),
+        additionalAnnualChange: await this.requiresAdditionalAnnualChange(session.globalOfficialPhotoId),
         federationId: session.federationId,
         disciplineId: null,
         seasonId: session.seasonId,
@@ -274,6 +281,22 @@ export class PhotoService {
     });
     await this.uploadSessions.update(command.uploadId, { completedVersionId: version.id });
     return version;
+  }
+
+  private async requiresAdditionalAnnualChange(globalId: UUID): Promise<boolean> {
+    const approved = (await this.dependencies.photoVersions.listByGlobalPhoto(globalId))
+      .filter((version) => typeof version.activatedAt === 'string')
+      .sort((a, b) => a.versionNumber - b.versionNumber);
+    // Initial activation is not a replacement. Count approved changes only;
+    // rejected uploads do not consume the allowance, and club/season changes do not reset it.
+    const yearStart = `${new Date().getUTCFullYear()}-01-01T00:00:00.000Z`;
+    return approved.slice(1).some((version) => version.activatedAt! >= yearStart);
+  }
+
+  private async assertAnnualPhotoChange(global: GlobalOfficialPhoto, reason?: string): Promise<void> {
+    if (global.currentVersionId && await this.requiresAdditionalAnnualChange(global.id) && (!reason || reason.trim().length < 20)) {
+      throw new PhotoInvariantViolationError('Hai già effettuato un cambio foto in questo anno solare. Per un ulteriore cambio invia una motivazione specifica di almeno 20 caratteri alla federazione.');
+    }
   }
 
   async createSignedReadUrl(
@@ -420,6 +443,7 @@ export class PhotoService {
     }
     const version = await this.requirePhotoVersion(approval.photoVersionId);
     const global = await this.requireGlobalOfficialPhoto(version.globalOfficialPhotoId);
+    await this.assertAnnualPhotoChange(global, version.replacementReason);
     const previousVersionId = global.currentVersionId;
     const now = new Date().toISOString();
 

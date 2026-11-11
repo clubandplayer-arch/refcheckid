@@ -870,6 +870,13 @@ function PhotoRequestCard({
           fullPhotoUrl={request.proposedFullPhotoUrl}
         />
       </div>
+      {request.additionalAnnualChange || request.replacementReason ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+          <p className="font-semibold">{request.additionalAnnualChange ? "Richiesta di cambio foto aggiuntivo nell’anno" : "Motivazione del cambio foto"}</p>
+          <p className="whitespace-pre-wrap">{request.replacementReason ?? "Motivazione non disponibile"}</p>
+          <p className="mt-1 text-xs">Valuta la necessità del cambio per il riconoscimento. Un semplice taglio di capelli non è sufficiente.</p>
+        </div>
+      ) : null}
       {request.status === "rejected" ? (
         <p className="rounded-lg bg-red-50 p-2 text-xs text-red-700">
           Rifiuto comunicato al Club: resta valida la foto attuale e la

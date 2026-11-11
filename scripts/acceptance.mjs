@@ -187,6 +187,7 @@ try {
   const intentForReview = await api('/photos/upload-intent', home, {
     subjectKind: participant.subjectKind, subjectId: participant.subjectId, registrationId: participant.registrationId,
     federationId: dataset.federationSyncPayload.federations[0].id, seasonId: dataset.seasonId,
+    replacementReason: 'Crescita fisica rilevante che richiede un nuovo confronto del volto per il riconoscimento.',
     mimeType: 'image/png', fileSizeBytes: oldBytes.length, sha256: createHash('sha256').update(oldBytes).digest('hex'),
   });
   await api(`/photos/uploads/${intentForReview.intent.uploadId}/complete`, home, {
@@ -206,6 +207,7 @@ try {
     const images = [...document.querySelectorAll('img')];
     return images.length >= 2 && images.every((image) => image.complete && image.naturalWidth > 0 && image.naturalWidth <= 320);
   });
+  await page.getByText('Richiesta di cambio foto aggiuntivo nell’anno', { exact: true }).waitFor();
   const pagesBeforeDecision = photoPageLoads;
   const [decision] = await Promise.all([
     page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/approve')),

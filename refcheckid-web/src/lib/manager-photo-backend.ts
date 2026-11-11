@@ -143,6 +143,7 @@ export async function uploadOfficialSubjectPhoto(input: {
   federationId: string;
   seasonId: string;
   dataUrl: string;
+  replacementReason?: string;
   mimeType?: string;
 }): Promise<ManagerPhotoState> {
   const flags = getPhotoFeatureFlags();
@@ -172,6 +173,7 @@ export async function uploadOfficialSubjectPhoto(input: {
         mimeType,
         fileSizeBytes: bytes.byteLength,
         sha256,
+        ...(input.replacementReason?.trim() ? { replacementReason: input.replacementReason.trim() } : {}),
         actorRole: "manager",
         clubId: input.clubId,
         registrationClubId: input.clubId,
