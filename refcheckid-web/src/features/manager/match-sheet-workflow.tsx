@@ -444,6 +444,11 @@ export function MatchSheetWorkflow() {
       ),
     );
   }
+  function selectAllStaff() {
+    setStaffList((current) =>
+      current.map((staffMember) => ({ ...staffMember, selected: true })),
+    );
+  }
   function toggleStaff(staffId: string) {
     setStaffList((current) =>
       current.map((staffMember) =>
@@ -639,6 +644,8 @@ export function MatchSheetWorkflow() {
           photoError={photoError}
           officialPhotoUploadEnabled={officialPhotoUploadEnabled}
           staff={staff}
+          onSelectAll={selectAllStaff}
+          selectAllDisabled={isReadOnly || !staff.some((member) => !member.selected)}
           toggleStaff={toggleStaff}
         />
       ) : null}
@@ -1324,6 +1331,8 @@ function SortablePlayerRow({
 }
 
 function StaffStep({
+  onSelectAll,
+  selectAllDisabled,
   onConfirmPhoto,
   onPhotoSelected,
   onPhotoTransform,
@@ -1333,6 +1342,8 @@ function StaffStep({
   staff,
   toggleStaff,
 }: Readonly<{
+  onSelectAll: () => void;
+  selectAllDisabled: boolean;
   onConfirmPhoto: (id: string) => void;
   onPhotoSelected: (id: string, file: File | null) => void;
   onPhotoTransform: (
@@ -1355,6 +1366,14 @@ function StaffStep({
     <Card className="space-y-4">
       <h2 className="text-xl font-bold">Staff</h2>
       <PhotoApprovalNotice />
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="button" onClick={onSelectAll} disabled={selectAllDisabled}>
+          Seleziona tutti
+        </Button>
+        <p className="text-sm text-slate-500" aria-live="polite">
+          {staff.filter((member) => member.selected).length} membri dello staff selezionati
+        </p>
+      </div>
       {staff.length === 0 ? (
         <EmptyState message="Nessuno staff disponibile." />
       ) : null}
