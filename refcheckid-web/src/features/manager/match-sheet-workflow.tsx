@@ -28,6 +28,7 @@ import { uploadOfficialSubjectPhoto } from "@/lib/manager-photo-backend";
 import { getPhotoFeatureFlags } from "@/lib/photo-feature-flags";
 import {
   fetchMatchSheets,
+  fetchLineupDefaults,
   fetchPlayers,
   fetchStaff,
   queryKeys,
@@ -146,10 +147,28 @@ export function MatchSheetWorkflow() {
   const matchSheetStatus = sheetsQuery.data?.[0]?.status ?? "draft";
   const isReadOnly = matchSheetStatus !== "draft";
   const submittedSheet = sheetsQuery.data?.[0];
+  const defaultsQuery = useQuery({
+    queryKey: [...queryKeys.matchSheets, "defaults", managerClubId, submittedSheet?.matchId],
+    queryFn: () => fetchLineupDefaults(managerClubId, submittedSheet!.matchId),
+    enabled: !!submittedSheet && !isReadOnly && !submittedSheet.players?.length,
+    staleTime: 60_000,
+  });
   const managerTeamLabel = submittedSheet?.clubName ?? getCurrentManagerConfig().label;
   const players = useMemo(() => {
     if (!isReadOnly && playersEdited) return selectedPlayers;
-    if (!isReadOnly && !submittedSheet?.players?.length) return fetchedPlayers;
+    const defaultsByRegistration = new Map(
+      (defaultsQuery.data?.players ?? []).map((player) => [player.playerRegistrationId, player]),
+    );
+    const roster = fetchedPlayers.map((player) => {
+      const defaults = player.registrationId ? defaultsByRegistration.get(player.registrationId) : undefined;
+      // A saved lineup for this match always takes priority over suggestions.
+      if (isReadOnly || submittedSheet?.players?.length || !defaults) return player;
+      return { ...player, shirtNumber: defaults.shirtNumber,
+        role: (defaults.role === "reserve" ? "reserve" : "starter") as PlayerLineupRole,
+        isGoalkeeper: defaults.isGoalkeeper, isCaptain: defaults.isCaptain,
+        isViceCaptain: defaults.isViceCaptain };
+    });
+    if (!isReadOnly && !submittedSheet?.players?.length) return roster;
     const lineupByRegistration = new Map(
       (submittedSheet?.players ?? []).map((line) => [
         line.playerRegistrationId,
@@ -178,7 +197,7 @@ export function MatchSheetWorkflow() {
       })
       .sort((left, right) => left.lineupOrder - right.lineupOrder)
       .map(({ lineupOrder: _lineupOrder, ...player }) => player);
-  }, [fetchedPlayers, isReadOnly, playersEdited, selectedPlayers, submittedSheet?.players]);
+  }, [defaultsQuery.data, fetchedPlayers, isReadOnly, playersEdited, selectedPlayers, submittedSheet?.players]);
   const staff = useMemo(() => {
     if (!isReadOnly && staffEdited) return selectedStaff;
     if (!isReadOnly && !submittedSheet?.staff?.length) return fetchedStaff;
@@ -495,8 +514,10 @@ export function MatchSheetWorkflow() {
     );
   }
 
-  if (playersQuery.isLoading || staffQuery.isLoading || sheetsQuery.isLoading)
+  if (playersQuery.isLoading || staffQuery.isLoading || sheetsQuery.isLoading || defaultsQuery.isLoading)
     return <SkeletonBlock />;
+  if (defaultsQuery.isError)
+    return <ErrorState message={defaultsQuery.error.message} onRetry={() => void defaultsQuery.refetch()} />;
   if (playersQuery.isError)
     return (
       <ErrorState
@@ -534,6 +555,12 @@ export function MatchSheetWorkflow() {
             Distinta inviata: convocazioni, ordine e staff non sono più
             modificabili. Le foto ufficiali dei tesserati restano aggiornabili;
             per correggere la distinta, avvisa l’arbitro o la segreteria.
+          </p>
+        ) : null}
+        {!isReadOnly && !submittedSheet?.players?.length && defaultsQuery.data?.sourceMatchSheetId ? (
+          <p className="mt-3 text-sm text-slate-600">
+            Numeri di maglia, ruoli, portieri, capitano e vice capitano precompilati dalla distinta precedente.
+            Puoi modificarli per questa gara. Salva la bozza o invia la distinta per conservarli.
           </p>
         ) : null}
         {!isReadOnly ? <Button className="mt-3" type="button" disabled={draftMutation.isPending} onClick={() => draftMutation.mutate()}>Salva distinta in bozza</Button> : null}

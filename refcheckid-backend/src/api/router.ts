@@ -1,3 +1,4 @@
+import { lineupDefaults } from './lineup-defaults.js';
 import { cloudEnabled } from '../cloud/config.js';
 import { photoApprovalQueue } from './photo-approval-queue.js';
 import { ensurePhotoThumbnail } from '../services/photo-thumbnail.js';
@@ -40,6 +41,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.use((next) => (request) => {
     const readOnly = request.method === 'GET' && (
       ['/api/v1/photo-approvals/page', '/api/v1/photo-approvals/summary'].includes(request.path) ||
+      /^\/api\/v1\/clubs\/[^/]+\/lineup-defaults$/.test(request.path) ||
       /^\/api\/v1\/photos\/versions\/[^/]+\/content$/.test(request.path));
     const operation = async () => {
     const response = await requestContext.run({ store: container.store }, () => next(request));
@@ -123,6 +125,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/federations/:id', controllers.getFederation);
   router.register('GET', '/api/v1/clubs', controllers.listClubs);
   router.register('GET', '/api/v1/clubs/:id', controllers.getClub);
+  router.register('GET', '/api/v1/clubs/:id/lineup-defaults', (request) => lineupDefaults(container, request));
   router.register('GET', '/api/v1/players', controllers.listPlayers);
   router.register('GET', '/api/v1/players/:id', controllers.getPlayer);
   router.register('GET', '/api/v1/player-registrations', controllers.listPlayerRegistrations);
