@@ -418,6 +418,13 @@ export function MatchSheetWorkflow() {
       ),
     );
   }
+  function selectAllPlayers() {
+    setPlayerList((current) =>
+      current.map((player) =>
+        player.suspended ? player : { ...player, selected: true },
+      ),
+    );
+  }
   function toggleStaff(staffId: string) {
     setStaffList((current) =>
       current.map((staffMember) =>
@@ -570,6 +577,9 @@ export function MatchSheetWorkflow() {
           photoError={photoError}
           officialPhotoUploadEnabled={officialPhotoUploadEnabled}
           players={filteredPlayers}
+          onSelectAll={selectAllPlayers}
+          selectAllDisabled={isReadOnly || !players.some((player) => !player.suspended && !player.selected)}
+          selectedCount={calledPlayers.length}
           query={query}
           setQuery={setQuery}
           togglePlayer={togglePlayer}
@@ -619,6 +629,9 @@ export function MatchSheetWorkflow() {
 }
 
 function PlayersStep({
+  onSelectAll,
+  selectAllDisabled,
+  selectedCount,
   onConfirmPhoto,
   onPhotoSelected,
   onPhotoTransform,
@@ -630,6 +643,9 @@ function PlayersStep({
   setQuery,
   togglePlayer,
 }: Readonly<{
+  onSelectAll: () => void;
+  selectAllDisabled: boolean;
+  selectedCount: number;
   onConfirmPhoto: (id: string) => void;
   onPhotoSelected: (id: string, file: File | null) => void;
   onPhotoTransform: (
@@ -665,6 +681,18 @@ function PlayersStep({
         placeholder="Cerca giocatore"
         value={query}
       />
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="button" onClick={onSelectAll} disabled={selectAllDisabled}>
+          Seleziona tutti
+        </Button>
+        <p className="text-sm text-slate-500" aria-live="polite">
+          {selectedCount} giocatori convocati
+        </p>
+      </div>
+      <p className="text-xs text-slate-500">
+        Seleziona tutti i giocatori della rosa non squalificati, anche se è attiva una ricerca.
+        Puoi poi deselezionare i singoli giocatori da escludere.
+      </p>
       <div className="divide-y rounded-xl border">
         {players.length === 0 ? (
           <EmptyState message="Nessun giocatore trovato." />
