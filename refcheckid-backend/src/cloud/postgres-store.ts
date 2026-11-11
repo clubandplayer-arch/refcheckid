@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { Pool, type PoolClient, type PoolConfig } from 'pg';
+import { Pool, type PoolClient, type PoolConfig, type QueryResult, type QueryResultRow } from 'pg';
 import type { RuntimePersistence } from '../repositories/runtime-persistence.js';
 import { postgresTlsOptions } from './postgres-tls.js';
 
@@ -7,6 +7,9 @@ interface TransactionContext {
   client: PoolClient;
   lists: Map<string, Promise<readonly unknown[]>>;
   entities: Map<string, Promise<unknown>>;
+  queue: Promise<void>;
+  failed: boolean;
+  failure: unknown;
 }
 
 /** Durable PostgreSQL store. No request state is kept in Vercel's filesystem. */
@@ -27,13 +30,23 @@ export class PostgresStore implements RuntimePersistence {
 
   initialized(): boolean { return true; }
 
-  private get client(): Pool | PoolClient { return this.context.getStore()?.client ?? this.pool; }
+  private query<T extends QueryResultRow = QueryResultRow>(sql: string, values: unknown[]): Promise<QueryResult<T>> {
+    const context = this.context.getStore();
+    if (!context) return this.pool.query<T>(sql, values);
+    // Repository calls may use Promise.all, but a pg client is one connection.
+    // Never submit another statement until its previous query has settled.
+    const run = context.queue.then(() => context.client.query<T>(sql, values));
+    context.queue = run.then(() => undefined, (error: unknown) => {
+      if (!context.failed) { context.failed = true; context.failure = error; }
+    });
+    return run;
+  }
 
   async list<T>(name: string): Promise<readonly T[]> {
     const context = this.context.getStore();
     let pending = context?.lists.get(name);
     if (!pending) {
-      pending = this.client.query<{ document: T }>(
+      pending = this.query<{ document: T }>(
         'SELECT document FROM refcheckid.entities WHERE repository=$1 ORDER BY ordinal', [name])
         .then((result) => result.rows.map((row) => row.document));
       context?.lists.set(name, pending);
@@ -53,7 +66,7 @@ export class PostgresStore implements RuntimePersistence {
     const key = `${name}\0${id}`;
     let pending = context?.entities.get(key);
     if (!pending) {
-      pending = this.client.query<{ document: T }>(
+      pending = this.query<{ document: T }>(
         'SELECT document FROM refcheckid.entities WHERE repository=$1 AND id=$2', [name, id])
         .then((result) => result.rows[0]?.document ?? null);
       context?.entities.set(key, pending);
@@ -64,7 +77,7 @@ export class PostgresStore implements RuntimePersistence {
   async put<T extends { id: string }>(name: string, row: T): Promise<void> {
     const context = this.context.getStore();
     if (!context) throw new Error('Cloud writes require a command transaction.');
-    await this.client.query(`INSERT INTO refcheckid.entities(repository,id,document) VALUES ($1,$2,$3::jsonb)
+    await this.query(`INSERT INTO refcheckid.entities(repository,id,document) VALUES ($1,$2,$3::jsonb)
       ON CONFLICT(repository,id) DO UPDATE SET document=excluded.document`, [name, row.id, JSON.stringify(row)]);
     context.lists.delete(name);
     context.entities.delete(`${name}\0${row.id}`);
@@ -73,6 +86,8 @@ export class PostgresStore implements RuntimePersistence {
   async transaction<T>(operation: () => Promise<T>): Promise<T> {
     if (this.context.getStore()) return operation();
     const client = await this.pool.connect();
+    const context: TransactionContext = { client, lists: new Map(), entities: new Map(),
+      queue: Promise.resolve(), failed: false, failure: undefined };
     try {
       await client.query('BEGIN');
       // All application instances use this lock. Preserve existing read/check/write
@@ -81,10 +96,13 @@ export class PostgresStore implements RuntimePersistence {
       await client.query("SET LOCAL lock_timeout = '10s'");
       await client.query("SET LOCAL statement_timeout = '20s'");
       await client.query('SELECT pg_advisory_xact_lock(724391, 1)');
-      const result = await this.context.run({ client, lists: new Map(), entities: new Map() }, operation);
+      const result = await this.context.run(context, operation);
+      await context.queue;
+      if (context.failed) throw context.failure;
       await client.query('COMMIT');
       return result;
     } catch (error) {
+      await context.queue;
       await client.query('ROLLBACK').catch(() => undefined);
       throw error;
     } finally { client.release(); }

@@ -13,7 +13,13 @@ async function setup() {
   await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated;
     CREATE SCHEMA storage; CREATE TABLE storage.buckets(id text PRIMARY KEY,name text,public boolean,file_size_limit bigint);`);
   await db.exec(await readFile(new URL('../../supabase/migrations/202611100001_runtime.sql', import.meta.url), 'utf8'));
-  const client = { query: (sql: string, args?: unknown[]) => db.query(sql, args), release() {} };
+  let executing = false;
+  const client = { async query(sql: string, args?: unknown[]) {
+    if (executing) throw new Error('Overlapping queries on one PostgreSQL client');
+    executing = true;
+    try { return await db.query(sql, args); }
+    finally { executing = false; }
+  }, release() {} };
   const pool = { ...client, connect() { return Promise.resolve(client); }, on() {}, async end() {} } as unknown as Pool;
   return { db, store: new PostgresStore({}, pool) };
 }
@@ -80,4 +86,38 @@ it('reuses repeated permission reads only within a transaction and invalidates t
     expect((await store.get<{ name: string }>('clubs', 'home'))?.name).toBe('External');
   });
   query.mockRestore();
+});
+
+
+it('serializes parallel repository operations on one connection and drains failed work before rollback', async () => {
+  const { store } = await setup();
+  await store.transaction(async () => {
+    await Promise.all([
+      store.put('clubs', { id: 'home' }),
+      store.put('clubs', { id: 'away' }),
+      store.put('players', { id: 'player' }),
+    ]);
+    const result = await Promise.all([store.list('clubs'), store.get('players', 'player')]);
+    expect(result[0]).toHaveLength(2);
+    expect(result[1]).toEqual({ id: 'player' });
+  });
+  await expect(store.transaction(async () => {
+    await Promise.all([
+      store.put('clubs', { id: 'rolled-back' }),
+      store.put('invalid_repository!', { id: 'invalid' }),
+      store.put('clubs', { id: 'queued-after-failure' }),
+    ]);
+  })).rejects.toThrow();
+  expect(await store.get('clubs', 'rolled-back')).toBeNull();
+  expect(await store.get('clubs', 'queued-after-failure')).toBeNull();
+});
+
+it('rolls back a command even when its operation catches a failed SQL statement', async () => {
+  const { store } = await setup();
+  await expect(store.transaction(async () => {
+    await store.put('clubs', { id: 'rolled-back' });
+    await store.put('invalid_repository!', { id: 'invalid' }).catch(() => undefined);
+    return 'must not report success';
+  })).rejects.toThrow();
+  expect(await store.get('clubs', 'rolled-back')).toBeNull();
 });
