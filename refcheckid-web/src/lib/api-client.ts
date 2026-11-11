@@ -455,3 +455,18 @@ async function resolveActiveSession() {
   writeStoredSession(refreshedSession);
   return refreshedSession;
 }
+
+export interface LineupDefaults {
+  sourceMatchSheetId: string | null;
+  players: readonly {
+    playerRegistrationId: string;
+    shirtNumber: number | null;
+    role: string;
+    isGoalkeeper: boolean;
+    isCaptain: boolean;
+    isViceCaptain: boolean;
+  }[];
+}
+export async function fetchLineupDefaults(clubId: string, matchId: string): Promise<LineupDefaults> {
+  return request<LineupDefaults>(`/clubs/${encodeURIComponent(clubId)}/lineup-defaults?matchId=${encodeURIComponent(matchId)}`);
+}
