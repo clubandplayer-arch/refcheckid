@@ -1,3 +1,7 @@
+import { canReview, reviewerScope } from '../platform/photo-scopes.js';
+import { PlatformStore } from '../platform/store.js';
+import type { Fixture,Competition } from '../platform/types.js';
+import { platformMatchAllowed } from '../platform/router.js';
 import type { ApplicationContainer } from '../config/application-container.js';
 import type { Match } from '../domain/index.js';
 import { json, type ApiMiddleware, type AuthContext } from './http.js';
@@ -12,22 +16,24 @@ export function resourceAccess(container: ApplicationContainer): ApiMiddleware {
     const manager = auth.roles.includes('manager');
     const referee = auth.roles.includes('referee');
     const federation = auth.roles.includes('federation');
+    let photoScopes:ReturnType<typeof reviewerScope>|undefined;
     const clubAllowed = async (id: string) => {
       if (manager) return auth.clubIds?.includes(id) ?? false;
       const club = await r.clubs.findById(id);
-      if (federation) return !!club && !!auth.federationIds?.includes(club.federationId);
+      if (federation){if(club&&auth.federationIds?.includes(club.federationId))return true;photoScopes??=reviewerScope(container,auth);const scopes=await photoScopes;return !!club&&(scopes.federationIds===null||scopes.federationIds.includes(club.federationId)||scopes.clubIds.includes(id));}
       if (referee) return (await r.matches.list()).some((m) => matchAllowed(auth, m) && (m.homeClubId === id || m.awayClubId === id));
       return false;
     };
     const match = async (id: string) => {
       const value = await r.matches.findById(id);
-      return !!value && matchAllowed(auth, value);
+      return !!value && matchAllowed(auth, value) && (!referee || await platformMatchAllowed(container,auth.actorId,id,request.method!=='GET'));
     };
     const denied = () => json(403, { error: 'FORBIDDEN', message: 'Operation outside authorized role or resource scope.' });
     const body = (request.body ?? {}) as Record<string, unknown>;
     const id = request.params.id;
     if (id) requireUuid(id, 'id');
     const path = request.path;
+    if(path==='/api/v1/photos/upload-intent'){const registrationId=String(body.registrationId??'');const registration=await r.registrations.findById(registrationId)??await r.registrations.findStaffRegistrationById(registrationId);if(!registration||!await clubAllowed(registration.clubId))return denied();}
     if (path.startsWith('/api/v1/clubs/') && id && !await clubAllowed(id)) return denied();
     if (path.startsWith('/api/v1/federations/') && id && !auth.federationIds?.includes(id)) return denied();
     if (path.startsWith('/api/v1/referees/') && id) {
@@ -52,7 +58,7 @@ export function resourceAccess(container: ApplicationContainer): ApiMiddleware {
         if (snapshot.photoVersionId === id && snapshot.deletedAt === null && await match(snapshot.matchId)) allowed = true;
       }
       for (const approval of await r.photoApprovals.list()) {
-        if (approval.photoVersionId === id && federation && auth.federationIds?.includes(approval.federationId)) allowed = true;
+        if (approval.photoVersionId === id && federation && await canReview(container,auth,approval)) allowed = true;
       }
       if (!allowed) return denied();
     }
@@ -125,16 +131,20 @@ export function resourceAccess(container: ApplicationContainer): ApiMiddleware {
       if (!registration || !await clubAllowed(registration.clubId)) return denied();
     }
     const response = await next(request);
-    const enrichMatch = async (row: Record<string, unknown>) => ({ ...row,
-      homeClubName: (await r.clubs.findById(String(row.homeClubId)))?.name,
-      awayClubName: (await r.clubs.findById(String(row.awayClubId)))?.name,
-    });
+    const enrichMatch = async (row: Record<string, unknown>) => {
+      const db=new PlatformStore(container.store);const fixture=(await db.find<Fixture>('fixtures',{matchId:row.id}))[0];
+      const competition=fixture?await db.get<Competition>('competitions',fixture.competitionId):null;
+      return {...row, homeClubName:(await r.clubs.findById(String(row.homeClubId)))?.name,
+        awayClubName:(await r.clubs.findById(String(row.awayClubId)))?.name,
+        ...(competition?{platformFixtureId:fixture?.id,sport:competition.sport,lineupRules:competition.rules,competitionName:competition.name}:{}),
+      };
+    };
     if (request.method === 'GET' && response.status === 200 && path.startsWith('/api/v1/matches/') && path.split('/').length === 5 && response.body) {
       return { ...response, body: await enrichMatch(response.body as Record<string, unknown>) };
     }
     if (request.method !== 'GET' || response.status !== 200 || !Array.isArray(response.body)) return response;
     const filter = async (row: Record<string, string>) => {
-      if (path === '/api/v1/matches') return matchAllowed(auth, row as unknown as Match);
+      if (path === '/api/v1/matches') return matchAllowed(auth, row as unknown as Match) && (!referee || await platformMatchAllowed(container,auth.actorId,row.id));
       if (path === '/api/v1/match-sheets') return manager ? !!auth.clubIds?.includes(row.clubId) : match(row.matchId);
       if (path === '/api/v1/clubs') return clubAllowed(row.id);
       if (path === '/api/v1/federations') return !!auth.federationIds?.includes(row.id);
@@ -162,7 +172,7 @@ export function resourceAccess(container: ApplicationContainer): ApiMiddleware {
 
 export function matchAllowed(auth: AuthContext, match: Match): boolean {
   if (auth.roles.includes('admin')) return true;
-  if (auth.roles.includes('federation')) return !!auth.federationIds?.includes(match.federationId);
-  if (auth.roles.includes('referee')) return !!match.refereeId && !!auth.refereeIds?.includes(match.refereeId);
+  if (auth.roles.includes('federation') && auth.federationIds?.includes(match.federationId)) return true;
+  if (auth.roles.includes('referee')) return !!auth.authorizedMatchIds?.includes(match.id) || !!match.refereeId && !!auth.refereeIds?.includes(match.refereeId);
   return auth.roles.includes('manager') && !!auth.clubIds?.some((id) => id === match.homeClubId || id === match.awayClubId);
 }

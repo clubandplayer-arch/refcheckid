@@ -6,7 +6,7 @@ afterEach(() => vi.unstubAllGlobals());
 it('keeps retired staff history out of the operational lineup while retaining active staff', async () => {
   vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
     const url = String(input);
-    const body = url.includes('/staff-registrations') ? [
+    const body = url.includes('/matches') ? [] : url.includes('/staff-registrations') ? [
       { id: 'reg-active', staffMemberId: 'active', clubId: '70000000-0000-4000-8000-000000000003', season: '2026', role: 'Allenatore', status: 'active' },
       { id: 'reg-ended', staffMemberId: 'retired', clubId: '70000000-0000-4000-8000-000000000003', season: '2026', role: 'Vice allenatore', status: 'ended' },
     ] : url.includes('/staff-members') ? [

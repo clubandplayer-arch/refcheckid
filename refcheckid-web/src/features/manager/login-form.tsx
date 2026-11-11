@@ -12,7 +12,7 @@ import { useSession } from "@/lib/session";
 import { useState } from "react";
 
 const loginSchema = z.object({
-  email: z.string().email("Inserisci un indirizzo email valido"),
+  email: z.string().trim().min(1,"Inserisci email o codice personale").max(200),
   password: z.string().min(1, "Inserisci la password"),
 });
 
@@ -62,11 +62,11 @@ export function LoginForm() {
       </div>
       <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
         <label className="block space-y-1 text-sm font-medium">
-          Email
+          Email o codice personale
           <Input
-            autoComplete="email"
-            placeholder="nome@dominio.it"
-            type="email"
+            autoComplete="username"
+            placeholder="nome@dominio.it oppure RC-…"
+            type="text"
             {...form.register("email")}
           />
           {form.formState.errors.email ? (

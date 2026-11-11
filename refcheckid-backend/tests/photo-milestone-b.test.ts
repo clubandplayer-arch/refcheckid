@@ -95,6 +95,7 @@ describe('ARCH-1 Milestone B photo core', () => {
 
   it('keeps upload intent API backward compatible while accepting subject-based staff payloads', async () => {
     const container = createApplicationContainer();
+    await container.repositories.clubs.create({id:clubId,federationId,name:'Staff club',fiscalCode:null,status:'active'});
     await container.repositories.registrations.syncStaffMember({
       id: staffMemberId,
       federationId,

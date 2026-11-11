@@ -185,7 +185,7 @@ function setCorsHeaders(response: ServerResponse): void {
   response.setHeader('access-control-allow-methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
   response.setHeader(
     'access-control-allow-headers',
-    'content-type,authorization,x-actor-id,x-roles,x-request-id,x-correlation-id',
+    'content-type,authorization,x-refcheckid-role,x-actor-id,x-roles,x-request-id,x-correlation-id',
   );
 }
 

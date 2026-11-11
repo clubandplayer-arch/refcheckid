@@ -1,5 +1,6 @@
 "use client";
 
+import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -26,12 +27,12 @@ export function AuthGate({
       router.replace("/");
       return;
     }
-    if (session.user.role !== allowedRole && session.user.role !== 'admin') {
+    if (session.user.role !== allowedRole && session.user.role !== 'admin' && !session.user.availableRoles?.includes(allowedRole)) {
       router.replace(roleRedirects[session.user.role]);
     }
   }, [allowedRole, isReady, router, session]);
 
-  if (!isReady || !session || (session.user.role !== allowedRole && session.user.role !== 'admin')) {
+  if (!isReady || !session || (session.user.role !== allowedRole && session.user.role !== 'admin' && !session.user.availableRoles?.includes(allowedRole))) {
     return <main className="mx-auto max-w-6xl p-6">Verifica sessione…</main>;
   }
 
@@ -48,6 +49,9 @@ export function AuthGate({
       <div className="border-b bg-background px-6 py-3">
         <div className="mx-auto flex max-w-7xl items-center justify-between text-sm">
           <span>{session.user.displayName}</span>
+          <nav className="flex flex-wrap gap-3" aria-label="Le tue aree">
+            {(session.user.availableRoles??[session.user.role]).filter((role)=>role!=='admin').map((role)=><Link key={role} className="text-primary underline" href={roleRedirects[role]}>{({federation:'Gestione ente',referee:'Area arbitro',manager:'Area dirigente'} as Record<string,string>)[role]}</Link>)}
+          </nav>
           <Button type="button" onClick={() => void handleLogout()}>
             Logout
           </Button>

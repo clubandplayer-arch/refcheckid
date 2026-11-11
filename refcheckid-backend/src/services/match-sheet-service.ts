@@ -69,6 +69,8 @@ export class MatchSheetPhotoManifestIncompleteError extends Error {
 }
 
 export interface MatchSheetServiceDependencies {
+  readonly getSquadMembers?: (matchId:string,clubId:string)=>Promise<{players:string[];staff:string[]}|null>;
+  readonly getLineupRules?: (matchId:string)=>Promise<{starters:number;goalkeeperRequired?:boolean;minShirtNumber?:number;benchLimit?:number;staffLimit?:number}|null>;
   readonly eventPublisher?: EventPublisher;
   readonly matchSheetsRepository: MatchSheetRepositoryPort;
   readonly matchSheetPlayersRepository?: MatchSheetPlayerRepositoryPort;
@@ -254,8 +256,11 @@ export class MatchSheetService {
     if (new Set(ids).size !== ids.length) throw new Error('Duplicate registration in lineup.');
     if (!allowEmpty && !input.players?.length) throw new Error('A lineup must contain players.');
     if ((input.players ?? []).some((player) => !['starter', 'reserve'].includes(player.role) || (!allowEmpty && player.shirtNumber === null))) throw new Error('Players require a valid lineup role and shirt number before submission.');
+    const squad=await this.dependencies.getSquadMembers?.(match.id,sheet.clubId);if(squad&&((input.players??[]).some((p)=>!squad.players.includes(p.playerRegistrationId))||(input.staff??[]).some((p)=>!squad.staff.includes(p.staffRegistrationId))))throw new Error('Sono convocabili solo i tesserati assegnati alla squadra di questa gara.');
+    const rules=await this.dependencies.getLineupRules?.(match.id);
+    if(rules&&!allowEmpty){const starters=(input.players??[]).filter((p)=>p.role==='starter');if(starters.length!==rules.starters)throw new Error(`La competizione richiede ${rules.starters} titolari.`);if(rules.goalkeeperRequired&&starters.filter((p)=>p.isGoalkeeper).length!==1)throw new Error('Seleziona un portiere titolare.');if((input.players??[]).filter(player=>player.role==='reserve').length>(rules.benchLimit??20)||(input.staff??[]).length>(rules.staffLimit??5))throw new Error('Superato il limite di giocatori o staff in panchina.');const captains=(input.players??[]).filter(player=>player.isCaptain),vice=(input.players??[]).filter(player=>player.isViceCaptain);if(captains.length>1||vice.length>1||(input.players??[]).some(player=>player.isCaptain&&player.isViceCaptain))throw new Error('Capitano e vice devono essere distinti e univoci.');}
     const numbers = (input.players ?? []).map((p) => p.shirtNumber).filter((n) => n !== null);
-    if (new Set(numbers).size !== numbers.length || numbers.some((n) => !Number.isInteger(n) || n < 1 || n > 99)) throw new Error('Shirt numbers must be unique integers between 1 and 99.');
+    if (new Set(numbers).size !== numbers.length || numbers.some((n) => !Number.isInteger(n) || n < (rules?.minShirtNumber??1) || n > 99)) throw new Error('Shirt numbers must be unique integers between 1 and 99.');
     for (const row of input.players ?? []) {
       const registration = await this.dependencies.registrationsRepository.findPlayerRegistrationById(row.playerRegistrationId);
       if (!registration || registration.deletedAt !== null || registration.clubId !== sheet.clubId || registration.season !== match.season || registration.status !== 'active') throw new Error('Player registration is not eligible for this lineup.');

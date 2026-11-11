@@ -69,7 +69,7 @@ describe('security: JWT/RLS/roles/permissions/API/storage gates', () => {
           registrationClubId: ids.awayClub,
         },
       }),
-    ).resolves.toMatchObject({ status: 409, body: { error: 'PhotoAuthorizationError' } });
+    ).resolves.toMatchObject({ status: 403, body: { error: 'FORBIDDEN' } });
   });
 
   it('serves version photo bytes through the content route without exposing file URLs', async () => {

@@ -6,9 +6,11 @@ const backendOrigin = process.env.BACKEND_ORIGIN ?? "http://127.0.0.1:4000";
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["*.app.github.dev"],
   outputFileTracingRoot: path.join(process.cwd(), ".."),
+  // Loaded dynamically by ExcelJS through the ES intrinsic helpers.
+  outputFileTracingIncludes: { "/api/**": ["../node_modules/.pnpm/generator-function@*/node_modules/generator-function/**/*"] },
   reactStrictMode: true,
   transpilePackages: ["refcheckid-backend"],
-  serverExternalPackages: ["pg", "sharp"],
+  serverExternalPackages: ["pg", "sharp", "exceljs"],
   webpack(config) {
     config.resolve.extensionAlias = { ...config.resolve.extensionAlias, ".js": [".ts", ".tsx", ".js"] };
     return config;

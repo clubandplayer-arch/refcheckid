@@ -6,6 +6,8 @@ import { getApiBaseUrl } from "./api-base-url";
 export type AppRole = "manager" | "referee" | "federation" | "admin";
 
 export interface AuthenticatedUser {
+  clubFederationIds?: Record<string,string>;
+  availableRoles?: readonly AppRole[];
   id: string;
   email: string;
   role: AppRole;

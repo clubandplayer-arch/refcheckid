@@ -1,4 +1,5 @@
 "use client";
+import { OrganizationWorkspace } from "@/features/platform/workspace";
 
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +39,7 @@ const sections = [
   "Referti",
   "Foto",
   "Storico",
+  "Gestione ente",
 ] as const;
 const reportStatuses: readonly ("all" | FederationReportStatus)[] = [
   "all",
@@ -189,7 +191,7 @@ const importTemplates = [
 ] as const;
 
 export function FederationWorkflow() {
-  const [section, setSection] = useState(0);
+  const [section, setSection] = useState(6);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
@@ -211,6 +213,7 @@ export function FederationWorkflow() {
       {section === 3 ? <ReportsPanel /> : null}
       {section === 4 ? <PhotoRequestsPanel /> : null}
       {section === 5 ? <HistoryPanel /> : null}
+      {section === 6 ? <OrganizationWorkspace /> : null}
     </div>
   );
 }

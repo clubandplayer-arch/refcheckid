@@ -1,3 +1,5 @@
+import { PlatformStore } from '../platform/store.js';
+import type { Fixture,Competition,SquadMember } from '../platform/types.js';
 import { cloudEnabled, validateCloudConfiguration } from '../cloud/config.js';
 import { PostgresStore } from '../cloud/postgres-store.js';
 import { SupabasePhotoObjectStore } from '../cloud/supabase-photo-store.js';
@@ -183,6 +185,8 @@ export function createApplicationContainer(options: { databasePath?: string; see
       eventPublisher: events,
     }),
     matchSheets: new MatchSheetService({
+      getSquadMembers:async(matchId,clubId)=>{const db=new PlatformStore(store);const fixture=(await db.find<Fixture>('fixtures',{matchId}))[0];if(!fixture)return null;const match=await repositories.matches.findById(matchId);const teamId=clubId===match?.homeClubId?fixture.homeTeamId:fixture.awayTeamId;const members=await db.find<SquadMember>('squad_members',{teamId,active:true});return {players:members.filter((m)=>m.kind==='player').map((m)=>m.registrationId),staff:members.filter((m)=>m.kind==='staff').map((m)=>m.registrationId)};},
+      getLineupRules:async(matchId)=>{const db=new PlatformStore(store);const fixture=(await db.find<Fixture>('fixtures',{matchId}))[0];return fixture?(await db.get<Competition>('competitions',fixture.competitionId))?.rules??null:null;},
       matchSheetsRepository: repositories.matchSheets,
       matchSheetPlayersRepository: repositories.matchSheetPlayers,
       matchSheetStaffRepository: repositories.matchSheetStaff,

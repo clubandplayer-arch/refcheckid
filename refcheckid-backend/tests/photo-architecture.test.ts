@@ -141,7 +141,7 @@ describe('ARCH-1 photo backend foundations', () => {
           actorRole: 'admin',
         },
       }),
-    ).resolves.toMatchObject({ status: 202, body: { intent: { method: 'PUT' } } });
+    ).resolves.toMatchObject({ status: 403, body: { error: 'FORBIDDEN' } });
   });
 
   it('declares non-destructive migration schema, constraints and indexes', () => {

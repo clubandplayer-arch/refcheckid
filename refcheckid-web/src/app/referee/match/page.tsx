@@ -2,7 +2,8 @@ import { AuthGate } from "@/components/auth/auth-gate";
 import Link from "next/link";
 import { RefereeMatchWorkflow } from "@/features/referee/referee-match-workflow";
 
-export default function RefereeMatchPage() {
+export default async function RefereeMatchPage({searchParams}:{searchParams:Promise<{matchId?:string}>}) {
+  const query=await searchParams;
   return (
     <AuthGate allowedRole="referee">
       <main className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
@@ -14,7 +15,7 @@ export default function RefereeMatchPage() {
           <h1 className="text-3xl font-bold">Gestione gara arbitro</h1>
         </div>
       </header>
-        <RefereeMatchWorkflow />
+        <RefereeMatchWorkflow key={query.matchId??"default"} requestedMatchId={query.matchId??""} />
       </main>
     </AuthGate>
   );

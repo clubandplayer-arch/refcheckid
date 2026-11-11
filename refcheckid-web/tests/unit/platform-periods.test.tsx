@@ -1,0 +1,114 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+const mock = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
+vi.mock("@/lib/session", () => ({
+  useSession: () => ({ session: { user: { id: "referee-test" } } }),
+}));
+vi.mock("../../src/features/platform/api", async () => ({
+  ...(await vi.importActual("../../src/features/platform/api")),
+  platformGet: mock.get,
+  platformPost: mock.post,
+}));
+import { PeriodPanel } from "../../src/features/platform/referee";
+let client: QueryClient;
+const context = {
+  fixture: { id: "fixture" },
+  competition: { sport: "football", rules: { periods: 2 } },
+  summary: null,
+  events: [],
+  players: [],
+  home: { id: "home", name: "Casa" },
+  away: { id: "away", name: "Ospite" },
+  report: null,
+};
+beforeEach(() => {
+  localStorage.clear();
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  mock.get.mockResolvedValue(context);
+  mock.post.mockRejectedValue(new Error("Connessione assente"));
+});
+afterEach(() => {
+  cleanup();
+  client.clear();
+  vi.resetAllMocks();
+});
+function show(role: "principal" | "assistant" = "principal") {
+  render(
+    <QueryClientProvider client={client}>
+      <PeriodPanel fixtureId="fixture" role={role} />
+    </QueryClientProvider>,
+  );
+}
+it("keeps an unacknowledged period on the device and retries the same operation after reconnection", async () => {
+  show();
+  await screen.findByText(/Aggiornamenti gara/);
+  fireEvent.click(screen.getByText(/Aggiornamenti gara/));
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Conferma fine periodo, anche senza eventi",
+    }),
+  );
+  await screen.findByRole("alert");
+  const key = "refcheckid:period:referee-test:fixture";
+  const saved = JSON.parse(localStorage.getItem(key)!);
+  expect(saved).toMatchObject({
+    period: 1,
+    revision: 0,
+    homeScore: 0,
+    awayScore: 0,
+    state: "period_confirmed",
+  });
+  expect(saved.operationId).toBeTruthy();
+  mock.post.mockResolvedValue({ ...saved, revision: 1 });
+  fireEvent(window, new Event("online"));
+  await waitFor(() => expect(localStorage.getItem(key)).toBeNull());
+  expect(mock.post).toHaveBeenLastCalledWith("games/fixture/periods", saved);
+  await screen.findByText("Aggiornamento ricevuto e salvato dal server.");
+});
+it("retains a conflicting offline update until the referee explicitly resolves it", async () => {
+  const saved = {
+    operationId: "offline-op",
+    revision: 0,
+    period: 1,
+    homeScore: 0,
+    awayScore: 0,
+    events: [],
+    state: "period_confirmed",
+  };
+  localStorage.setItem(
+    "refcheckid:period:referee-test:fixture",
+    JSON.stringify(saved),
+  );
+  mock.post.mockRejectedValue(new Error("Calendario modificato: ricarica."));
+  show();
+  await screen.findByText(/Aggiornamenti gara/);
+  fireEvent.click(screen.getByText(/Aggiornamenti gara/));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Sincronizza aggiornamento salvato" }),
+  );
+  await screen.findByText("Calendario modificato: ricarica.");
+  expect(
+    JSON.parse(localStorage.getItem("refcheckid:period:referee-test:fixture")!),
+  ).toEqual(saved);
+});
+it("allows an assistant to send provisional updates and reserves official confirmations for the principal", async () => {
+  show("assistant");
+  await screen.findByText(/Aggiornamenti gara/);
+  fireEvent.click(screen.getByText(/Aggiornamenti gara/));
+  expect(
+    screen.queryByRole("button", { name: "Conferma fine gara" }),
+  ).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Invia aggiornamento provvisorio" }),
+  ).toBeTruthy();
+});

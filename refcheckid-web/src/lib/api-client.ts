@@ -13,6 +13,9 @@ import {
 import type { ManagerDashboard, PlayerListItem, StaffListItem } from "./types";
 
 export interface ApiMatch {
+  platformFixtureId?:string;
+  sport?:string;
+  lineupRules?: {starters:number;goalkeeperRequired?:boolean;benchLimit?:number;staffLimit?:number};
   homeClubName?: string;
   awayClubName?: string;
   id: string;
@@ -25,6 +28,7 @@ export interface ApiMatch {
 }
 
 export interface ApiMatchSheet {
+  lineupRules?: {starters:number;goalkeeperRequired?:boolean;benchLimit?:number;staffLimit?:number};
   clubName?: string;
   team?: 'home' | 'away';
   id: string;
@@ -154,11 +158,19 @@ function toManagerStatusNotification(status: ApiMatchSheet["status"]): string {
   }[status];
 }
 
+const operationalRosterRequests=new Map<string,Promise<OperationalRoster|null>>();
+interface OperationalRoster {players:Record<string,unknown>[];registrations:ApiPlayerRegistration[];staff:Record<string,unknown>[];staffRegistrations:ApiStaffRegistration[]}
+function fetchOperationalRoster():Promise<OperationalRoster|null>{
+  const clubId=getCurrentManagerConfig().clubId;const key=`${readStoredSession()?.user.id??''}:${clubId}`;const existing=operationalRosterRequests.get(key);if(existing)return existing;
+  const pending=(async()=>{const match=selectOperationalMatch(await fetchMatches(`?clubId=${encodeURIComponent(clubId)}`));return match?.platformFixtureId?request<OperationalRoster>(`/platform/match-roster/${match.id}?clubId=${encodeURIComponent(clubId)}`):null;})();
+  operationalRosterRequests.set(key,pending);void pending.finally(()=>operationalRosterRequests.delete(key)).catch(()=>undefined);return pending;
+}
 export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
-  const players = await request<readonly Record<string, unknown>[]>("/players");
+  const roster=await fetchOperationalRoster();
+  const players = roster?.players ?? await request<readonly Record<string, unknown>[]>("/players");
   const managerTeam = getCurrentManagerTeam();
   const managerClubId = getCurrentManagerConfig().clubId;
-  const registrations = await fetchPlayerRegistrations(
+  const registrations = roster?.registrations ?? await fetchPlayerRegistrations(
     `?clubId=${encodeURIComponent(managerClubId)}`,
   );
   const registrationByPlayerId = new Map(
@@ -190,11 +202,12 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
 }
 
 export async function fetchStaff(): Promise<readonly StaffListItem[]> {
-  const staff =
+  const roster=await fetchOperationalRoster();
+  const staff = roster?.staff ??
     await request<readonly Record<string, unknown>[]>("/staff-members");
   const managerTeam = getCurrentManagerTeam();
   const managerClubId = getCurrentManagerConfig().clubId;
-  const registrations = await fetchStaffRegistrations(
+  const registrations = roster?.staffRegistrations ?? await fetchStaffRegistrations(
     `?clubId=${encodeURIComponent(managerClubId)}`,
   );
   const registrationByStaffId = new Map(
@@ -397,10 +410,12 @@ export async function request<TResponse>(
   init?: RequestInit,
 ): Promise<TResponse> {
   const activeSession = await resolveActiveSession();
+  const area=typeof window!=='undefined'?window.location?.pathname?.split('/')[1]:undefined;
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",
+      ...(area&&['manager','referee','federation'].includes(area)?{'x-refcheckid-role':area}:{}),
       ...(activeSession
         ? { authorization: `Bearer ${activeSession.accessToken}` }
         : {}),

@@ -134,3 +134,24 @@ it('keeps photo queue read transactions read-only and outside the global command
   expect(await store.get('clubs', 'forbidden')).toBeNull();
   query.mockRestore();
 });
+
+it('batches import writes atomically, prefetches missing keys and exposes buffered changes consistently', async()=>{
+  const {db,store}=await setup();const query=vi.spyOn(db,'query');
+  await store.bulkTransaction(async()=>{
+    await store.prefetch(Array.from({length:100},(_,i)=>({repository:'platform_people',id:`person-${i}`})));
+    for(let i=0;i<100;i++){
+      expect(await store.get('platform_people',`person-${i}`)).toBeNull();
+      await store.put('platform_people',{id:`person-${i}`,clubId:'club',active:true});
+      expect(await store.get('platform_people',`person-${i}`)).toHaveProperty('active',true);
+    }
+    expect(await store.find('platform_people',{active:true})).toHaveLength(100);
+    await store.put('platform_people',{id:'person-0',clubId:'club',active:false});
+    expect(await store.find('platform_people',{active:true})).toHaveLength(99);
+    expect(await store.list('platform_people')).toHaveLength(100);
+  });
+  expect(query.mock.calls.filter(([sql])=>sql.startsWith('INSERT INTO refcheckid.entities'))).toHaveLength(1);
+  expect(query.mock.calls.filter(([sql])=>sql.startsWith('SELECT document FROM refcheckid.entities WHERE repository=$1 AND id=$2'))).toHaveLength(0);
+  await expect(store.bulkTransaction(async()=>{await store.put('platform_people',{id:'person-0',active:true});throw new Error('cancel block');})).rejects.toThrow('cancel block');
+  expect(await store.get('platform_people','person-0')).toHaveProperty('active',false);
+  expect(await store.findMany('platform_people','clubId',['club'])).toHaveLength(100);
+});

@@ -1,4 +1,5 @@
 "use client";
+import { MyAppointments } from "@/features/platform/referee";
 
 import { AuthGate } from "@/components/auth/auth-gate";
 
@@ -57,6 +58,7 @@ export default function RefereeDashboardPage() {
           Apri gara
         </Link>
       </header>
+      <MyAppointments />
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <h2 className="font-semibold">Prossima gara</h2>

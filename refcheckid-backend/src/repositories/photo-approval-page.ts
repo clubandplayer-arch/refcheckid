@@ -1,6 +1,6 @@
 import type { PhotoApproval } from '../domain/photo/types.js';
 export interface PhotoApprovalPageQuery {
-  federationIds: readonly string[] | null; status?: string; clubId?: string; sla?: string;
+  clubIds?:readonly string[]; federationFilter?:string; federationIds: readonly string[] | null; status?: string; clubId?: string; sla?: string;
   limit: number; afterRequestedAt?: string; afterId?: string; now: string;
 }
 export interface PhotoApprovalPageRow extends PhotoApproval {
@@ -16,7 +16,8 @@ WITH scoped AS MATERIALIZED (
  SELECT a.document
  FROM refcheckid.entities a
  WHERE a.repository='photo_approvals' AND a.document->>'deletedAt' IS NULL
- AND ($1::text[] IS NULL OR a.document->>'federationId'=ANY($1))
+ AND ($1::text[] IS NULL OR a.document->>'federationId'=ANY($1) OR EXISTS (SELECT 1 FROM refcheckid.entities r JOIN refcheckid.entities c ON c.repository='clubs' AND c.id=r.document->>'clubId' WHERE r.repository IN ('player_registrations','staff_registrations') AND r.id=a.document->>'registrationId' AND r.document->>'clubId'=ANY($9::text[]) AND c.document->>'federationId'=a.document->>'federationId'))
+ AND ($10::text IS NULL OR a.document->>'federationId'=$10)
  AND ($2::text IS NULL OR a.document->>'status'=$2)
  AND ($3::text IS NULL OR EXISTS (
    SELECT 1 FROM refcheckid.entities r

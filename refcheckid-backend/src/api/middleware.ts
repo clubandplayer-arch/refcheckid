@@ -33,7 +33,9 @@ export const loggingMiddleware: ApiMiddleware = (next) => async (request) => {
 export const authenticationMiddleware: ApiMiddleware = (next) => async (request) => {
   const bearerAuth = await authenticateBearerToken(request.headers.authorization);
   if (bearerAuth !== null) {
-    return next({ ...request, auth: bearerAuth });
+    const selectedRole=request.headers['x-refcheckid-role'];
+    if(selectedRole&&!bearerAuth.roles.includes(selectedRole))return json(403,{error:'FORBIDDEN',message:'Area non abilitata per questo account.'});
+    return next({ ...request, auth: selectedRole?{...bearerAuth,roles:[selectedRole]}:bearerAuth });
   }
 
   return next(request);
@@ -45,6 +47,7 @@ export const authorizationMiddleware: ApiMiddleware = (next) => (request) => {
     request.path === '/api/v1/openapi.json' ||
     request.path === '/api/v1/swagger' ||
     request.path === '/api/v1/auth/login' ||
+    request.path === '/api/v1/platform/activate' ||
     request.path === '/api/v1/auth/refresh' ||
     request.path === '/api/v1/auth/logout' ||
     (request.method === 'GET' &&

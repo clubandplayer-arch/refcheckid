@@ -1,8 +1,13 @@
+import { canReview } from '../platform/photo-scopes.js';
+import { photoApprovalQueue } from './photo-approval-queue.js';
+import { PlatformStore } from '../platform/store.js';
+import type { Fixture,GameSummary } from '../platform/types.js';
 import type { ApplicationContainer } from '../config/application-container.js';
 import type {
   FederationImportStatus,
   FederationImportType,
   MatchSheet,
+  Match,
   MatchStatus,
   PhotoApproval,
 } from '../domain/index.js';
@@ -320,6 +325,12 @@ export function createControllers(container: ApplicationContainer): Record<strin
           : legacyPlayerId !== null
             ? 'athlete'
             : undefined);
+      const playerRegistration=await container.repositories.registrations.findById(registrationId);
+      const staffRegistration=playerRegistration?null:await container.repositories.registrations.findStaffRegistrationById(registrationId);
+      const registration=playerRegistration??staffRegistration;
+      const club=registration?await container.repositories.clubs.findById(registration.clubId):null;
+      const expectedSubject=playerRegistration?.playerId??staffRegistration?.staffMemberId;
+      if(!request.auth?.roles.includes('admin')&&(!registration||!club||registration.deletedAt!==null||registration.status!=='active'||subjectId!==expectedSubject||resolvedSubjectKind!==(playerRegistration?'athlete':'staff_member')||body.federationId!==club.federationId||body.seasonId!==registration.season))return json(400,{error:'PHOTO_SUBJECT_MISMATCH',message:'La foto deve corrispondere al tesserato, alla società, alla stagione e alla federazione del tesseramento attivo.'});
       const intent = await container.services.photos.createUploadIntent({
         ...(resolvedSubjectKind === undefined ? {} : { subjectKind: resolvedSubjectKind }),
         ...(subjectId === null ? {} : { subjectId: requireUuid(subjectId, 'subjectId') }),
@@ -357,6 +368,7 @@ export function createControllers(container: ApplicationContainer): Record<strin
     },
     listPhotoApprovals: async (request) => {
       const context = photoContext(request, request.query);
+      if(context.actorRole==='federation'&&!context.federationId){const page=await photoApprovalQueue(container,request);return page.status===200?json(200,(page.body as {items:unknown[]}).items):page;}
       const federationId =
         context.actorRole === 'federation'
           ? context.federationId
@@ -424,22 +436,22 @@ export function createControllers(container: ApplicationContainer): Record<strin
       );
       if (approval === null) return json(404, { error: 'PHOTO_APPROVAL_NOT_FOUND' });
       const context = photoContext(request, {});
-      if (
-        context.actorRole !== 'admin' &&
-        !(context.actorRole === 'federation' && context.federationId === approval.federationId)
-      ) {
+      if (!request.auth||!await canReview(container,request.auth,approval)) {
         return json(403, { error: 'FORBIDDEN', message: 'Photo approval is outside scope.' });
       }
-      await container.services.photos.auditVersionViewedForApproval(context, approval);
+      await container.services.photos.auditVersionViewedForApproval({...context,federationId:approval.federationId}, approval);
       return json(200, await enrichPhotoApproval(container, approval));
     },
     approvePhotoApproval: async (request) => {
       const body = request.body === undefined ? {} : requireBodyObject(request.body);
+      const approval=await container.repositories.photoApprovals.findById(requireUuid(request.params.id,'id'));
+      if(!approval)return json(404,{error:'PHOTO_APPROVAL_NOT_FOUND'});
+      if(!request.auth||!await canReview(container,request.auth,approval))return json(403,{error:'FORBIDDEN'});
       return json(
         200,
         await container.services.photos.approvePhotoApproval({
           approvalId: requireUuid(request.params.id, 'id'),
-          context: photoContext(request, {}),
+          context: {...photoContext(request, {}),federationId:approval.federationId,federationIds:[approval.federationId]},
           reasonCode: optionalString(body.reasonCode, 'reasonCode') ?? undefined,
           notes: optionalString(body.notes, 'notes') ?? undefined,
         }),
@@ -447,11 +459,14 @@ export function createControllers(container: ApplicationContainer): Record<strin
     },
     rejectPhotoApproval: async (request) => {
       const body = requireBodyObject(request.body);
+      const approval=await container.repositories.photoApprovals.findById(requireUuid(request.params.id,'id'));
+      if(!approval)return json(404,{error:'PHOTO_APPROVAL_NOT_FOUND'});
+      if(!request.auth||!await canReview(container,request.auth,approval))return json(403,{error:'FORBIDDEN'});
       return json(
         200,
         await container.services.photos.rejectPhotoApproval({
           approvalId: requireUuid(request.params.id, 'id'),
-          context: photoContext(request, {}),
+          context: {...photoContext(request, {}),federationId:approval.federationId,federationIds:[approval.federationId]},
           reasonCode: requireFederationRejectReasonCode(body.reasonCode),
           notes: optionalString(body.notes, 'notes') ?? undefined,
         }),
@@ -576,6 +591,17 @@ export function createControllers(container: ApplicationContainer): Record<strin
       json(202, await container.services.federationSync.syncAll(requireBodyObject(request.body))),
 
     listMatches: async (request) => {
+      if(container.store.find&&request.auth&&!request.auth.roles.includes('admin')){
+        const auth=request.auth,rows:Match[]=[];
+        if(auth.roles.includes('federation'))for(const federationId of auth.federationIds??[])rows.push(...await container.store.find<Match>('matches',{federationId}));
+        if(auth.roles.includes('manager'))for(const clubId of auth.clubIds??[])for(const key of ['homeClubId','awayClubId'])rows.push(...await container.store.find<Match>('matches',{[key]:clubId}));
+        if(auth.roles.includes('referee')){
+          for(const refereeId of auth.refereeIds??[])rows.push(...await container.store.find<Match>('matches',{refereeId}));
+          if(container.store.findMany)rows.push(...await container.store.findMany<Match>('matches','id',auth.authorizedMatchIds??[]));
+          else for(const id of auth.authorizedMatchIds??[]){const match=await container.repositories.matches.findById(id);if(match)rows.push(match);}
+        }
+        return json(200,[...new Map(rows.map(row=>[row.id,row])).values()].filter(row=>(!request.query.federationId||row.federationId===request.query.federationId)&&(!request.query.clubId||[row.homeClubId,row.awayClubId].includes(request.query.clubId))&&(!request.query.refereeId||row.refereeId===request.query.refereeId)));
+      }
       if (request.query.federationId !== undefined) {
         return json(
           200,
@@ -727,6 +753,8 @@ export function createControllers(container: ApplicationContainer): Record<strin
       if (summary.length > 200_000) throw new Error('Report is too large.');
       const content = requireBodyObject(JSON.parse(summary));
       const result = requireBodyObject(content.result);
+      const platformDb=new PlatformStore(container.store);const fixture=(await platformDb.find<Fixture>('fixtures',{matchId}))[0];
+      if(fixture){const confirmed=await platformDb.get<GameSummary>('summaries',fixture.id);if(confirmed?.state!=='final_confirmed')throw new Error('Conferma prima il risultato di fine gara nella sezione Aggiornamenti gara.');if(result.homeGoals!==confirmed.homeScore||result.awayGoals!==confirmed.awayScore)throw new Error('Il risultato del referto deve coincidere con la conferma di fine gara.');}
       if (content.matchId !== matchId || ![result.homeGoals, result.awayGoals].every((score) => typeof score === 'number' && Number.isInteger(score) && score >= 0 && score <= 999)) throw new Error('Invalid report score or match.');
       for (const key of ['goals', 'cautions', 'expulsions', 'substitutions']) {
         if (!Array.isArray(content[key])) throw new Error(`Report ${key} must be an array.`);

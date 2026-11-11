@@ -1,3 +1,4 @@
+import { stableId } from '../platform/store.js';
 import { cloudEnabled } from '../cloud/config.js';
 import { authenticateSupabaseToken, cloudSession, cloudMe, cloudLogout } from '../cloud/supabase-auth.js';
 import { readFileSync } from 'node:fs';
@@ -11,6 +12,9 @@ type UserRole = 'manager' | 'referee' | 'federation' | 'admin';
 type AuthErrorCode = 'INVALID_CREDENTIALS' | 'USER_NOT_FOUND' | 'ACCOUNT_DISABLED';
 
 interface AuthUser {
+  readonly sessionVersion?:number;
+  readonly clubFederationIds?: Record<string,string>;
+  readonly appRoles?: readonly UserRole[];
   readonly id: string;
   readonly email: string;
   readonly password?: string;
@@ -25,6 +29,7 @@ interface AuthUser {
 }
 
 interface TokenPayload {
+  readonly sv?:number;
   readonly sid?: string;
   readonly sub: string;
   readonly email: string;
@@ -92,7 +97,7 @@ const refreshTokenTtlSeconds = 7 * 24 * 60 * 60;
 export const loginHandler: ApiHandler = async (request) => {
   if (cloudEnabled()) return cloudSession(request, 'password');
   const credentials = parseCredentials(request.body);
-  const user = getUsers().find((candidate) => candidate.email === credentials.email.toLowerCase());
+  const user = getUsers().find((candidate) => candidate.email === credentials.email.toLowerCase()) ?? await localUser(credentials.email);
 
   const passwordMatches = user ? verifyPassword(user, credentials.password) : false;
 
@@ -120,7 +125,7 @@ export const refreshHandler: ApiHandler = async (request) => {
     return authError('INVALID_CREDENTIALS', 'Sessione scaduta. Accedi di nuovo.');
   }
 
-  const user = getUsers().find((candidate) => candidate.id === payload.sub);
+  const user = (getUsers().find((candidate) => candidate.id === payload.sub) ?? await localUserById(payload.sub));
   if (user === undefined) {
     return authError('USER_NOT_FOUND', 'Utente inesistente.');
   }
@@ -139,7 +144,7 @@ export const meHandler: ApiHandler = async (request) => {
     return json(401, { error: 'UNAUTHENTICATED', message: 'Sessione richiesta.' });
   }
 
-  const user = getUsers().find((candidate) => candidate.id === request.auth?.actorId);
+  const user = (getUsers().find((candidate) => candidate.id === request.auth?.actorId) ?? await localUserById(request.auth.actorId));
   if (user === undefined) {
     return authError('USER_NOT_FOUND', 'Utente inesistente.');
   }
@@ -167,7 +172,7 @@ export async function authenticateBearerToken(authorizationHeader: string | unde
     return null;
   }
 
-  const user = getUsers().find((candidate) => candidate.id === payload.sub);
+  const user = (getUsers().find((candidate) => candidate.id === payload.sub) ?? await localUserById(payload.sub));
   if (user === undefined || !user.enabled) return null;
 
   return { ...toAuthContext(user), ...(payload.sid ? { sessionId: payload.sid } : {}) };
@@ -192,6 +197,8 @@ function toPublicUser(user: AuthUser) {
     id: user.id,
     email: user.email,
     role: user.role,
+    clubFederationIds:user.clubFederationIds??{},
+    availableRoles:[...new Set([user.role,...(user.appRoles??[])])],
     displayName: user.displayName,
     clubIds: user.clubIds ?? [],
     federationIds: user.federationIds ?? [],
@@ -204,7 +211,7 @@ function toAuthContext(user: AuthUser): AuthContext {
   return {
     displayName: user.displayName,
     actorId: user.id,
-    roles: [user.role],
+    roles:[...new Set([user.role,...(user.appRoles??[])])],
     clubIds: user.clubIds ?? [],
     federationIds: user.federationIds ?? [],
     refereeIds: user.refereeIds ?? [],
@@ -236,6 +243,7 @@ function parseRefreshToken(body: unknown): string {
 function signToken(user: AuthUser, type: TokenPayload['typ'], ttlSeconds: number, sid: string): string {
   const payload: TokenPayload = {
     sub: user.id,
+    sv:user.sessionVersion??0,
     email: user.email,
     role: user.role,
     exp: nowSeconds() + ttlSeconds,
@@ -258,6 +266,7 @@ async function verifyToken(token: string, expectedType: TokenPayload['typ']): Pr
     const store = requestContext.getStore()?.store;
     const session = payload.sid ? await store?.get<{ revoked: boolean }>('auth_sessions', payload.sid) : null;
     if (session?.revoked || (process.env.NODE_ENV === 'production' && store && !session)) return null;
+    const profile=await localUserById(payload.sub);if((payload.sv??0)!==(profile?.sessionVersion??0))return null;
     return payload;
   } catch { return null; }
 }
@@ -312,4 +321,17 @@ function verifyPassword(user: AuthUser, password: string): boolean {
     return safeEqual(scryptSync(password, salt, 64).toString('hex'), hash);
   }
   return process.env.NODE_ENV !== 'production' && safeEqual(user.password ?? '', password);
+}
+
+async function localUser(identity:string): Promise<AuthUser | undefined> {
+  const store=requestContext.getStore()?.store;
+  const alias=await store?.get<{profileId:string}>('platform_login_aliases',stableId('login',identity.toLowerCase()));
+  if(!alias)return undefined;
+  const profile=await store?.get<AuthUser & {actorId:string}>('auth_profiles',alias.profileId);
+  return profile?{...profile,id:profile.actorId}:undefined;
+}
+async function localUserById(actorId:string):Promise<AuthUser | undefined>{
+  const store=requestContext.getStore()?.store;
+  const rows=store?.find?await store.find<AuthUser & {actorId:string}>('auth_profiles',{actorId}):(await store?.list<AuthUser & {actorId:string}>('auth_profiles'))?.filter((row)=>row.actorId===actorId);
+  return rows?.[0]?{...rows[0],id:actorId}:undefined;
 }

@@ -1,4 +1,5 @@
 "use client";
+import { ActiveGameUpdates } from "@/features/platform/referee";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
@@ -59,7 +60,7 @@ const manifestQueryOptions = {
   staleTime: Number.POSITIVE_INFINITY,
 } as const;
 
-export function RefereeMatchWorkflow() {
+export function RefereeMatchWorkflow({requestedMatchId=""}:{requestedMatchId?:string}={}) {
   const [step, setStep] = useState(0);
   const [recognitionClosed, setRecognitionClosed] = useState(false);
   const [fullRecognitionComplete, setFullRecognitionComplete] = useState(false);
@@ -68,11 +69,11 @@ export function RefereeMatchWorkflow() {
   >(null);
   const { session } = useSession();
   const dashboardQuery = useQuery({
-    enabled: Boolean(session),
+    enabled: Boolean(session)&&!requestedMatchId,
     queryFn: fetchRefereeDashboard,
     queryKey: [...queryKeys.referees, "dashboard"],
   });
-  const matchId = dashboardQuery.data?.nextMatch?.id ?? "";
+  const matchId = requestedMatchId || dashboardQuery.data?.nextMatch?.id || "";
   const workflowQuery = useQuery({ enabled: Boolean(matchId), queryKey: [...queryKeys.recognitions, matchId, 'workflow'], queryFn: () => fetchRecognitionWorkflow(matchId) });
   useEffect(() => {
     if (workflowQuery.data?.status === 'locked') {
@@ -83,8 +84,8 @@ export function RefereeMatchWorkflow() {
   }, [workflowQuery.data?.status]);
 
   if (!session) return <ErrorState message="Sessione richiesta." />;
-  if (dashboardQuery.isLoading) return <SkeletonBlock />;
-  if (dashboardQuery.isError)
+  if (!requestedMatchId&&dashboardQuery.isLoading) return <SkeletonBlock />;
+  if (!requestedMatchId&&dashboardQuery.isError)
     return (
       <ErrorState
         message={dashboardQuery.error.message}
@@ -95,6 +96,7 @@ export function RefereeMatchWorkflow() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+      <ActiveGameUpdates matchId={matchId} />
       <aside className="space-y-2">
         {steps.map((label, index) => {
           const isRecognitionStepDisabled = recognitionClosed && index < 2;

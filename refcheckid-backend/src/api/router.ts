@@ -1,3 +1,4 @@
+import { registerPlatformRoutes } from '../platform/router.js';
 import { lineupDefaults } from './lineup-defaults.js';
 import { cloudEnabled } from '../cloud/config.js';
 import { photoApprovalQueue } from './photo-approval-queue.js';
@@ -39,7 +40,8 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
 
   router.use(errorHandlingMiddleware);
   router.use((next) => (request) => {
-    const readOnly = request.method === 'GET' && (
+    if(request.path === '/api/v1/platform/activate' || ['/api/v1/platform/imports/upload','/api/v1/platform/imports/prepare'].includes(request.path) || /^\/api\/v1\/platform\/imports\/[^/]+\/advance$/.test(request.path)) return requestContext.run({store:container.store},()=>next(request));
+    const readOnly = request.method === 'GET' && (request.path.startsWith('/api/v1/platform/') ||
       ['/api/v1/photo-approvals/page', '/api/v1/photo-approvals/summary'].includes(request.path) ||
       /^\/api\/v1\/clubs\/[^/]+\/lineup-defaults$/.test(request.path) ||
       /^\/api\/v1\/photos\/versions\/[^/]+\/content$/.test(request.path));
@@ -67,15 +69,16 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
       const sheet = request.path.includes('/match-sheets/') && request.params.id ? await container.repositories.matchSheets.findById(request.params.id) : null;
       const result = response.body as Record<string, unknown> | null;
       const body = request.body as Record<string, unknown> | undefined;
-      await container.repositories.audit.createAuditLog({
+      await container.store.transaction(()=>container.repositories.audit.createAuditLog({
         action: `${request.method} ${request.path}`, occurredAt: new Date().toISOString(),
         matchId: sheet?.matchId ?? (typeof result?.matchId === 'string' ? result.matchId : typeof body?.matchId === 'string' ? body.matchId : null),
-        metadata: { actorId: request.auth.actorId, roles: request.auth.roles, correlationId: request.correlationId },
-      });
+        metadata: { actorId: request.auth!.actorId, roles: request.auth!.roles, correlationId: request.correlationId },
+      }));
     }
     return response;
   }));
 
+  registerPlatformRoutes(container,router);
   router.register('GET', '/api/health', controllers.health);
   const openApiHandler = () => ({
     status: 200,

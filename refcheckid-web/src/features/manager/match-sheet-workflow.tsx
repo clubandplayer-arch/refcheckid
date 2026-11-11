@@ -84,7 +84,7 @@ export function MatchSheetWorkflow() {
         fetchMatches(`?clubId=${encodeURIComponent(managerClubId)}`),
       ]);
       const match = selectOperationalMatch(matches);
-      return match ? sheets.filter((sheet) => sheet.matchId === match.id) : [];
+      return match ? sheets.filter((sheet) => sheet.matchId === match.id).map((sheet)=>({...sheet,lineupRules:match.lineupRules})) : [];
     },
     queryKey: [...queryKeys.matchSheets, managerClubId],
   });
@@ -655,6 +655,7 @@ export function MatchSheetWorkflow() {
           onInvalidSubmit={(message) => notify(message, "error")}
           onSubmit={() => submitMutation.mutate()}
           players={calledPlayers}
+          rules={submittedSheet?.lineupRules}
           staff={calledStaff}
         />
       ) : null}
@@ -729,7 +730,7 @@ function PlayersStep({
       </p>
       <div className="divide-y rounded-xl border">
         {players.length === 0 ? (
-          <EmptyState message="Nessun giocatore trovato." />
+          <EmptyState message={query?"Nessun giocatore trovato.":"Nessun giocatore disponibile per questa squadra. La federazione deve importare i tesseramenti e assegnarli alla rosa."} />
         ) : null}
         {players.map((player) => {
           const statusTone = getPlayerStatusTone(player);
@@ -1257,9 +1258,9 @@ function SortablePlayerRow({
       </div>
       <Input
         disabled={disabled}
-        min={1}
+        min={0}
         onChange={(event) =>
-          updateShirtNumber(player.id, event.target.valueAsNumber || null)
+          updateShirtNumber(player.id, Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : null)
         }
         placeholder="N°"
         type="number"
@@ -1457,16 +1458,18 @@ function SummaryStep({
   players,
   staff,
   isSubmitting,
+  rules,
   onSubmit,
   onInvalidSubmit,
 }: Readonly<{
+  rules?: {starters:number;goalkeeperRequired?:boolean;benchLimit?:number;staffLimit?:number};
   players: readonly PlayerListItem[];
   staff: readonly StaffListItem[];
   isSubmitting: boolean;
   onSubmit: () => void;
   onInvalidSubmit: (message: string) => void;
 }>) {
-  const validation = validateMatchSheet(players, staff);
+  const validation = validateMatchSheet(players, staff, rules);
   function handleSubmit() {
     const submitError = getMatchSheetSubmitError(validation);
     if (submitError) {

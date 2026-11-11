@@ -1,3 +1,4 @@
+import { reviewerScope } from '../platform/photo-scopes.js';
 import type { ApplicationContainer } from '../config/application-container.js';
 import type { ApiRequest } from './http.js';
 import { json } from './http.js';
@@ -7,13 +8,6 @@ import type { PhotoApproval } from '../domain/photo/types.js';
 import { signedPhotoContentUrl } from './photo-content-token.js';
 
 export const approvalPageSize = 12;
-function scope(request: ApiRequest): readonly string[] | null {
-  if (request.auth?.roles.includes('admin')) return request.query.federationId ? [requireUuid(request.query.federationId, 'federationId')] : null;
-  if (!request.auth?.roles.includes('federation')) return [];
-  const ids = request.auth.federationIds ?? [];
-  if (request.query.federationId) return ids.includes(request.query.federationId) ? [request.query.federationId] : [];
-  return ids;
-}
 function cursorFrom(request: ApiRequest): { afterRequestedAt?: string; afterId?: string } {
   if (!request.query.cursor) return {};
   try {
@@ -27,12 +21,13 @@ function cursorFrom(request: ApiRequest): { afterRequestedAt?: string; afterId?:
 /** Local SQLite compatibility. Cloud uses one bounded, scoped SQL query instead. */
 async function localPage(app: ApplicationContainer, query: PhotoApprovalPageQuery): Promise<PhotoApprovalPageResult> {
   const approvals = (await app.store.list<PhotoApproval>('photo_approvals')).filter((a) => a.deletedAt === null &&
-    (query.federationIds === null || query.federationIds.includes(a.federationId)) && (!query.status || a.status === query.status));
+    (!query.federationFilter||a.federationId===query.federationFilter) && (query.federationIds === null || query.federationIds.includes(a.federationId) || !!query.clubIds?.length) && (!query.status || a.status === query.status));
   const rows: PhotoApprovalPageRow[] = [];
   for (const a of approvals) {
     const pr = a.registrationId ? await app.repositories.registrations.findById(a.registrationId) : null;
     const sr = !pr && a.registrationId ? await app.repositories.registrations.findStaffRegistrationById(a.registrationId) : null;
     const clubId = pr?.clubId ?? sr?.clubId ?? null;
+    if(query.federationIds!==null&&!query.federationIds.includes(a.federationId)&&(!clubId||!query.clubIds?.includes(clubId)||(await app.repositories.clubs.findById(clubId))?.federationId!==a.federationId))continue;
     const slaStatus = a.status !== 'pending' ? 'closed' : !a.slaDueAt ? 'not_set' : a.slaDueAt < query.now ? 'overdue' : 'on_track';
     if ((query.clubId && query.clubId !== clubId) || (query.sla && query.sla !== slaStatus)) continue;
     rows.push({ ...a, clubId, clubName: null, subjectName: null, currentVersionId: null, proposedVersionId: a.photoVersionId, slaStatus });
@@ -53,13 +48,14 @@ async function localPage(app: ApplicationContainer, query: PhotoApprovalPageQuer
 }
 
 export async function photoApprovalQueue(app: ApplicationContainer, request: ApiRequest, countOnly = false) {
-  const federationIds = scope(request);
-  if (federationIds !== null && !federationIds.length) return json(403, { error: 'FORBIDDEN', message: 'Federation scope required.' });
+  if(!request.auth)return json(401,{error:'UNAUTHENTICATED'});
+  const {federationIds,clubIds}=await reviewerScope(app,request.auth);
+  if (federationIds !== null && !federationIds.length && !clubIds.length) return json(403, { error: 'FORBIDDEN', message: 'Federation scope required.' });
   const status = countOnly ? 'pending' : request.query.status;
   if (status && !['pending', 'approved', 'rejected', 'cancelled', 'expired'].includes(status)) throw new ValidationError('Invalid approval status.', 'status');
   const sla = request.query.sla;
   if (sla && !['overdue', 'on_track', 'not_set', 'closed'].includes(sla)) throw new ValidationError('Invalid SLA filter.', 'sla');
-  const query: PhotoApprovalPageQuery = { federationIds, limit: countOnly ? 0 : approvalPageSize + 1, now: new Date().toISOString(),
+  const query: PhotoApprovalPageQuery = { federationIds,clubIds,...(request.query.federationId?{federationFilter:requireUuid(request.query.federationId,'federationId')}:{}), limit: countOnly ? 0 : approvalPageSize + 1, now: new Date().toISOString(),
     ...(status ? { status } : {}), ...(sla ? { sla } : {}),
     ...(request.query.clubId ? { clubId: requireUuid(request.query.clubId, 'clubId') } : {}), ...cursorFrom(request) };
   const page = app.store.photoApprovalPage ? await app.store.photoApprovalPage(query) : await localPage(app, query);

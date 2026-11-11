@@ -39,6 +39,7 @@ export interface MatchSheetValidationResult {
 export function validateMatchSheet(
   players: readonly PlayerListItem[],
   staff: readonly StaffListItem[],
+  rules: {starters:number;goalkeeperRequired?:boolean;benchLimit?:number;staffLimit?:number} = {starters:11,goalkeeperRequired:true},
 ): MatchSheetValidationResult {
   const missingShirtNumberPlayers = players
     .filter((player) => player.shirtNumber === null)
@@ -80,14 +81,14 @@ export function validateMatchSheet(
       ? [`Numeri di maglia duplicati: ${duplicateShirtNumbers.join(", ")}.`]
       : []),
     ...(invalidPlayers > 0 ? ["Rimuovi i giocatori non validi dalla distinta."] : []),
-    ...(startingGoalkeepers === 0 ? ["Seleziona un Portiere tra gli 11 titolari."] : []),
-    ...(startingGoalkeepers > 1 ? ["Seleziona un solo Portiere tra gli 11 titolari."] : []),
-    ...(startingLineup < 11
-      ? ["Seleziona 11 titolari per completare la distinta."]
+    ...(rules.goalkeeperRequired && startingGoalkeepers === 0 ? [`Seleziona un Portiere tra gli ${rules.starters} titolari.`] : []),
+    ...(rules.goalkeeperRequired && startingGoalkeepers > 1 ? [`Seleziona un solo Portiere tra gli ${rules.starters} titolari.`] : []),
+    ...(startingLineup < rules.starters
+      ? [`Seleziona ${rules.starters} titolari per completare la distinta.`]
       : []),
-    ...(startingLineup > 11 ? ["Seleziona al massimo 11 titolari."] : []),
-    ...(benchPlayers > 20 ? ["Seleziona al massimo 20 giocatori in panchina."] : []),
-    ...(staff.length > 5 ? ["Seleziona al massimo 5 membri dello staff in panchina."] : []),
+    ...(startingLineup > rules.starters ? [`Seleziona al massimo ${rules.starters} titolari.`] : []),
+    ...(benchPlayers > (rules.benchLimit??20) ? [`Seleziona al massimo ${rules.benchLimit??20} giocatori in panchina.`] : []),
+    ...(staff.length > (rules.staffLimit??5) ? [`Seleziona al massimo ${rules.staffLimit??5} membri dello staff in panchina.`] : []),
     ...(captains > 1 ? ["Seleziona al massimo un Capitano."] : []),
     ...(reserveCaptains > 0 ? ["Il Capitano deve essere scelto tra i titolari."] : []),
     ...(viceCaptains > 1 ? ["Seleziona al massimo un Vice capitano."] : []),
