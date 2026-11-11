@@ -1,4 +1,4 @@
-import { access, constants } from 'node:fs/promises';
+import { access, constants, readFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -7,6 +7,12 @@ const healthUrl = backendUrl.replace(/\/api\/v1\/?$/, '/api/health');
 const openApiUrl = `${backendUrl.replace(/\/$/, '')}/openapi.json`;
 
 await ensureFrontendBuild();
+// Vercel deploys traced files, not the complete monorepo node_modules tree.
+// A successful build alone does not guarantee native photo dependencies ship.
+const apiTrace = JSON.parse(await readFile('refcheckid-web/.next/server/app/api/[...path]/route.js.nft.json', 'utf8'));
+if (!apiTrace.files.some((file) => file.includes('sharp') && file.endsWith('.node'))) {
+  throw new Error('Cloud API trace is missing the native Sharp photo dependency.');
+}
 await ensureBackendBuild();
 
 const backend = spawn(process.execPath, ['refcheckid-backend/dist/src/server.js'], {
