@@ -232,6 +232,7 @@ function toTeamSheetVerification(
   const team = sheet.team ?? (sheet.clubId === managerTeamConfig.away.clubId ? "away" : "home");
   return {
     id: sheet.id,
+    clubId: sheet.clubId,
     clubName: sheet.clubName ?? formatClubName(sheet.clubId),
     playerCount:
       sheet.playerCount && sheet.playerCount > 0

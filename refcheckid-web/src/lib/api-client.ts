@@ -165,7 +165,7 @@ function fetchOperationalRoster():Promise<OperationalRoster|null>{
   const pending=(async()=>{const match=selectOperationalMatch(await fetchMatches(`?clubId=${encodeURIComponent(clubId)}`));return match?.platformFixtureId?request<OperationalRoster>(`/platform/match-roster/${match.id}?clubId=${encodeURIComponent(clubId)}`):null;})();
   operationalRosterRequests.set(key,pending);void pending.finally(()=>operationalRosterRequests.delete(key)).catch(()=>undefined);return pending;
 }
-export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
+export async function fetchPlayers(options: {includePhotos?:boolean} = {}): Promise<readonly PlayerListItem[]> {
   const roster=await fetchOperationalRoster();
   const players = roster?.players ?? await request<readonly Record<string, unknown>[]>("/players");
   const managerTeam = getCurrentManagerTeam();
@@ -198,10 +198,10 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
       },
     ];
   });
-  return enrichPlayersWithBackendPhotos(managerTeam, mappedPlayers);
+  return options.includePhotos === false ? mappedPlayers : enrichPlayersWithBackendPhotos(managerTeam, mappedPlayers);
 }
 
-export async function fetchStaff(): Promise<readonly StaffListItem[]> {
+export async function fetchStaff(options: {includePhotos?:boolean} = {}): Promise<readonly StaffListItem[]> {
   const roster=await fetchOperationalRoster();
   const staff = roster?.staff ??
     await request<readonly Record<string, unknown>[]>("/staff-members");
@@ -231,7 +231,7 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
       },
     ];
   });
-  return enrichStaffWithBackendStatus(managerTeam, mappedStaff);
+  return options.includePhotos === false ? mappedStaff : enrichStaffWithBackendStatus(managerTeam, mappedStaff);
 }
 
 function formatPersonName(

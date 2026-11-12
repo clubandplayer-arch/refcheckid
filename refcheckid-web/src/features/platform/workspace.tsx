@@ -33,6 +33,7 @@ import {
 } from "./forms";
 import { SquadRoster } from "./squad-roster";
 import Link from "next/link";
+import {ProfileBadge} from '@/features/profiles/profiles';
 import {PublicationSettings} from "./publication-settings";
 import { ImportPanel } from "./import-panel";
 interface Context {
@@ -92,6 +93,7 @@ export function OrganizationWorkspace() {
     context.data?.organizations.find((o) => o.id === organizationId) ??
     context.data?.organizations[0];
   const orgId = organization?.id ?? "";
+  useEffect(()=>{if(orgId)window.dispatchEvent(new CustomEvent("refcheckid:organization",{detail:orgId}));},[orgId]);
   const units = useQuery({
     queryKey: ["platform", "units", orgId, session?.user.id],
     queryFn: () =>
@@ -372,6 +374,7 @@ export function OrganizationWorkspace() {
         ) : (
           <p>Configura il tuo primo ente oppure accetta un invito.</p>
         )}
+        {organization?<Link className="text-primary underline" href={`/profile?kind=organization&id=${orgId}`}>Profilo, logo e colori dell’ente</Link>:null}
         {units.isError ? <p role="alert">{units.error.message}</p> : null}
       </Card>
       {(!organization || tab === "Struttura") &&
@@ -597,6 +600,7 @@ export function OrganizationWorkspace() {
               />
               <Records
                 title="Società"
+                actions={row=><Link className="text-primary underline" href={`/profile?kind=club&id=${String(row.clubId)}`}>Logo e profilo club</Link>}
                 endpoint={`entities/clubs?${params(scope)}`}
                 fields={["externalCode", "name"]}
               />
@@ -761,7 +765,7 @@ export function OrganizationWorkspace() {
                 endpoint={`entities/officials?${params(scope)}`}
                 fields={["code", "firstName", "lastName", "sports", "active"]}
                 actions={(row) => (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2"><ProfileBadge kind="referee" id={String(row.refereeId)}/><Link className="text-primary underline" href={`/profile?kind=referee&id=${String(row.refereeId)}`}>Profilo arbitro</Link>
                     <Button
                       type="button"
                       onClick={() =>

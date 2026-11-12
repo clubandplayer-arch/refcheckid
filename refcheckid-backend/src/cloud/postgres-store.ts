@@ -305,6 +305,8 @@ export class PostgresStore implements RuntimePersistence {
     }
   }
 
+  async resultArchiveReady():Promise<boolean>{return !!(await this.query<{ready:boolean}>("SELECT to_regclass('refcheckid.result_archive_fixture_revision') IS NOT NULL AS ready",[])).rows[0]?.ready;}
+
   async close(): Promise<void> {
     await this.pool.end();
   }

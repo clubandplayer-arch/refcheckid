@@ -179,7 +179,9 @@ export class Publication extends Results {
           (summary?.state !== 'provisional' ? summary?.operationId : undefined);
       if (op) updates.push(stableId('update', row.id, op));
     }
-    await runtime.prefetch(updates.map((id) => ({ repository: 'platform_updates', id })));
+    const logos: {repository:string;id:string}[]=[];
+    for(const row of rows){const match=await this.app.repositories.matches.findById(row.matchId);if(match)for(const clubId of [match.homeClubId,match.awayClubId])logos.push({repository:'platform_identity_profiles',id:`club:${clubId}`});}
+    await runtime.prefetch([...updates.map((id) => ({ repository: 'platform_updates', id })),...logos]);
     if (
       policy.includeNames &&
       policy.consentNames &&
@@ -266,6 +268,8 @@ export class Publication extends Results {
         category: competition.category,
         group: competition.group,
       },
+      homeLogoUrl: (await this.db.get<import('./profiles.js').IdentityProfile>('identity_profiles',`club:${(await this.app.repositories.matches.findById(fixture.matchId))?.homeClubId}`))?.imageKey ? `/api/v1/public/games/${id}/logos/home` : null,
+      awayLogoUrl: (await this.db.get<import('./profiles.js').IdentityProfile>('identity_profiles',`club:${(await this.app.repositories.matches.findById(fixture.matchId))?.awayClubId}`))?.imageKey ? `/api/v1/public/games/${id}/logos/away` : null,
       home: home?.name ?? 'Casa',
       away: away?.name ?? 'Ospite',
       scheduledAt: fixture.scheduledAt,

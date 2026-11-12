@@ -1,3 +1,5 @@
+import sharp from 'sharp';
+import { Profiles } from '../src/platform/profiles.js';
 import { randomUUID } from 'node:crypto';
 import { expect, it } from 'vitest';
 import { preparedApp, dataset } from './runtime-fixtures.js';
@@ -57,6 +59,7 @@ it('keeps reports federation-private across old/new endpoints and publishes only
       teams.push(team);
       await owner.createEntry({ competitionId: competition.id, teamId: team.id });
     }
+    await new Profiles(app,ownerAuth).save('club',clubs[0].clubId,{revision:0,imageBase64:'data:image/png;base64,'+(await sharp({create:{width:20,height:20,channels:4,background:'#123456'}}).png().toBuffer()).toString('base64')});
     const fixture = await owner.createFixture({
       competitionId: competition.id,
       code: 'PRIVATE',
@@ -190,6 +193,7 @@ it('keeps reports federation-private across old/new endpoints and publishes only
       points: 1,
     };
     expect((await api(`/api/v1/public/games/${fixture.id}`)).status).toBe(404);
+    expect((await api(`/api/v1/public/games/${fixture.id}/logos/home`)).status).toBe(404);
     expect((await api('/api/v1/public/competitions')).body).toMatchObject({ total: 0 });
     await expect(
       delegate.setPublication(
@@ -294,6 +298,7 @@ it('keeps reports federation-private across old/new endpoints and publishes only
       homeScore: 2,
       state: 'final_confirmed',
     });
+    const logo=await api(`/api/v1/public/games/${fixture.id}/logos/home`);expect(logo.status).toBe(200);expect(logo.headers?.['content-type']).toBe('image/webp');
     const secret = 'REPORT-PRIVATE-NEVER-IN-RESULTS';
     const report = await principal.referee.submitGameReport(fixture.id, { notes: secret });
     for (const auth of [
@@ -392,6 +397,7 @@ it('keeps reports federation-private across old/new endpoints and publishes only
       true,
     );
     expect((await api(`/api/v1/public/games/${fixture.id}`)).status).toBe(404);
+    expect((await api(`/api/v1/public/games/${fixture.id}/logos/home`)).status).toBe(404);
     expect((await api(`/api/v1/public/competitions/${competition.id}/fixtures`)).status).toBe(404);
     expect((await api('/api/v1/public/competitions')).body).toMatchObject({ total: 0 });
   } finally {

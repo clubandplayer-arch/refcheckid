@@ -24,7 +24,7 @@ import {
   validateMatchSheet,
 } from "@/lib/match-sheet-validation";
 import { getCurrentManagerConfig, getCurrentManagerTeam } from "@/lib/manager-team";
-import { uploadOfficialSubjectPhoto } from "@/lib/manager-photo-backend";
+import { enrichPlayersWithBackendPhotos, enrichStaffWithBackendStatus, uploadOfficialSubjectPhoto } from "@/lib/manager-photo-backend";
 import { getPhotoFeatureFlags } from "@/lib/photo-feature-flags";
 import {
   fetchMatchSheets,
@@ -71,11 +71,11 @@ export function MatchSheetWorkflow() {
   const queryClient = useQueryClient();
   const { notify } = useToast();
   const playersQuery = useQuery({
-    queryFn: fetchPlayers,
+    queryFn: () => fetchPlayers({includePhotos:false}),
     queryKey: [...queryKeys.players, managerTeam],
   });
   const staffQuery = useQuery({
-    queryFn: fetchStaff,
+    queryFn: () => fetchStaff({includePhotos:false}),
     queryKey: [...queryKeys.staff, managerTeam],
   });
   const sheetsQuery = useQuery({
@@ -143,8 +143,10 @@ export function MatchSheetWorkflow() {
     },
   });
 
-  const fetchedPlayers = playersQuery.data ?? EMPTY_PLAYERS;
-  const fetchedStaff = staffQuery.data ?? EMPTY_STAFF;
+  const playerPhotosQuery = useQuery({queryKey:[...queryKeys.players,managerTeam,'photos',playersQuery.dataUpdatedAt],queryFn:()=>enrichPlayersWithBackendPhotos(managerTeam,playersQuery.data!),enabled:!!playersQuery.data&&getPhotoFeatureFlags().officialBackendRead,refetchOnWindowFocus:false,refetchInterval:false});
+  const staffPhotosQuery = useQuery({queryKey:[...queryKeys.staff,managerTeam,'photos',staffQuery.dataUpdatedAt],queryFn:()=>enrichStaffWithBackendStatus(managerTeam,staffQuery.data!),enabled:!!staffQuery.data&&getPhotoFeatureFlags().officialBackendRead,refetchOnWindowFocus:false,refetchInterval:false});
+  const fetchedPlayers = playerPhotosQuery.data ?? playersQuery.data ?? EMPTY_PLAYERS;
+  const fetchedStaff = staffPhotosQuery.data ?? staffQuery.data ?? EMPTY_STAFF;
   const matchSheetStatus = sheetsQuery.data?.[0]?.status ?? "draft";
   const isReadOnly = matchSheetStatus !== "draft";
   const submittedSheet = sheetsQuery.data?.[0];
@@ -156,7 +158,7 @@ export function MatchSheetWorkflow() {
   });
   const managerTeamLabel = submittedSheet?.clubName ?? getCurrentManagerConfig().label;
   const players = useMemo(() => {
-    if (!isReadOnly && playersEdited) return selectedPlayers;
+    if (!isReadOnly && playersEdited) return selectedPlayers.map(player=>{const fresh=fetchedPlayers.find(p=>p.id===player.id);return fresh?{...player,photo:fresh.photo,photoUrl:fresh.photoUrl}:player;});
     const defaultsByRegistration = new Map(
       (defaultsQuery.data?.players ?? []).map((player) => [player.playerRegistrationId, player]),
     );
@@ -200,7 +202,7 @@ export function MatchSheetWorkflow() {
       .map(({ lineupOrder: _lineupOrder, ...player }) => player);
   }, [defaultsQuery.data, fetchedPlayers, isReadOnly, playersEdited, selectedPlayers, submittedSheet?.players]);
   const staff = useMemo(() => {
-    if (!isReadOnly && staffEdited) return selectedStaff;
+    if (!isReadOnly && staffEdited) return selectedStaff.map(member=>{const fresh=fetchedStaff.find(p=>p.id===member.id);return fresh?{...member,photo:fresh.photo,photoUrl:fresh.photoUrl}:member;});
     if (!isReadOnly && !submittedSheet?.staff?.length) return fetchedStaff;
     const submittedRegistrationIds = new Set(
       (submittedSheet?.staff ?? []).map((line) => line.staffRegistrationId),

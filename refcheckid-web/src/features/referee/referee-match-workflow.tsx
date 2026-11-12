@@ -1,4 +1,5 @@
 "use client";
+import {ProfileBadge} from '@/features/profiles/profiles';
 import { ActiveGameUpdates } from "@/features/platform/referee";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -283,7 +284,7 @@ function TeamSheetCard({
           <p className="text-xs font-semibold uppercase text-primary">
             {sideLabel}
           </p>
-          <h3 className="mt-1 text-lg font-bold">{sheet.clubName}</h3>
+          <h3 className="mt-1 flex items-center gap-2 text-lg font-bold">{sheet.clubId?<ProfileBadge kind="club" id={sheet.clubId}/>:null}{sheet.clubName}</h3>
         </div>
         <div className="flex flex-col items-end gap-2">
           {isSelected ? (

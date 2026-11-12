@@ -1,6 +1,7 @@
 import type { ApplicationContainer } from '../config/application-container.js';
 import { json, type ApiRouter, type ApiHandler, type ApiRequest } from '../api/http.js';
 import { PlatformError, text } from './organizations.js';
+import { Profiles } from './profiles.js';
 import { Imports } from './imports.js';
 import { importColumns } from './import-files.js';
 import { activateInvitation } from './invitations.js';
@@ -41,6 +42,22 @@ export function registerPlatformRoutes(app: ApplicationContainer, router: ApiRou
     if (!request.auth) throw new PlatformError(401, 'Accedi per continuare.');
     return new Imports(app, request.auth);
   };
+  const profiles = (request: ApiRequest) => new Profiles(app,service(request).auth);
+  router.register('GET','/api/v1/platform/profiles/context',platformHandler(async request=>json(200,await profiles(request).contextProfiles())));
+  router.register('GET','/api/v1/platform/profiles/:kind/:id',platformHandler(async request=>json(200,await profiles(request).getProfile(request.params.kind!,request.params.id!))));
+  router.register('POST','/api/v1/platform/profiles/:kind/:id',platformHandler(async request=>json(200,await profiles(request).save(request.params.kind!,request.params.id!,body(request)))));
+  router.register('GET','/api/v1/platform/readiness',platformHandler(async request=>{
+    const s=service(request);if(!s.auth.roles.some(role=>['admin','federation'].includes(role)))throw new PlatformError(403,'Accesso federale richiesto.');
+    return json(200,{commit:process.env.VERCEL_GIT_COMMIT_SHA??'local',environment:process.env.REFCHECKID_DATA_ENV??'local',resultArchiveIndex:await app.store.resultArchiveReady?.()??null,platformAdminConfigured:(await app.store.list<{role:string;enabled:boolean}>('auth_profiles')).some(row=>row.role==='admin'&&row.enabled),publishedCompetitions:(await s.db.find('publication',{mode:'public',consent:true})).length});
+  }));
+  router.register('GET','/api/v1/public/games/:id/logos/:side',platformHandler(async request=>{
+    const s=new Imports(app,{actorId:'public',roles:[]});await s.publicFixture(request.params.id!);
+    if(!['home','away'].includes(request.params.side!))throw new PlatformError(404,'Logo non trovato.');
+    const fixture=(await s.db.get<Fixture>('fixtures',request.params.id!))!,match=(await app.repositories.matches.findById(fixture.matchId))!;
+    const row=await new Profiles(app,s.auth).raw('club',request.params.side==='home'?match.homeClubId:match.awayClubId);
+    if(!row?.imageKey)throw new PlatformError(404,'Logo non disponibile.');
+    return {status:200,body:await app.objectStores.photos.readObject(row.imageKey),headers:{'content-type':'image/webp','cache-control':'no-store'}};
+  }));
   router.register(
     'POST',
     '/api/v1/platform/activate',

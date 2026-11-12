@@ -2,13 +2,14 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-const mocks = vi.hoisted(() => ({ players: vi.fn(), staff: vi.fn(), sheets: vi.fn(), matches: vi.fn(), defaults: vi.fn(), save: vi.fn() }));
+const mocks = vi.hoisted(() => ({ players: vi.fn(), staff: vi.fn(), sheets: vi.fn(), matches: vi.fn(), defaults: vi.fn(), photos:vi.fn(), staffPhotos:vi.fn(), save: vi.fn() }));
 vi.mock('@/lib/api-client', async () => ({
   ...await vi.importActual('@/lib/api-client'),
   fetchPlayers: mocks.players, fetchStaff: mocks.staff, fetchMatchSheets: mocks.sheets,
   fetchMatches: mocks.matches, fetchLineupDefaults: mocks.defaults, saveMatchSheetDraft: mocks.save,
   selectOperationalMatch: (matches: unknown[]) => matches[0],
 }));
+vi.mock('@/lib/manager-photo-backend',async()=>({...await vi.importActual('@/lib/manager-photo-backend'),enrichPlayersWithBackendPhotos:mocks.photos,enrichStaffWithBackendStatus:mocks.staffPhotos}));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ notify: vi.fn() }) }));
 import { MatchSheetWorkflow } from '../../src/features/manager/match-sheet-workflow';
 let client: QueryClient;
@@ -17,6 +18,8 @@ beforeEach(() => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   mocks.players.mockResolvedValue([{ id: 'player', registrationId: 'registration', season: '2026', firstName: 'Mario', lastName: 'Rossi', photoUrl: null,
     selected: false, suspended: false, warning: false, shirtNumber: null, role: 'starter', isGoalkeeper: false, isCaptain: false, isViceCaptain: false }]);
+  mocks.photos.mockImplementation(async (_team,players)=>players);
+  mocks.staffPhotos.mockImplementation(async (_team,staff)=>staff);
   mocks.staff.mockResolvedValue([]);
   mocks.sheets.mockResolvedValue([{ id: 'sheet', matchId: 'match', clubId: 'club', status: 'draft', players: [] }]);
   mocks.matches.mockResolvedValue([{ id: 'match' }]);
@@ -46,4 +49,15 @@ it('never replaces an existing draft with previous-game defaults', async () => {
   expect((screen.getByRole('spinbutton') as HTMLInputElement).value).toBe('9');
   expect((screen.getByRole('checkbox', { name: 'Capitano' }) as HTMLInputElement).checked).toBe(true);
   expect((screen.getByRole('checkbox', { name: 'Portiere' }) as HTMLInputElement).checked).toBe(false);
+});
+
+it('shows the roster and keeps navigation usable while official photo requests are pending',async()=>{
+  mocks.photos.mockReturnValue(new Promise(()=>{}));
+  mocks.staffPhotos.mockReturnValue(new Promise(()=>{}));
+  show();
+  await screen.findByText('Rossi Mario');
+  expect(mocks.players).toHaveBeenCalledWith({includePhotos:false});
+  fireEvent.click(screen.getByRole('button',{name:'Seleziona tutti'}));
+  fireEvent.click(screen.getByRole('button',{name:'2. Ordine'}));
+  expect((screen.getByRole('spinbutton') as HTMLInputElement).value).toBe('77');
 });

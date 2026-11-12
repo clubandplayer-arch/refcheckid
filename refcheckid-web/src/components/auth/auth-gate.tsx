@@ -1,5 +1,6 @@
 "use client";
 
+import {IdentityHeader} from '@/features/profiles/profiles';
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -47,9 +48,9 @@ export function AuthGate({
   return (
     <div>
       <div className="border-b bg-background px-6 py-3">
-        <div className="mx-auto flex max-w-7xl items-center justify-between text-sm">
-          <span>{session.user.displayName}</span>
-          <nav className="flex flex-wrap gap-3" aria-label="Le tue aree">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 text-sm">
+          <IdentityHeader/>
+          <nav className="flex flex-wrap gap-3" aria-label="Le tue aree"><Link className="text-primary underline" href="/profile">Profilo e loghi</Link>
             {session.user.role==='admin'?<Link className="text-primary underline" href="/admin/publication">Distribuzione dati</Link>:null}
             {(session.user.availableRoles??[session.user.role]).filter((role)=>role!=='admin').map((role)=><Link key={role} className="text-primary underline" href={roleRedirects[role]}>{({federation:'Gestione ente',referee:'Area arbitro',manager:'Area dirigente'} as Record<string,string>)[role]}</Link>)}
           </nav>

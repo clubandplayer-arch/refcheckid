@@ -22,6 +22,7 @@ export interface RefereeMatchSummary {
 }
 
 export interface TeamSheetVerification {
+  clubId?:string;
   id: string;
   team: "home" | "away";
   clubName: string;

@@ -238,3 +238,7 @@ irraggiungibili.
 ## Taccuino, referti riservati e portale risultati
 
 Per il rilascio successivo e gli accessi per ruolo consultare [la guida operativa](RESULTS_NOTEBOOK_OPERATIONS.md). La separazione degli endpoint, i confini dei dati pubblici e le verifiche sono descritti nel [contratto API](RESULTS_PRIVACY_API.md). La pubblicazione resta disabilitata finché proprietario e amministrazione centrale non la autorizzano separatamente.
+
+## Profili e configurazione effettiva
+
+La pagina **Profilo e loghi** permette di gestire l’identità visiva degli enti, i loghi club e la foto personale dell’arbitro. Per gli operatori federali include una verifica della configurazione del deployment. Consultare [accessi, limiti e prove su staging](IDENTITY_PROFILES_AND_STAGING.md).

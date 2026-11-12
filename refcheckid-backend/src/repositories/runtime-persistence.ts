@@ -20,5 +20,6 @@ export interface RuntimePersistence {
   findMany?<T>(repository: string, key: string, values: readonly string[]): Promise<readonly T[]>;
   transaction<T>(operation: () => Promise<T>): Promise<T>;
   readTransaction?<T>(operation: () => Promise<T>): Promise<T>;
+  resultArchiveReady?(): Promise<boolean>;
   close(): void | Promise<void>;
 }

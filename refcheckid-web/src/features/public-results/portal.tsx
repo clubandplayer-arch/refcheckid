@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import { Card } from "@/components/ui/card";
@@ -26,6 +27,7 @@ interface PublicEvent {
   incoming: { name?: string; id?: string };
 }
 interface PublicGame {
+  homeLogoUrl?:string|null;awayLogoUrl?:string|null;
   liveUpdates: boolean;
   id: string;
   competition: PublicCompetition;
@@ -293,7 +295,7 @@ function GameCard({
         {phaseNames[game.phase] ?? game.phase}
       </span>
       <h2 className="text-xl font-bold">
-        {game.home} – {game.away}
+        <span className="flex items-center gap-3">{game.homeLogoUrl?<Image unoptimized width={48} height={48} src={game.homeLogoUrl} alt={`Logo ${game.home}`} className="h-12 w-12 object-contain"/>:null}{game.home} – {game.away}{game.awayLogoUrl?<Image unoptimized width={48} height={48} src={game.awayLogoUrl} alt={`Logo ${game.away}`} className="h-12 w-12 object-contain"/>:null}</span>
       </h2>
       <p className="text-4xl font-bold" aria-label="Punteggio">
         {game.score ? `${game.score.home} – ${game.score.away}` : "—"}

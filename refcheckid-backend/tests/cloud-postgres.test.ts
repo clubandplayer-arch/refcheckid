@@ -180,4 +180,7 @@ it('serves legacy referee navigation with real read-only SQL and no global comma
   }
   expect(query.mock.calls.filter(([sql])=>sql==='BEGIN READ ONLY')).toHaveLength(5);
   expect(query.mock.calls.some(([sql])=>sql.includes('pg_advisory_xact_lock'))).toBe(false);
+  expect(await store.resultArchiveReady()).toBe(false);
+  await db.exec(await readFile(new URL('../../supabase/migrations/202611120001_result_archive_index.sql',import.meta.url),'utf8'));
+  expect(await store.resultArchiveReady()).toBe(true);
 });
