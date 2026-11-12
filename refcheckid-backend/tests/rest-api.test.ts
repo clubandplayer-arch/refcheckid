@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createApplicationContainer } from '../src/config/application-container.js';
 import type { Match } from '../src/domain/index.js';
 import { createOpenApiDocument, createRestApiRouter } from '../src/api/index.js';
@@ -144,4 +144,38 @@ it('returns the match photo manifest contract for referee recognition', async ()
     status: 200,
     body: { matchId: match.id, manifestVersion: 'live-v1', status: 'unavailable', subjects: [] },
   });
+});
+
+
+it('runs referee navigation reads outside command transactions and keeps saves transactional', async () => {
+  const app = createApplicationContainer();
+  await app.repositories.matches.upsert(match);
+  const transaction = app.store.transaction.bind(app.store);
+  let reading = false, rootCommands = 0, reads = 0;
+  vi.spyOn(app.store, 'transaction').mockImplementation(async <T>(operation: () => Promise<T>): Promise<T> => {
+    if (!reading) rootCommands++;
+    return transaction(operation);
+  });
+  const read = async <T>(operation: () => Promise<T>): Promise<T> => {
+    reads++;
+    reading = true;
+    try { return await operation(); } finally { reading = false; }
+  };
+  app.store.readTransaction = read;
+  const router = createRestApiRouter(app);
+  const auth = {actorId: match.refereeId!, roles: ['referee'], refereeIds: [match.refereeId!]};
+  for (const [path, query] of [
+    ['/api/v1/matches', {}],
+    ['/api/v1/match-sheets', {matchId:match.id}],
+    ['/api/v1/recognitions/workflow', {matchId:match.id}],
+    ['/api/v1/recognitions', {matchId:match.id}],
+    ['/api/v1/match-reports', {matchId:match.id}],
+  ] as const) {
+    const response=await router.handle({method:'GET',path,query,headers:{},auth});
+    expect(response.status,path).toBe(200);
+  }
+  expect(reads).toBe(5);
+  expect(rootCommands).toBe(0);
+  await router.handle({method:'POST',path:`/api/v1/matches/${match.id}/status`,query:{},headers:{},auth:{actorId:auth.actorId,roles:['admin']},body:{status:'in_progress'}});
+  expect(rootCommands).toBeGreaterThan(0);
 });

@@ -42,7 +42,9 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.use(errorHandlingMiddleware);
   router.use((next) => (request) => {
     if(request.path === '/api/v1/platform/activate' || ['/api/v1/platform/imports/upload','/api/v1/platform/imports/prepare'].includes(request.path) || /^\/api\/v1\/platform\/imports\/[^/]+\/advance$/.test(request.path)) return requestContext.run({store:container.store},()=>next(request));
-    const readOnly = request.method === 'GET' && (request.path.startsWith('/api/v1/platform/') ||request.path.startsWith('/api/v1/public/') ||
+    // Verified read-only legacy routes must not queue behind command advisory locks.
+    const refereeRead = /^\/api\/v1\/(matches(?:\/[^/]+)?|match-sheets(?:\/[^/]+)?|recognitions(?:\/[^/]+)?|match-reports(?:\/[^/]+)?)$/.test(request.path);
+    const readOnly = request.method === 'GET' && (refereeRead || request.path.startsWith('/api/v1/platform/') ||request.path.startsWith('/api/v1/public/') ||
       ['/api/v1/photo-approvals/page', '/api/v1/photo-approvals/summary'].includes(request.path) ||
       /^\/api\/v1\/clubs\/[^/]+\/lineup-defaults$/.test(request.path) ||
       /^\/api\/v1\/photos\/versions\/[^/]+\/content$/.test(request.path));

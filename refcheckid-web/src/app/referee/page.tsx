@@ -56,7 +56,7 @@ export default function RefereeDashboardPage() {
         </div>
         <Link
           className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-          href="/referee/match"
+          href={nextMatch ? `/referee/match?matchId=${encodeURIComponent(nextMatch.id)}` : "/referee/match"}
         >
           Apri gara
         </Link>

@@ -497,3 +497,12 @@ describe("unit: referee manifest cache guards", () => {
     );
   });
 });
+
+
+it('does not download the photo manifest to display sheets with complete counts', async () => {
+  const fetchMock=vi.fn(async(_input:RequestInfo | URL)=>({ok:true,status:200,json:async()=>[{id:'sheet',clubId:'home',status:'submitted',playerCount:18,staffCount:0}]}));
+  vi.stubGlobal('fetch',fetchMock);
+  expect(await fetchRefereeMatchSheets('match')).toMatchObject([{playerCount:18,staffCount:0}]);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/match-sheets?');
+});

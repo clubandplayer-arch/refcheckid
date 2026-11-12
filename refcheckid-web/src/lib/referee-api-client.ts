@@ -46,7 +46,8 @@ export async function fetchRefereeMatchSheets(
   const sheets = await fetchMatchSheets(
     `?matchId=${encodeURIComponent(matchId)}`,
   );
-  const manifestCountsByClub = await fetchManifestCountsByClub(matchId);
+  const hasCounts = sheets.every(sheet => typeof sheet.playerCount === "number" && sheet.playerCount > 0 && typeof sheet.staffCount === "number" && sheet.staffCount >= 0);
+  const manifestCountsByClub = hasCounts ? new Map<string, { playerCount: number; staffCount: number }>() : await fetchManifestCountsByClub(matchId);
   return sheets.map((sheet, index) =>
     toTeamSheetVerification(sheet, index, manifestCountsByClub),
   );
@@ -56,9 +57,11 @@ export async function fetchRecognitionSubjects(
   matchId?: string,
 ): Promise<readonly RecognitionSubject[]> {
   if (!matchId) return [];
-  const manifest = await fetchMatchPhotoManifest(matchId);
+  const [manifest, saved] = await Promise.all([
+    fetchMatchPhotoManifest(matchId),
+    request<readonly { registrationId?: string; status: string }[]>(`/recognitions?matchId=${encodeURIComponent(matchId)}`),
+  ]);
   if (manifest.status !== "available") return [];
-  const saved = await request<readonly { registrationId?: string; status: string }[]>(`/recognitions?matchId=${encodeURIComponent(matchId)}`);
   if (!Array.isArray(saved)) throw new Error('Invalid recognition decisions response.');
   return manifest.subjects.map((subject) => ({
     ...subject,

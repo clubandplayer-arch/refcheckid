@@ -163,3 +163,21 @@ it('pages the event archive by descending revision inside one fixture without ex
  const first=await store.documentPage<{revision:number}>({repository:'platform_updates',filter:{fixtureId:'authorized-fixture'},limit:50,orderBy:'revision'});expect(first.total).toBe(110);expect(first.items[0].revision).toBe(110);expect(first.items.at(-1)?.revision).toBe(61);expect(first.nextCursor).toBe('61');
  const second=await store.documentPage<{revision:number}>({repository:'platform_updates',filter:{fixtureId:'authorized-fixture'},limit:50,orderBy:'revision',afterId:first.nextCursor!});expect(second.items[0].revision).toBe(60);expect(second.items.at(-1)?.revision).toBe(11);
 });
+
+
+it('serves legacy referee navigation with real read-only SQL and no global command lock', async () => {
+  const {db,store}=await setup();
+  const {createApplicationContainer}=await import('../src/config/application-container.js');
+  const {createRestApiRouter}=await import('../src/api/router.js');
+  const app=createApplicationContainer({store,seedDemo:false});
+  const id='61000000-0000-4000-8000-000000000001';
+  const refereeId='61000000-0000-4000-8000-000000000002';
+  await store.transaction(()=>app.repositories.matches.upsert({id,refereeId,federationId:'61000000-0000-4000-8000-000000000003',homeClubId:'61000000-0000-4000-8000-000000000004',awayClubId:'61000000-0000-4000-8000-000000000005',season:'2026',scheduledAt:'2026-12-01T12:00:00Z',venue:'Test',status:'scheduled',createdAt:'2026-11-01T12:00:00Z',updatedAt:'2026-11-01T12:00:00Z',deletedAt:null}).then(()=>undefined));
+  const query=vi.spyOn(db,'query'), router=createRestApiRouter(app);
+  for(const path of ['/matches','/match-sheets','/recognitions/workflow','/recognitions','/match-reports']){
+    const response=await router.handle({method:'GET',path:'/api/v1'+path,query:{matchId:id},headers:{},auth:{actorId:refereeId,roles:['referee'],refereeIds:[refereeId]}});
+    expect(response.status,path).toBe(200);
+  }
+  expect(query.mock.calls.filter(([sql])=>sql==='BEGIN READ ONLY')).toHaveLength(5);
+  expect(query.mock.calls.some(([sql])=>sql.includes('pg_advisory_xact_lock'))).toBe(false);
+});

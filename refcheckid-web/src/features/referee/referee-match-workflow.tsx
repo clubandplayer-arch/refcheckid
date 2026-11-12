@@ -61,6 +61,7 @@ const manifestQueryOptions = {
 } as const;
 
 export function RefereeMatchWorkflow({requestedMatchId=""}:{requestedMatchId?:string}={}) {
+  const queryClient = useQueryClient();
   const [step, setStep] = useState(0);
   const [isPlatformGame,setIsPlatformGame]=useState<boolean|null>(null);
   const [recognitionClosed, setRecognitionClosed] = useState(false);
@@ -108,6 +109,15 @@ export function RefereeMatchWorkflow({requestedMatchId=""}:{requestedMatchId?:st
               } ${isRecognitionStepDisabled ? "cursor-not-allowed opacity-50" : ""}`}
               disabled={isRecognitionStepDisabled}
               key={label}
+              onPointerEnter={() => {
+                if (index === 2 && isPlatformGame === false) {
+                  void queryClient.prefetchQuery({queryKey: [...queryKeys.matchReports, matchId], queryFn: () => fetchRefereeReport(matchId)});
+                  void queryClient.prefetchQuery({...manifestQueryOptions, queryKey: [...queryKeys.recognitions, matchId], queryFn: () => fetchRecognitionSubjects(matchId)});
+                }
+              }}
+              onFocus={() => {
+                if (index === 2 && isPlatformGame === false) void queryClient.prefetchQuery({queryKey: [...queryKeys.matchReports, matchId], queryFn: () => fetchRefereeReport(matchId)});
+              }}
               onClick={() => {
                 if (!isRecognitionStepDisabled) setStep(index);
               }}
