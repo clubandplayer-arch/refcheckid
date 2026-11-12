@@ -1,3 +1,4 @@
+import {sportCatalog} from './sports.js';
 import type { ApplicationContainer } from '../config/application-container.js';
 import { json, type ApiRouter, type ApiHandler, type ApiRequest } from '../api/http.js';
 import { PlatformError, text } from './organizations.js';
@@ -38,6 +39,7 @@ export function platformHandler(operation: ApiHandler): ApiHandler {
   };
 }
 export function registerPlatformRoutes(app: ApplicationContainer, router: ApiRouter) {
+  router.register('GET','/api/v1/public/sports',()=>json(200,{items:sportCatalog}));
   const service = (request: ApiRequest) => {
     if (!request.auth) throw new PlatformError(401, 'Accedi per continuare.');
     return new Imports(app, request.auth);

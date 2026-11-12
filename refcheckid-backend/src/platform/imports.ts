@@ -1,3 +1,4 @@
+import {isSportId} from './sports.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { Publication } from './publication.js';
 import { PlatformError, text, optional, timestamp } from './organizations.js';
@@ -396,7 +397,7 @@ export class Imports extends Publication {
       : null;
     if (job.kind === 'teams') {
       await club(data.club_code);
-      if (!['football', 'basketball', 'volleyball'].includes(data.sport))
+      if (!isSportId(data.sport))
         throw new PlatformError(400, 'Sport non valido.');
     }
     if (job.kind === 'players' || job.kind === 'staff') {
@@ -417,7 +418,7 @@ export class Imports extends Publication {
       job.kind === 'officials' &&
       data.sports
         .split(',')
-        .some((s) => !['football', 'basketball', 'volleyball'].includes(s.trim()))
+        .some((s) => !isSportId(s.trim()))
     )
       throw new PlatformError(400, 'Discipline arbitro non valide.');
     if (job.kind === 'fixtures') {

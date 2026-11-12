@@ -1,4 +1,5 @@
 "use client";
+import {sportCatalog} from "refcheckid-backend/sports";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -167,9 +168,7 @@ export function ResultsPortal() {
               }}
             >
               <option value="">Tutte</option>
-              <option value="football">Calcio</option>
-              <option value="basketball">Pallacanestro</option>
-              <option value="volleyball">Pallavolo</option>
+              {sportCatalog.map(sport=><option key={sport.id} value={sport.id}>{sport.name}</option>)}
             </select>
           </label>
           <label>

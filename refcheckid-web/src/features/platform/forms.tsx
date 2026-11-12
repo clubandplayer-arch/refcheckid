@@ -1,4 +1,5 @@
 "use client";
+import {sportCatalog} from "refcheckid-backend/sports";
 import { useCallback, useEffect, useState } from "react";
 import { platformGet, params } from "./api";
 import { Button } from "@/components/ui/button";
@@ -151,11 +152,7 @@ export const roleNames: Record<string, string> = {
   referee: "Arbitro",
   club_manager: "Dirigente società",
 };
-export const sports = [
-  { id: "football", name: "Calcio" },
-  { id: "basketball", name: "Pallacanestro" },
-  { id: "volleyball", name: "Pallavolo" },
-];
+export const sports = sportCatalog;
 
 export function RemoteChoice({ field }: { field: Field }) {
   const [search, setSearch] = useState(""),

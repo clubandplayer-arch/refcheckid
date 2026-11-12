@@ -685,12 +685,13 @@ export function OrganizationWorkspace() {
           ) : null}
           {tab === "Campionati" ? (
             <Card className="space-y-4">
+              <p className="text-sm">Il catalogo comprende tutte le discipline censite. La creazione dei campionati è disponibile per quelle con regolamento risultati ed eventi già configurato.</p>
               {organization?.kind === "sports" && can("competitions") ? (
                 <ActionForm
                   title="Crea campionato e girone"
                   fields={[
                     nameField,
-                    { key: "sport", label: "Disciplina", options: sports },
+                    { key: "sport", label: "Disciplina", options: sports.filter(sport=>sport.detailedResults) },
                     { key: "season", label: "Stagione", value: "2026/2027" },
                     { key: "category", label: "Categoria" },
                     { key: "group", label: "Girone", optional: true },

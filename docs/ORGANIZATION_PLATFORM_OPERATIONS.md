@@ -242,3 +242,7 @@ Per il rilascio successivo e gli accessi per ruolo consultare [la guida operativ
 ## Profili e configurazione effettiva
 
 La pagina **Profilo e loghi** permette di gestire l’identità visiva degli enti, i loghi club e la foto personale dell’arbitro. Per gli operatori federali include una verifica della configurazione del deployment. Consultare [accessi, limiti e prove su staging](IDENTITY_PROFILES_AND_STAGING.md).
+
+## Catalogo discipline condiviso
+
+Il catalogo comprende le 36 discipline e varianti richieste, utilizzate dal portale pubblico, dalle anagrafiche e dalle importazioni. I regolamenti live vengono abilitati separatamente per disciplina. Consultare [codici, compatibilità e verifiche](SPORT_CATALOG.md).

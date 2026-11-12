@@ -58,6 +58,7 @@
   },
   "exports": {
     "./cloud": "./src/cloud/vercel-handler.ts",
-    "./platform-types": "./src/platform/types.ts"
+    "./platform-types": "./src/platform/types.ts",
+    "./sports": "./src/platform/sports.ts"
   }
 }

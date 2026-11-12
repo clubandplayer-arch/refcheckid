@@ -1,3 +1,4 @@
+import {isSportId,hasDetailedResults} from './sports.js';
 import { Organizations, PlatformError, text, optional, timestamp } from './organizations.js';
 import { stableId } from './store.js';
 import type {
@@ -45,8 +46,9 @@ export class Catalog extends Organizations {
     if (org.kind !== 'sports')
       throw new PlatformError(400, 'Le competizioni appartengono a un ente sportivo.');
     const sport = text(body, 'sport');
-    if (!['football', 'basketball', 'volleyball'].includes(sport))
-      throw new PlatformError(400, 'Disciplina non supportata.');
+    if (!isSportId(sport))
+      throw new PlatformError(400, 'Disciplina non presente nel catalogo.');
+    if(!hasDetailedResults(sport))throw new PlatformError(400,'Disciplina presente nel catalogo: il regolamento dei risultati e degli eventi deve essere configurato prima di creare il campionato.');
     const rules =
       sport === 'football'
         ? { periods: 2, minutesPerPeriod: 45, starters: 11, scoring: 'goals' as const, version: 1 }
@@ -108,7 +110,7 @@ export class Catalog extends Organizations {
       organizationId,
       unitId,
       name: text(body, 'name'),
-      sport: sport as Competition['sport'],
+      sport,
       season: text(body, 'season'),
       category: text(body, 'category'),
       group: optional(body, 'group'),
@@ -172,7 +174,7 @@ export class Catalog extends Organizations {
     const code = text(body, 'code'),
       sport = text(body, 'sport'),
       season = text(body, 'season');
-    if (!['football', 'basketball', 'volleyball'].includes(sport))
+    if (!isSportId(sport))
       throw new PlatformError(400, 'Disciplina non supportata.');
     const id = stableId('team', organizationId, code, season);
     const existing = await this.db.get<Team>('teams', id);
@@ -224,7 +226,7 @@ export class Catalog extends Organizations {
     const sports = text(body, 'sports')
       .split(',')
       .map((s) => s.trim());
-    if (sports.some((s) => !['football', 'basketball', 'volleyball'].includes(s)))
+    if (sports.some((s) => !isSportId(s)))
       throw new PlatformError(400, 'Disciplina arbitro non valida.');
     const firstName = text(body, 'firstName'),
       lastName = text(body, 'lastName');

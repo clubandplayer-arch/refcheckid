@@ -117,3 +117,11 @@ it("requests server-side sport filtering rather than filtering only the first ca
     ).toBe(true),
   );
 });
+it('shows all 36 disciplines and sends the selected new sport to the server',async()=>{
+ const fetcher=vi.fn().mockImplementation(async()=>Response.json({items:[],total:0,nextCursor:null}));vi.stubGlobal('fetch',fetcher);show(<ResultsPortal/>);await screen.findByText(/Non ci sono campionati pubblicati/);
+ const discipline=screen.getByLabelText('Disciplina risultati',{exact:true}) as HTMLSelectElement;
+ expect(discipline.options).toHaveLength(37);
+ expect(Array.from(discipline.options).some(o=>o.text==='Rugby a 15')).toBe(true);
+ fireEvent.change(discipline,{target:{value:'rugby_union'}});
+ await waitFor(()=>expect(fetcher.mock.calls.some(([url])=>String(url).includes('sport=rugby_union'))).toBe(true));
+});

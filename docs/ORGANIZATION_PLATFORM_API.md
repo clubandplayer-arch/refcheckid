@@ -131,3 +131,5 @@ immutabile; il riepilogo corrente conserva l'ultima revisione. Il referto
 inviato non viene riaperto automaticamente da un altro aggiornamento.
 
 Il catalogo `/directory` presenta soltanto enti arbitrali già registrati. Una delega non crea appartenenze amministrative all’ente destinatario né concede accesso ai referti.
+
+`GET /api/v1/public/sports` restituisce il catalogo unico delle discipline (`id`, `name`, `group`, `detailedResults`). È pubblico e non contiene dati di persone, gare o referti. `detailedResults` indica la disponibilità del regolamento operativo, non l'autorizzazione alla pubblicazione di una competizione.

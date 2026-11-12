@@ -1,3 +1,4 @@
+import type {DetailedSportId} from './sports.js';
 export interface Entity {
   id: string;
   createdAt: string;
@@ -65,7 +66,7 @@ export interface Competition extends Entity {
   organizationId: string;
   unitId: string;
   name: string;
-  sport: 'football' | 'basketball' | 'volleyball';
+  sport: DetailedSportId;
   season: string;
   category: string;
   group: string;

@@ -1,4 +1,5 @@
 "use client";
+import {sportCatalog} from "refcheckid-backend/sports";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -289,9 +290,10 @@ export function ImportPanel({
         assegna direttamente alla rosa; status accetta active, suspended, ended.
         existing_club_id / existing_person_id si usano solo per collegare dati
         storici già presenti, senza cambiare i loro identificativi. Discipline:
-        football, basketball, volleyball. Incarichi arbitrali: principal,
+        usa i codici del catalogo qui sotto. Incarichi arbitrali: principal,
         assistant, table. Date gara: ad esempio 2026-12-01T15:00:00+01:00.
       </p>
+      <details className="rounded border p-3 text-sm"><summary>Catalogo discipline e codici per importazione ({sportCatalog.length})</summary><ul className="mt-2 space-y-1">{sportCatalog.map(sport=><li key={sport.id}>{sport.name}: <code>{sport.id}</code></li>)}</ul></details>
       <label className="block">
         Seleziona file
         <input
