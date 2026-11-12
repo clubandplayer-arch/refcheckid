@@ -16,7 +16,7 @@ Se un account ha più enti, il selettore del profilo consente di modificarli sol
 
 ## Immagini e leggibilità
 
-Sono ammessi PNG, JPEG e WebP. Il browser riduce il file scelto (massimo 10 MB) prima dell'invio; il server accetta al massimo 500 KiB, verifica il contenuto e produce un WebP 320×320 senza i metadati originali. SVG e formati non ammessi vengono respinti. Per gli enti il colore principale deve avere contrasto sufficiente con il testo bianco e lo sfondo deve essere chiaro.
+Sono ammessi PNG, JPEG e WebP. Il browser riduce il file scelto (massimo 10 MB) prima dell'invio; il server accetta al massimo 500 KiB, verifica il contenuto e produce un WebP 320×320 senza i metadati originali. SVG e formati non ammessi vengono respinti. Per gli enti il colore principale deve avere contrasto sufficiente con il testo bianco e lo sfondo deve essere chiaro. **Salva profilo** conserva logo e presentazione senza applicare i colori in modifica. Usare **Applica colori** per questi ultimi: un colore non leggibile viene rifiutato, lasciando intatto il logo già salvato. Gli errori sono evidenziati in cima al modulo.
 
 I file restano nel bucket privato `refcheckid-photos`, sotto un prefisso dedicato. Non rendere pubblico il bucket e non aggiungere policy anonime. Il caricamento dei profili non usa il flusso di approvazione delle foto ufficiali. Le versioni precedenti dei file non vengono eliminate durante il salvataggio, per non compromettere un eventuale rollback; un'eventuale pulizia storage va gestita separatamente.
 
@@ -42,7 +42,7 @@ Non serve una migrazione aggiuntiva per i profili: usano la tabella generica `re
 
 1. **Dirigente**: aprire la distinta; verificare che i giocatori compaiano mentre le foto finiscono di caricarsi. Selezionare giocatori e passare a Ordine prima dell'arrivo di tutte le foto: le scelte devono restare.
 2. **Logo club**: caricare un PNG da Profilo e loghi, salvare, ricaricare; controllare il logo nell'intestazione. Provare anche da telefono.
-3. **Federazione**: impostare logo, colore principale scuro e sfondo chiaro; salvare. Riaprire l'area dirigente dello stesso ente: deve ereditare il marchio. Un club di un altro ente non deve ereditarlo.
+3. **Federazione**: salvare il logo con **Salva profilo**, poi scegliere colore principale scuro e sfondo chiaro e premere **Applica colori**. Riaprire l'area dirigente dello stesso ente: deve ereditare il marchio. Un club di un altro ente non deve ereditarlo.
 4. **Priorità federale**: inserire un logo club come federazione; il dirigente deve vedere un rifiuto se tenta di sostituirlo, ma deve poter aggiornare la descrizione.
 5. **Arbitro**: caricare la propria foto, rientrare e verificarla nell'intestazione. La struttura arbitrale competente può consultarla dalla lista Arbitri. Un dirigente non può accedere al profilo di un arbitro estraneo.
 6. **Loghi gara**: aprire la verifica distinte come arbitro; poi una gara pubblicata in `/results`. I loghi caricati devono essere visibili. Un club senza logo mantiene una scheda leggibile.
@@ -59,4 +59,20 @@ CREATE INDEX IF NOT EXISTS result_archive_fixture_revision
 
 `Success. No rows returned` è il risultato normale di questo comando. Tornare poi alla pagina del profilo e premere **Aggiorna verifica**. Non eseguire questo comando sul progetto Club and Player.
 
-Verifiche del rilascio: 194 test backend, 109 frontend, controlli TypeScript/lint/build, pacchetto cloud isolato e flusso Chromium completo anche a 390 px di larghezza. Il test SQL verifica che il rilevamento dell'indice passi da assente a presente dopo l'applicazione della migrazione. Le prove creano utenti e dati soltanto in archivi temporanei locali.
+Verifiche del rilascio: 196 test backend, 109 frontend, controlli TypeScript/lint/build, pacchetto cloud isolato e flusso Chromium completo anche a 390 px di larghezza. Il test SQL verifica che il rilevamento dell'indice passi da assente a presente dopo l'applicazione della migrazione. Le prove creano utenti e dati soltanto in archivi temporanei locali.
+
+
+## Gerarchia territoriale ed enti arbitrali autonomi
+
+La pagina del profilo riguarda l’ente selezionato. La schermata **Attiva la gestione della tua federazione** collega la federazione già esistente al gestionale, conservandone identità e logo: non crea una delegazione.
+
+Dopo l’attivazione, in **Gestione ente → Struttura** si aggiungono i livelli territoriali. Esempio: LND nazionale → Comitato regionale Sicilia → Delegazione provinciale Siracusa. Per aggiungere Siracusa scegliere Sicilia come struttura superiore; i campionati provinciali si associano alla delegazione competente. Non creare una nuova federazione per rappresentare ogni livello.
+
+Gli enti arbitrali formano una gerarchia autonoma. Il flusso è:
+
+1. L’amministratore centrale RefCheckID apre **Registro enti autonomi** (`/admin/organizations`) e registra l’ente arbitrale, poi invita il suo responsabile con il ruolo di amministratore dell’ente.
+2. Quel responsabile gestisce sezioni, operatori e arbitri della propria organizzazione. Una lega non acquisisce questi permessi quando collega l’ente.
+3. La lega apre **Deleghe**, seleziona un proprio campionato, un ente arbitrale già registrato, la sezione destinataria e una scadenza. Concede lettura della gara e designazioni, senza accesso ai referti.
+4. Se l’ente non compare nell’elenco deve essere registrato dall’amministrazione della piattaforma. La lega non lo crea come propria sottostruttura.
+
+Le organizzazioni già presenti e gli incarichi esistenti non vengono cancellati. Un’eventuale appartenenza amministrativa già assegnata resta esplicita e va verificata dall’amministrazione; nessuna nuova appartenenza viene creata dalla semplice delega.

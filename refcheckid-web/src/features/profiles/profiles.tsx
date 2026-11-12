@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -214,6 +214,7 @@ export function ProfileEditor({
           profile={query.data}
           target={value}
           onSaved={() => setSaved(true)}
+          onBegin={() => setSaved(false)}
         />
       ) : (
         <p>
@@ -251,16 +252,26 @@ function ProfileForm({
   profile,
   target,
   onSaved,
+  onBegin,
 }: {
   profile: IdentityProfile;
   target: string;
   onSaved: () => void;
+  onBegin: () => void;
 }) {
   const client = useQueryClient(),
     [image, setImage] = useState<string>(),
     [removeImage, setRemove] = useState(false),
+    [processing, setProcessing] = useState(false),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
+  const alertRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (notice) {
+      alertRef.current?.focus();
+      alertRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [notice]);
   const lockedLogo =
     profile.kind === "club" &&
     profile.imageSource === "federation" &&
@@ -275,6 +286,7 @@ function ProfileForm({
       setNotice("Scegli PNG, JPEG o WebP entro 10 MB.");
       return;
     }
+    setProcessing(true);
     try {
       const bitmap = await createImageBitmap(file);
       const canvas = document.createElement("canvas");
@@ -289,18 +301,34 @@ function ProfileForm({
       setRemove(false);
     } catch {
       setNotice("Impossibile leggere questa immagine.");
+    } finally {
+      setProcessing(false);
     }
   }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    onBegin();
+    const section =
+      (event.nativeEvent as SubmitEvent).submitter?.getAttribute(
+        "data-section",
+      ) === "colors"
+        ? "colors"
+        : "profile";
+    if (section === "colors" && image) {
+      setNotice(
+        "Salva prima il logo selezionato con Salva profilo, poi applica i colori.",
+      );
+      return;
+    }
+    const data = Object.fromEntries(new FormData(event.currentTarget));
     setBusy(true);
     setNotice("");
-    const data = Object.fromEntries(new FormData(event.currentTarget));
     try {
       await platformPost(`profiles/${target}`, {
         ...data,
+        section,
         revision: profile.revision,
-        ...(image ? { imageBase64: image } : {}),
+        ...(image && section === "profile" ? { imageBase64: image } : {}),
         removeImage,
       });
       onSaved();
@@ -321,8 +349,18 @@ function ProfileForm({
       onSubmit={(event) => void save(event)}
       className="space-y-4 rounded-xl border p-5"
     >
+      {notice ? (
+        <p
+          ref={alertRef}
+          tabIndex={-1}
+          role="alert"
+          className="rounded bg-red-50 p-3 text-red-800"
+        >
+          {notice}
+        </p>
+      ) : null}
       <fieldset
-        disabled={!profile.canEdit || busy}
+        disabled={!profile.canEdit || busy || processing}
         className="min-w-0 space-y-4"
       >
         <legend className="font-semibold">
@@ -394,6 +432,13 @@ function ProfileForm({
             defaultValue={profile.website}
           />
         </label>
+        <Button type="submit" data-section="profile">
+          {processing
+            ? "Preparazione immagine…"
+            : busy
+              ? "Salvataggio…"
+              : "Salva profilo"}
+        </Button>
         {profile.kind === "organization" ? (
           <div className="flex flex-wrap gap-5">
             <label>
@@ -415,13 +460,15 @@ function ProfileForm({
               />
             </label>
             <p className="w-full text-sm">
-              Scegli un colore principale scuro e sfondi chiari per mantenere
-              leggibili i testi. Le schermate degli affiliati useranno questi
-              colori.
+              I colori si applicano separatamente dal logo. Scegli un colore
+              principale scuro e uno sfondo chiaro per mantenere leggibili i
+              testi.
             </p>
+            <Button type="submit" data-section="colors">
+              Applica colori
+            </Button>
           </div>
         ) : null}
-        <Button type="submit">{busy ? "Salvataggio…" : "Salva profilo"}</Button>
       </fieldset>
       {!profile.canEdit ? (
         <p>
@@ -429,7 +476,7 @@ function ProfileForm({
           competente.
         </p>
       ) : null}
-      {notice ? <p role="status">{notice}</p> : null}
+
       {profile.kind === "referee" ? (
         <p className="text-sm">
           Questa foto presenta il tuo profilo. Non sostituisce le foto ufficiali

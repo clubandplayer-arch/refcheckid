@@ -27,7 +27,7 @@ revisione non più attuali. Le transazioni annullano anche le risposte di errore
 | Metodo e percorso | Utilizzo |
 | --- | --- |
 | GET `/context` | Enti e appartenenze attive dell'operatore |
-| POST `/organizations` | Configurazione ente sportivo/arbitrale da operatore iniziale autorizzato |
+| POST `/organizations` | Attivazione ente sportivo autorizzato; registrazione di enti arbitrali riservata all’amministratore centrale |
 | GET `/units?organizationId=…` | Strutture visibili nella gerarchia |
 | POST `/units` | Sottostruttura con `parentId`, `name`, `kind`, `territory` |
 | GET `/entities/:kind` | Elenchi di clubs, teams, people, officials, memberships, invitations, delegations, unavailability, imports |
@@ -129,3 +129,5 @@ finale; `POST /games/:id/homologate` registra l'omologazione da parte della
 struttura competente dopo l'invio del referto. La cronologia dei periodi è
 immutabile; il riepilogo corrente conserva l'ultima revisione. Il referto
 inviato non viene riaperto automaticamente da un altro aggiornamento.
+
+Il catalogo `/directory` presenta soltanto enti arbitrali già registrati. Una delega non crea appartenenze amministrative all’ente destinatario né concede accesso ai referti.

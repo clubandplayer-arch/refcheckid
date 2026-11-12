@@ -131,7 +131,7 @@ it('lets the arbitrating organization manage its identity without granting sport
   const app = await preparedApp(),
     root = new Imports(app, {
       actorId: randomUUID(),
-      roles: ['federation'],
+      roles: ['admin'],
       federationIds: [dataset.federationSyncPayload.federations[0].id],
     });
   try {
@@ -146,4 +146,20 @@ it('lets the arbitrating organization manage its identity without granting sport
   } finally {
     await app.store.close();
   }
+});
+
+it('saves a legacy federation logo independently of unreadable unsaved colors and preserves it when activating its hierarchy',async()=>{
+ const app=await preparedApp(),federationId=dataset.federationSyncPayload.federations[0].id,auth={actorId:randomUUID(),roles:['federation'],federationIds:[federationId]},profiles=new Profiles(app,auth);
+ try{
+  const imageBase64='data:image/png;base64,'+(await sharp({create:{width:30,height:30,channels:4,background:'#ffcc00'}}).png().toBuffer()).toString('base64');
+  const saved=await profiles.save('organization',federationId,{section:'profile',revision:0,displayName:'Federazione RefID',imageBase64,primaryColor:'#ffcc00',accentColor:'#000000'});
+  expect(saved.displayName).toBe('Federazione RefID');expect(saved.imageUrl).toBeTruthy();expect(saved.primaryColor).toBe('#245cf6');
+  const key=(await profiles.raw('organization',federationId))!.imageKey;
+  await expect(profiles.save('organization',federationId,{section:'colors',revision:1,primaryColor:'#ffcc00',accentColor:'#000000'})).rejects.toMatchObject({status:400});
+  expect((await profiles.raw('organization',federationId))!.imageKey).toBe(key);
+  await profiles.save('organization',federationId,{section:'colors',revision:1,primaryColor:'#123456',accentColor:'#eeeeff'});
+  const org=await new Imports(app,auth).create({name:'Federazione RefID',kind:'sports',federationId});
+  expect(org.id).toBe(federationId);expect((await profiles.getProfile('organization',org.id)).imageUrl).toBeTruthy();
+  expect((await profiles.raw('organization',org.id))!.imageKey).toBe(key);
+ }finally{await app.store.close();}
 });

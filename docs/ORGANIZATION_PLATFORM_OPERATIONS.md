@@ -53,9 +53,9 @@ arbitrale non riceve accesso generale al database sportivo o alle fotografie.
 3. Distribuire questa branch con il lockfile aggiornato. Il runtime richiede
    `pg`, `sharp` ed `exceljs`, incluse le dipendenze opzionali/native di Sharp.
    Non disabilitare le dipendenze opzionali durante l'installazione.
-4. Entrare con il gestore federale esistente. In **Configura un ente**, collegare
+4. Entrare con il gestore federale esistente. In **Attiva la gestione della tua federazione**, collegare
    la federazione già presente invece di crearne una seconda con un nuovo ID.
-5. Configurare l'organizzazione arbitrale e invitare il suo amministratore.
+5. L’amministratore centrale RefCheckID registra l’organizzazione arbitrale autonoma da **Registro enti autonomi** e invita il suo amministratore. La lega non la crea: la seleziona dall’elenco degli enti già registrati quando concede una delega.
    I nuovi operatori ricevono competenze tramite appartenenze organizzative;
    non aggiungere loro manualmente ampi `federationIds` nel database.
 
@@ -73,7 +73,7 @@ L'applicazione locale e i test usano dati sintetici isolati.
    direttamente alla rosa. In **Tesserati** si possono assegnare e rimuovere
    tesserati da una rosa, oppure sospendere/riattivare il tesseramento.
 4. Creare campionato e girone, poi iscrivere le squadre. Caricare il calendario.
-5. Creare, nell'organizzazione arbitrale, la sezione competente e il suo
+5. L’amministratore dell’organizzazione arbitrale crea al suo interno la sezione competente e il suo
    designatore. Censire o importare gli arbitri della sezione.
 6. Nell'ente sportivo aprire **Deleghe**, scegliere campionato, organizzazione
    arbitrale, sezione destinataria e scadenza. La delega concede lettura e

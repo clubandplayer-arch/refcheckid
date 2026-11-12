@@ -331,7 +331,7 @@ export function OrganizationWorkspace() {
         <h2 className="text-xl font-bold">Gestione ente</h2>
         <p className="text-sm text-slate-600">
           Seleziona la struttura su cui lavorare. Campionati e dati disponibili
-          dipendono dalle tue competenze.
+          dipendono dalle tue competenze. La gerarchia può essere, ad esempio: LND nazionale → Comitato Sicilia → Delegazione Siracusa. Gli enti arbitrali si collegano invece dalla sezione Deleghe.
         </p>
         {organization ? (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -372,7 +372,7 @@ export function OrganizationWorkspace() {
             </label>
           </div>
         ) : (
-          <p>Configura il tuo primo ente oppure accetta un invito.</p>
+          <p>Attiva la gestione della federazione già associata al tuo account oppure accetta un invito. Dopo l’attivazione potrai aggiungere comitati regionali e delegazioni provinciali nella sezione Struttura.</p>
         )}
         {organization?<Link className="text-primary underline" href={`/profile?kind=organization&id=${orgId}`}>Profilo, logo e colori dell’ente</Link>:null}
         {units.isError ? <p role="alert">{units.error.message}</p> : null}
@@ -381,27 +381,29 @@ export function OrganizationWorkspace() {
       (session?.user.role === "admin" ||
         (context.data?.legacyFederations.length ?? 0) > 0) ? (
         <ActionForm
-          title="Configura un ente"
-          button="Crea ente"
+          title={session?.user.role==='admin'?"Registra un ente autonomo":"Attiva la gestione della tua federazione"}
+          button={session?.user.role==='admin'?"Registra ente":"Attiva gestione"}
           fields={[
-            nameField,
+            {...nameField,value:session?.user.role!=='admin'&&context.data?.legacyFederations.length===1?context.data.legacyFederations[0].name:undefined},
             {
               key: "kind",
               label: "Tipo",
+              value: session?.user.role==='admin'?undefined:'sports',
               options: [
                 { id: "sports", name: "Ente sportivo / lega" },
-                { id: "refereeing", name: "Organizzazione arbitrale" },
+                ...(session?.user.role==='admin'?[{ id: "refereeing", name: "Ente arbitrale autonomo" }]:[]),
               ],
             },
             {
               key: "federationId",
               label:
-                "Collega una federazione già presente (solo ente sportivo)",
-              optional: true,
+                "Federazione già presente da gestire (non una delegazione)",
+              optional: session?.user.role==='admin',
+              value:session?.user.role!=='admin'&&context.data?.legacyFederations.length===1?context.data.legacyFederations[0].id:undefined,
               options: context.data?.legacyFederations,
             },
           ]}
-          onSubmit={(data) => change("organizations", data)}
+          onSubmit={(data) => change("organizations", session?.user.role==='admin'?data:{...data,kind:'sports',federationId:data.federationId})}
         />
       ) : null}
       {enabled ? (
@@ -1040,6 +1042,7 @@ export function OrganizationWorkspace() {
           {tab === "Deleghe" ? (
             <Card className="space-y-4">
               {selectCompetition}
+              <p>Gli enti arbitrali sono indipendenti. Seleziona un ente già registrato e la sua sezione, poi autorizzalo soltanto per questo campionato. Non ottiene accesso ai referti.</p>
               <label className="block">
                 Ente arbitrale destinatario
                 <RemoteChoice
@@ -1052,7 +1055,7 @@ export function OrganizationWorkspace() {
                 />
               </label>
               <ActionForm
-                title="Delega lettura e designazioni"
+                title="Collega ente arbitrale e autorizza le designazioni"
                 fields={[
                   {
                     key: "recipientUnitId",

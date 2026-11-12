@@ -208,7 +208,7 @@ export function registerPlatformRoutes(app: ApplicationContainer, router: ApiRou
       );
       const page = await s.db.page<Organization>(
         'organizations',
-        {},
+        {kind:'refereeing'},
         request.query.cursor,
         request.query.search,
       );
@@ -228,6 +228,7 @@ export function registerPlatformRoutes(app: ApplicationContainer, router: ApiRou
         text(request.query, 'unitId'),
         'structure',
       );
+      if((await s.db.get<Organization>('organizations',request.params.id!))?.kind!=='refereeing')throw new PlatformError(404,'Ente arbitrale non trovato.');
       const page = await s.db.page<Unit>(
         'units',
         { organizationId: request.params.id },

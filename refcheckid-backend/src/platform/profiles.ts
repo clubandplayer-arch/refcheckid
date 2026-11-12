@@ -158,6 +158,26 @@ export class Profiles extends Organizations {
     const kind = validKind(kindValue),
       permission = await this.permission(kind, id, true),
       previous = await this.raw(kind, id);
+    if (body.section !== undefined && !['profile', 'colors'].includes(String(body.section)))
+      throw new PlatformError(400, 'Sezione profilo non valida.');
+    if (body.section === 'colors') {
+      if (kind !== 'organization')
+        throw new PlatformError(400, 'I colori si configurano per gli enti.');
+      body = {
+        ...body,
+        displayName: previous?.displayName ?? permission.name,
+        description: previous?.description ?? '',
+        website: previous?.website ?? '',
+      };
+      delete body.imageBase64;
+      delete body.removeImage;
+    } else if (body.section === 'profile') {
+      body = {
+        ...body,
+        primaryColor: previous?.primaryColor ?? '#245cf6',
+        accentColor: previous?.accentColor ?? '#eaf0ff',
+      };
+    }
     if (Number(body.revision) !== (previous?.revision ?? 0))
       throw new PlatformError(409, 'Profilo aggiornato da un altro operatore: ricarica.');
     const primaryColor = String(body.primaryColor ?? previous?.primaryColor ?? '#245cf6'),

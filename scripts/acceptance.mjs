@@ -221,13 +221,26 @@ try {
   await page.screenshot({ path: join(directory, 'photo-approval-no-reload.png'), fullPage: true });
   page.off('request', countPhotoPages);
   check('Real Chromium: bounded photo queue, decoded small previews, approval confirmation without list reload');
+  // A legacy federation can save its logo before activating its organizational hierarchy.
+  await page.getByRole('link',{name:'Profilo e loghi',exact:true}).click();await page.waitForURL(url=>url.pathname==='/profile');
+  const legacyFederationId=dataset.federationSyncPayload.federations[0].id;
+  await page.getByLabel('Profilo',{exact:true}).selectOption(`organization/${legacyFederationId}`);
+  const profileSharp=createRequire(join(backendRoot,'package.json'))('sharp'),legacyLogo=await profileSharp({create:{width:100,height:100,channels:4,background:'#ffcc00'}}).png().toBuffer();
+  await page.getByLabel('Logo',{exact:true}).setInputFiles({name:'federal-logo.png',mimeType:'image/png',buffer:legacyLogo});
+  await page.getByLabel('Colore principale',{exact:true}).fill('#ffcc00');await page.getByLabel('Colore sfondi',{exact:true}).fill('#000000');
+  await page.getByRole('button',{name:'Salva profilo',exact:true}).click();await page.getByText('Profilo salvato.',{exact:true}).waitFor();
+  await page.getByLabel('Colore principale',{exact:true}).fill('#ffcc00');await page.getByLabel('Colore sfondi',{exact:true}).fill('#000000');await page.getByRole('button',{name:'Applica colori',exact:true}).click();await page.getByRole('alert').filter({hasText:'Scegli un colore principale più scuro'}).waitFor();
+  assert((await api(`/platform/profiles/organization/${legacyFederationId}`,federation)).imageUrl);
+  await page.reload();await page.getByRole('img',{name:'Anteprima profilo',exact:true}).waitFor();await page.getByRole('link',{name:'Gestione ente',exact:true}).click();
+  check('Real Chromium: federation logo persists before hierarchy activation and survives rejected colors');
   await page.getByRole('button', {name:'Gestione ente',exact:true}).click();
   const form=(title)=>page.locator('form').filter({has:page.getByRole('heading',{name:title,exact:true})});
-  const configuration=form('Configura un ente');
+  const configuration=form('Attiva la gestione della tua federazione');
+  assert.equal(await configuration.locator('[name=kind] option[value=refereeing]').count(),0);
   await configuration.locator('[name=name]').fill('Lega browser test');
   await configuration.locator('[name=kind]').selectOption('sports');
   await configuration.locator('[name=federationId]').selectOption(dataset.federationSyncPayload.federations[0].id);
-  await configuration.getByRole('button',{name:'Crea ente',exact:true}).click();
+  await configuration.getByRole('button',{name:'Attiva gestione',exact:true}).click();
   await page.getByRole('button',{name:'Campionati',exact:true}).waitFor();
   const platformContext=await api('/platform/context',federation);
   const sportsOrg=platformContext.organizations.find(org=>org.kind==='sports');
@@ -255,7 +268,16 @@ try {
   await page.getByRole('button',{name:/Conferma importazione/}).click();
   await page.getByRole('status').filter({hasText:/Completata.*Applicate: 1/}).waitFor();
   await page.screenshot({path:join(directory,'platform-import-completed.png'),fullPage:true});
-  const arbitration=await api('/platform/organizations',federation,{name:'Organizzazione arbitrale browser test',kind:'refereeing'});
+  // The publication administrator exists only in this run's isolated SQLite database.
+  const {RuntimeStore}=await import('../refcheckid-backend/dist/src/repositories/runtime-store.js');
+  const {stableId}=await import('../refcheckid-backend/dist/src/platform/store.js');
+  const ephemeral=new RuntimeStore(env.REFCHECKID_DATABASE_PATH),adminId=randomUUID(),adminActor=randomUUID(),adminEmail='publication-admin@example.invalid',adminPassword='Browser-platform-admin-2026!',salt=randomBytes(16).toString('hex');
+  ephemeral.put('auth_profiles',{id:adminId,actorId:adminActor,email:adminEmail,displayName:'Publication test admin',role:'admin',enabled:true,passwordHash:`scrypt$${salt}$${scryptSync(adminPassword,salt,64).toString('hex')}`,federationIds:[],clubIds:[],refereeIds:[]});ephemeral.put('platform_login_aliases',{id:stableId('login',adminEmail),profileId:adminId,email:adminEmail});ephemeral.close();
+  const adminToken=(await api('/auth/login','',{email:adminEmail,password:adminPassword})).accessToken;
+  assert.equal((await fetch(`${origin}/api/v1/platform/organizations`,{method:'POST',headers:headers(federation),body:JSON.stringify({name:'Forbidden league-created refereeing body',kind:'refereeing'})})).status,403);
+  const arbitration=await api('/platform/organizations',adminToken,{name:'Organizzazione arbitrale browser test',kind:'refereeing'});
+  // Explicit central-admin grant for this dual-role test operator; never inferred from league ownership.
+  const grantStore=new RuntimeStore(env.REFCHECKID_DATABASE_PATH);grantStore.put('platform_memberships',{id:randomUUID(),organizationId:arbitration.id,unitId:arbitration.rootUnitId,actorId:platformContext.memberships[0].actorId,role:'org_admin',active:true,descendants:true,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),deletedAt:null});grantStore.close();
   const section=await api('/platform/units',federation,{organizationId:arbitration.id,parentId:arbitration.rootUnitId,name:'Sezione Siracusa test',kind:'section'});
   await api('/platform/delegations',federation,{competitionId:competition.id,recipientOrganizationId:arbitration.id,recipientUnitId:section.id,designate:true,expiresAt:'2099-01-01T00:00:00Z'});
   await page.reload();
@@ -286,12 +308,6 @@ try {
   await refereePage.reload();await refereePage.getByRole('button',{name:'Accetta gara',exact:true}).click();await refereePage.getByText('Accettata',{exact:false}).waitFor();await refereePage.getByRole('link',{name:'Apri distinta e riconoscimento di questa gara',exact:true}).waitFor();await refereePage.getByRole('heading',{name:'Prossima gara',exact:true}).locator('..').getByText(teams[0].name+' - '+teams[1].name,{exact:true}).waitFor();await refereePage.screenshot({path:join(directory,'platform-referee-appointment.png'),fullPage:true});
   await refereePage.getByRole('link',{name:'Apri distinta e riconoscimento di questa gara',exact:true}).click();await refereePage.waitForURL(url=>url.pathname==='/referee/match'&&url.searchParams.get('matchId')===fixture.matchId);await refereePage.getByRole('heading',{name:'Verifica distinte',exact:true}).waitFor();
   await page.getByRole('button',{name:'Designazioni',exact:true}).click();await page.screenshot({path:join(directory,'platform-delegated-designations.png'),fullPage:true});
-  // The publication administrator exists only in this run's isolated SQLite database.
-  const {RuntimeStore}=await import('../refcheckid-backend/dist/src/repositories/runtime-store.js');
-  const {stableId}=await import('../refcheckid-backend/dist/src/platform/store.js');
-  const ephemeral=new RuntimeStore(env.REFCHECKID_DATABASE_PATH),adminId=randomUUID(),adminActor=randomUUID(),adminEmail='publication-admin@example.invalid',adminPassword='Browser-platform-admin-2026!',salt=randomBytes(16).toString('hex');
-  ephemeral.put('auth_profiles',{id:adminId,actorId:adminActor,email:adminEmail,displayName:'Publication test admin',role:'admin',enabled:true,passwordHash:`scrypt$${salt}$${scryptSync(adminPassword,salt,64).toString('hex')}`,federationIds:[],clubIds:[],refereeIds:[]});ephemeral.put('platform_login_aliases',{id:stableId('login',adminEmail),profileId:adminId,email:adminEmail});ephemeral.close();
-  const adminToken=(await api('/auth/login','',{email:adminEmail,password:adminPassword})).accessToken;
   const csvLine=values=>values.map(value=>'"'+String(value??'').replaceAll('"','""')+'"').join(';');
   const playerRows=[],staffRows=[];
   for(const[index,club]of dataset.federationSyncPayload.clubs.slice(0,2).entries()){
@@ -309,6 +325,7 @@ try {
   await page.getByLabel('Ente',{exact:true}).selectOption(sportsOrg.id);await page.getByLabel('Struttura',{exact:true}).locator(`option[value="${province.id}"]`).waitFor({state:'attached'});await page.getByLabel('Struttura',{exact:true}).selectOption(province.id);await page.getByRole('button',{name:'Pubblicazione',exact:true}).click();
   const consentForm=form('Autorizzazione dell’ente sportivo');await consentForm.locator('[name=consent]').check();await consentForm.locator('[name=consentEvents]').check();await consentForm.getByRole('button',{name:'Salva autorizzazione',exact:true}).click();await page.getByText('Impostazioni salvate.',{exact:true}).waitFor();
   const adminContext=await browser.newContext({viewport:{width:1280,height:900}}),adminPage=await adminContext.newPage();adminPage.on('pageerror',error=>browserErrors.push(error.message));await adminPage.goto(webOrigin);await adminPage.getByLabel('Email o codice personale',{exact:true}).fill(adminEmail);await adminPage.getByLabel('Password',{exact:true}).fill(adminPassword);await adminPage.getByRole('button',{name:'ACCEDI',exact:true}).click();await adminPage.waitForURL(url=>url.pathname==='/admin/publication');
+  await adminPage.getByRole('link',{name:'Registro enti autonomi',exact:true}).click();await adminPage.getByRole('heading',{name:'Registro degli enti autonomi',exact:true}).waitFor();await adminPage.getByRole('button',{name:'Registra ente',exact:true}).waitFor();assert.equal(await adminPage.locator('[name=kind] option[value=refereeing]').count(),1);await adminPage.goto(webOrigin+'/admin/publication');
   const distribution=adminPage.locator('form').filter({has:adminPage.getByRole('heading',{name:'Attiva o sospendi la distribuzione',exact:true})});await distribution.locator('[name=mode]').selectOption('public');await distribution.locator('[name=includeLive]').check();await distribution.locator('[name=includeEvents]').check();await distribution.getByRole('button',{name:'Salva distribuzione',exact:true}).click();await adminPage.getByText('Impostazioni salvate.',{exact:true}).waitFor();
   await refereePage.goto(webOrigin+`/referee/notebook?fixtureId=${fixture.id}`);await refereePage.getByRole('button',{name:'Avvia periodo',exact:true}).click();await refereePage.getByLabel('Giocatore evento',{exact:true}).selectOption({index:1});await refereePage.getByRole('button',{name:'Registra evento',exact:true}).click();await refereePage.getByText('Aggiornamento ricevuto e salvato dal server.',{exact:true}).waitFor();
   await publicPage.getByLabel('Punteggio',{exact:true}).filter({hasText:'1 – 0'}).waitFor();await publicPage.getByText('Aggiornamento provvisorio',{exact:true}).waitFor();await publicPage.screenshot({path:join(directory,'official-results-live.png'),fullPage:true});

@@ -52,6 +52,7 @@ export function AuthGate({
           <IdentityHeader/>
           <nav className="flex flex-wrap gap-3" aria-label="Le tue aree"><Link className="text-primary underline" href="/profile">Profilo e loghi</Link>
             {session.user.role==='admin'?<Link className="text-primary underline" href="/admin/publication">Distribuzione dati</Link>:null}
+            {session.user.role==='admin'?<Link className="text-primary underline" href="/admin/organizations">Registro enti autonomi</Link>:null}
             {(session.user.availableRoles??[session.user.role]).filter((role)=>role!=='admin').map((role)=><Link key={role} className="text-primary underline" href={roleRedirects[role]}>{({federation:'Gestione ente',referee:'Area arbitro',manager:'Area dirigente'} as Record<string,string>)[role]}</Link>)}
           </nav>
           <Button type="button" onClick={() => void handleLogout()}>

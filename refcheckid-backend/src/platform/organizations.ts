@@ -80,6 +80,7 @@ export class Organizations {
       throw new PlatformError(403, 'Solo un operatore federale può creare un ente.');
     const name = text(body, 'name');
     const kind = body.kind === 'refereeing' ? 'refereeing' : 'sports';
+    if(kind==='refereeing'&&!this.auth.roles.includes('admin'))throw new PlatformError(403,'Gli enti arbitrali sono autonomi: devono essere registrati dall’amministrazione della piattaforma. La lega può collegare quelli già presenti tramite una delega.');
     const federationId = optional(body, 'federationId');
     if (kind === 'refereeing' && federationId)
       throw new PlatformError(
@@ -255,6 +256,8 @@ export class Organizations {
     await this.scope(competition.organizationId, competition.unitId, 'structure');
     const recipientOrganizationId = text(body, 'recipientOrganizationId');
     const recipientUnitId = text(body, 'recipientUnitId');
+    const recipientOrganization=await this.db.get<Organization>('organizations',recipientOrganizationId);
+    if(recipientOrganization?.kind!=='refereeing')throw new PlatformError(400,'Scegli un ente arbitrale autonomo già registrato.');
     const recipient = await this.db.get<Unit>('units', recipientUnitId);
     if (!recipient || recipient.organizationId !== recipientOrganizationId)
       throw new PlatformError(400, 'Struttura destinataria non valida.');

@@ -58,7 +58,7 @@ it('isolates territorial organizations, activates a referee by code, designates 
           federationId: auth.federationIds![0],
         })
       ).status,
-    ).toBe(400);
+    ).toBe(403);
     expect(await db.get('organizations', auth.federationIds![0])).toBeNull();
     const sport = await post<Organization>('organizations', {
       name: 'Lega test',
@@ -80,7 +80,7 @@ it('isolates territorial organizations, activates a referee by code, designates 
     const arbitration = await post<Organization>('organizations', {
       name: 'Organizzazione arbitrale test',
       kind: 'refereeing',
-    });
+    },{...auth,roles:['admin']});
     const section = await post<Unit>('units', {
       organizationId: arbitration.id,
       parentId: arbitration.rootUnitId,
@@ -921,4 +921,21 @@ it('removes invited club-manager access from legacy routes when the membership i
   } finally {
     await app.store.close();
   }
+});
+
+it('registers independent refereeing bodies centrally and lets a league link them without creating or administering them',async()=>{
+ const app=await preparedApp(),auth={actorId:randomUUID(),roles:['federation'],federationIds:[dataset.federationSyncPayload.federations[0].id]},league=new Imports(app,auth),central=new Imports(app,{actorId:randomUUID(),roles:['admin']});
+ try{
+  await expect(league.create({name:'Not league owned',kind:'refereeing'})).rejects.toMatchObject({status:403});
+  const sports=await league.create({name:'LND test',kind:'sports',federationId:auth.federationIds[0]});
+  const region=await league.createUnit({organizationId:sports.id,parentId:sports.rootUnitId,name:'Sicilia',kind:'regional'}),province=await league.createUnit({organizationId:sports.id,parentId:region.id,name:'Siracusa',kind:'provincial'});
+  const arb=await central.create({name:'Organizzazione arbitrale autonoma',kind:'refereeing'});
+  expect((await league.context()).organizations.map(row=>row.id)).not.toContain(arb.id);
+  await expect(league.scope(arb.id,arb.rootUnitId,'structure')).rejects.toMatchObject({status:403});
+  const comp=await league.createCompetition({organizationId:sports.id,unitId:province.id,name:'Provinciale',sport:'football',season:'2026',category:'Open'});
+  await expect(league.createDelegation({competitionId:comp.id,recipientOrganizationId:sports.id,recipientUnitId:province.id,expiresAt:'2099-01-01T00:00:00Z'})).rejects.toMatchObject({status:400});
+  const grant=await league.createDelegation({competitionId:comp.id,recipientOrganizationId:arb.id,recipientUnitId:arb.rootUnitId,expiresAt:'2099-01-01T00:00:00Z',designate:true});expect(grant.actions).toEqual(['read','designate']);
+  await expect(league.scope(arb.id,arb.rootUnitId,'structure')).rejects.toMatchObject({status:403});
+  const router=createRestApiRouter(app),response=await router.handle({method:'GET',path:'/api/v1/platform/directory',headers:{},query:{organizationId:sports.id,unitId:province.id},auth});expect(response.status).toBe(200);expect((response.body as {items:Organization[]}).items.map(row=>row.id)).toEqual([arb.id]);
+ }finally{await app.store.close();}
 });

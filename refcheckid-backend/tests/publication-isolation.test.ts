@@ -69,7 +69,7 @@ it('keeps reports federation-private across old/new endpoints and publishes only
       venue: 'Test',
       round: '1',
     });
-    const arbitration = await owner.create({ name: 'Referee association', kind: 'refereeing' }),
+    const arbitration = await new Imports(app,{...ownerAuth,roles:['admin']}).create({ name: 'Referee association', kind: 'refereeing' }),
       arbScope = { organizationId: arbitration.id, unitId: arbitration.rootUnitId };
     await owner.createDelegation({
       competitionId: competition.id,
