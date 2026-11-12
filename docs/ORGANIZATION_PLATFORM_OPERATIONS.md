@@ -234,3 +234,7 @@ Gli account senza email non richiedono caselle da preparare. Se si vuole
 verificare anche il recapito e la conferma email, usare indirizzi reali sotto
 il proprio controllo e password scelte dai titolari; non indirizzi fittizi
 irraggiungibili.
+
+## Taccuino, referti riservati e portale risultati
+
+Per il rilascio successivo e gli accessi per ruolo consultare [la guida operativa](RESULTS_NOTEBOOK_OPERATIONS.md). La separazione degli endpoint, i confini dei dati pubblici e le verifiche sono descritti nel [contratto API](RESULTS_PRIVACY_API.md). La pubblicazione resta disabilitata finché proprietario e amministrazione centrale non la autorizzano separatamente.

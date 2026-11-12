@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -17,6 +17,8 @@ import {
 } from "./api";
 import { NotificationInbox } from "./notifications";
 import { ActionForm, Pager } from "./forms";
+import { MatchClock, QuickCapture } from "./notebook-controls";
+import { EventArchive } from "./event-archive";
 import { statusName } from "./workspace";
 interface Mine extends Appointment {
   fixture: Fixture;
@@ -24,7 +26,9 @@ interface Mine extends Appointment {
   delegationActive: boolean;
 }
 interface GameContext {
-  report: { status: string } | null;
+  recognitionStatus?: string;
+  progress?: { seconds: number; runningSince: string | null } | null;
+  reportStatus: string | null;
   fixture: Fixture;
   competition: Competition;
   summary: GameSummary | null;
@@ -153,6 +157,12 @@ export function MyAppointments() {
                   Apri distinta e riconoscimento di questa gara
                 </Link>
               ) : null}
+              <Link
+                className="block font-semibold text-blue-700 underline"
+                href={`/referee/notebook?fixtureId=${encodeURIComponent(row.fixtureId)}`}
+              >
+                Apri taccuino digitale
+              </Link>
               <Button
                 type="button"
                 onClick={() =>
@@ -184,11 +194,14 @@ export function MyAppointments() {
 export function PeriodPanel({
   fixtureId,
   role = "principal",
+  notebook = false,
 }: {
   fixtureId: string;
+  notebook?: boolean;
   role?: Appointment["role"];
 }) {
   const { session } = useSession();
+  const queryClient=useQueryClient();
   const query = useQuery({
     queryKey: ["platform", "game", fixtureId, session?.user.id],
     queryFn: () => platformGet<GameContext>(`games/${fixtureId}`),
@@ -205,6 +218,9 @@ export function PeriodPanel({
     [pending, setPending] = useState<Record<string, unknown> | null>(null),
     [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false);
+  const [autoLive, setAutoLive] = useState(notebook);
+  const editRef = useRef({ events, period, correctionReason });
+  editRef.current = { events, period, correctionReason };
   useEffect(() => {
     if (query.data && !dirty && !pending) {
       setEvents(query.data.events);
@@ -229,7 +245,8 @@ export function PeriodPanel({
         setMessage(
           "Aggiornamento non ancora confermato dal server. Controlla e sincronizza.",
         );
-      } else {
+      }
+      if (!value || notebook) {
         const draft = localStorage.getItem(draftKey);
         if (draft) {
           const saved = JSON.parse(draft) as {
@@ -257,12 +274,12 @@ export function PeriodPanel({
     } catch {
       setError("Impossibile recuperare la bozza locale.");
     }
-  }, [storageKey, draftKey]);
+  }, [storageKey, draftKey, notebook]);
   const context = query.data;
   const summary = context?.summary;
   const refetch = query.refetch;
   useEffect(() => {
-    if (!dirty || pending || !context) return;
+    if (!dirty || (pending && !notebook) || !context) return;
     const revision = draftBase ?? context.summary?.revision ?? 0;
     if (draftBase === null) setDraftBase(revision);
     try {
@@ -284,6 +301,7 @@ export function PeriodPanel({
     context,
     draftBase,
     draftKey,
+    notebook,
   ]);
   let homeScore = 0,
     awayScore = 0;
@@ -299,15 +317,42 @@ export function PeriodPanel({
       setBusy(true);
       setError("");
       try {
-        await platformPost(`games/${fixtureId}/periods`, body);
+        const saved = await platformPost<GameSummary>(
+          `games/${fixtureId}/periods`,
+          body,
+        );
+        queryClient.setQueryData<GameContext>(['platform','game',fixtureId,session?.user.id],previous=>previous?{...previous,summary:saved,events:body.events as GameEvent[]}:previous);
+        const newer =
+          notebook &&
+          (JSON.stringify(editRef.current.events) !==
+            JSON.stringify(body.events) ||
+            editRef.current.period !== body.period ||
+            editRef.current.correctionReason !== (body.correctionReason ?? ""));
         localStorage.removeItem(storageKey);
-        localStorage.removeItem(draftKey);
-        setDraftBase(null);
+        if (newer) {
+          setDraftBase(saved.revision);
+          setDirty(true);
+          localStorage.setItem(
+            draftKey,
+            JSON.stringify({ ...editRef.current, revision: saved.revision }),
+          );
+        } else {
+          localStorage.removeItem(draftKey);
+          setDraftBase(null);
+          setDirty(false);
+        }
         setPending(null);
-        setDirty(false);
         setMessage("Aggiornamento ricevuto e salvato dal server.");
         await refetch();
       } catch (error) {
+        if (
+          error &&
+          typeof error === "object" &&
+          "status" in error &&
+          Number(error.status) >= 400 &&
+          Number(error.status) < 500
+        )
+          setAutoLive(false);
         setError(
           error instanceof Error
             ? error.message
@@ -317,7 +362,7 @@ export function PeriodPanel({
         setBusy(false);
       }
     },
-    [fixtureId, storageKey, draftKey, refetch],
+    [fixtureId, storageKey, draftKey, refetch, notebook,queryClient,session?.user.id],
   );
   useEffect(() => {
     const retry = () => {
@@ -346,6 +391,23 @@ export function PeriodPanel({
     }
     void transmit(body);
   }
+  const submitRef = useRef(submit);
+  submitRef.current = submit;
+  useEffect(() => {
+    if (!notebook || !autoLive || !dirty || pending || busy || !context) return;
+    const timer = setTimeout(() => submitRef.current("provisional"), 700);
+    return () => clearTimeout(timer);
+  }, [
+    notebook,
+    autoLive,
+    dirty,
+    pending,
+    busy,
+    events,
+    period,
+    correctionReason,
+    context,
+  ]);
   if (query.isLoading) return <p>Caricamento riepilogo gara…</p>;
   if (query.isError) return <p role="alert">{query.error.message}</p>;
   if (!context) return null;
@@ -368,10 +430,26 @@ export function PeriodPanel({
             { id: "substitution", name: "Sostituzione" },
           ];
   return (
-    <details className="space-y-3 rounded-xl border p-3">
+    <details
+      open={notebook || undefined}
+      className="space-y-3 rounded-xl border p-3"
+    >
       <summary className="cursor-pointer font-semibold">
         Aggiornamenti gara · {context.home.name} – {context.away.name}
       </summary>
+      {notebook ? (
+        <>
+          <MatchClock fixtureId={fixtureId} role={role} />
+          <label className="block">
+            <input
+              type="checkbox"
+              checked={autoLive}
+              onChange={(e) => setAutoLive(e.target.checked)}
+            />{" "}
+            Trasmetti automaticamente gli eventi provvisori
+          </label>
+        </>
+      ) : null}
       <p>
         Confronta gli eventi, conferma alla fine di ogni periodo e al termine
         della gara. Senza connessione l’aggiornamento resta sul dispositivo
@@ -397,6 +475,23 @@ export function PeriodPanel({
           >
             Sincronizza aggiornamento salvato
           </Button>
+          {notebook ? (
+            <Button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setAutoLive(false);
+                localStorage.removeItem(storageKey);
+                setPending(null);
+                setDirty(true);
+                setMessage(
+                  "Bozza mantenuta: correggi i dati prima di inviare nuovamente.",
+                );
+              }}
+            >
+              Rivedi la bozza senza inviare
+            </Button>
+          ) : null}
           <Button
             type="button"
             disabled={busy}
@@ -424,7 +519,13 @@ export function PeriodPanel({
       ) : null}
       {message ? <p role="status">{message}</p> : null}
       <fieldset
-        disabled={!!pending || busy || context.report?.status === "submitted"}
+        disabled={
+          (!!pending && !notebook) ||
+          busy ||
+          context.reportStatus === "submitted" ||
+          (!!context.recognitionStatus &&
+            context.recognitionStatus !== "locked")
+        }
         className="space-y-3"
       >
         <label>
@@ -450,6 +551,21 @@ export function PeriodPanel({
         <p className="text-xl font-bold">
           Riepilogo: {homeScore} – {awayScore}
         </p>
+        {notebook ? (
+          <QuickCapture
+            progress={context.progress ?? null}
+            players={context.players}
+            home={context.home}
+            away={context.away}
+            sport={context.competition.sport}
+            minutesPerPeriod={context.competition.rules.minutesPerPeriod}
+            period={period}
+            onAdd={(event) => {
+              setEvents((value) => [...value, event]);
+              setDirty(true);
+            }}
+          />
+        ) : null}
         <ActionForm
           title="Aggiungi evento al riepilogo"
           button="Aggiungi evento"
@@ -574,9 +690,17 @@ export function PeriodPanel({
           )}
         </div>
       </fieldset>
-      {context.report?.status === "submitted" ? (
+      {context.reportStatus === "submitted" ? (
         <p className="rounded-lg bg-emerald-50 p-3">
           Referto inviato: i dati sono in sola lettura.
+          {role === "principal" ? (
+            <Link
+              className="block text-blue-700 underline"
+              href={`/referee/report?fixtureId=${fixtureId}`}
+            >
+              Rileggi il tuo referto riservato
+            </Link>
+          ) : null}
         </p>
       ) : role === "principal" && summary?.state === "final_confirmed" ? (
         <ActionForm
@@ -590,6 +714,7 @@ export function PeriodPanel({
           }}
         />
       ) : null}
+      <EventArchive fixtureId={fixtureId} />
     </details>
   );
 }

@@ -46,23 +46,43 @@ export class PlatformStore {
     filter: Record<string, unknown>,
     cursor?: string,
     search?: string,
+    orderBy?: 'revision',
   ) {
     const query = {
       repository: `platform_${table}`,
       filter,
       limit: 50,
+      ...(orderBy ? { orderBy } : {}),
       ...(search ? { search: search.slice(0, 100) } : {}),
       ...(cursor ? { afterId: cursor } : {}),
     };
     if (this.runtime.documentPage) return this.runtime.documentPage<T>(query);
     const all = [...(await this.find<T>(table, filter))]
       .filter((row) => !search || JSON.stringify(row).toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => a.id.localeCompare(b.id));
-    const rows = all.filter((row) => !cursor || row.id > cursor).slice(0, 51);
+      .sort((a, b) =>
+        orderBy
+          ? Number((b as unknown as { revision: number }).revision) -
+            Number((a as unknown as { revision: number }).revision)
+          : a.id.localeCompare(b.id),
+      );
+    const rows = all
+      .filter(
+        (row) =>
+          !cursor ||
+          (orderBy
+            ? Number((row as unknown as { revision: number }).revision) < Number(cursor)
+            : row.id > cursor),
+      )
+      .slice(0, 51);
     return {
       total: all.length,
       items: rows.slice(0, 50),
-      nextCursor: rows.length > 50 ? rows[49].id : null,
+      nextCursor:
+        rows.length > 50
+          ? orderBy
+            ? String((rows[49] as unknown as { revision: number }).revision)
+            : rows[49].id
+          : null,
     };
   }
 }

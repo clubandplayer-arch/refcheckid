@@ -10,7 +10,7 @@ export interface RuntimePersistence {
     repository: string;
     filter: Record<string, unknown>;
     limit: number;
-    afterId?: string;
+    afterId?: string;orderBy?:'revision';
     search?: string;
   }): Promise<{ total: number; items: T[]; nextCursor: string | null }>;
   photoApprovalPage?(query: PhotoApprovalPageQuery): Promise<PhotoApprovalPageResult>;

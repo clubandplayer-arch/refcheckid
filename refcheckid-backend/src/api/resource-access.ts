@@ -1,3 +1,4 @@
+import {canReadReport} from '../platform/report-access.js';
 import { canReview, reviewerScope } from '../platform/photo-scopes.js';
 import { PlatformStore } from '../platform/store.js';
 import type { Fixture,Competition } from '../platform/types.js';
@@ -11,7 +12,8 @@ import { requireUuid } from './validation.js';
 export function resourceAccess(container: ApplicationContainer): ApiMiddleware {
   return (next) => async (request) => {
     const auth = request.auth;
-    if (!auth || auth.roles.includes('admin') || !request.path.startsWith('/api/v1/') || request.path.includes('/auth/')) return next(request);
+    const privateReportPath=request.path.startsWith('/api/v1/match-reports')||request.path.startsWith('/api/v1/audit/')||/\/(final-report|report-draft)$/.test(request.path);
+    if (!auth || auth.roles.includes('admin')&&!privateReportPath || !request.path.startsWith('/api/v1/') || request.path.includes('/auth/')) return next(request);
     const r = container.repositories;
     const manager = auth.roles.includes('manager');
     const referee = auth.roles.includes('referee');
@@ -45,7 +47,8 @@ export function resourceAccess(container: ApplicationContainer): ApiMiddleware {
       if (!registration || !await clubAllowed(registration.clubId)) return denied();
     }
     if (path.startsWith('/api/v1/audit/')) {
-      if (request.query.matchId ? !await match(request.query.matchId) : !federation) return denied();
+      if(path!=='/api/v1/audit/by-match')return denied();
+      if (!request.query.matchId || !await canReadReport(container,auth,request.query.matchId)) return denied();
     }
     if (path.startsWith('/api/v1/photos/versions/') && id) {
       const linked = (await r.seasonRegistrationPhotos.list()).filter((photo) => photo.effectiveVersionId === id);
@@ -123,7 +126,10 @@ export function resourceAccess(container: ApplicationContainer): ApiMiddleware {
     }
     if (path.startsWith('/api/v1/match-reports')) {
       const matchId = id ? (await r.matchReports.findById(id))?.matchId : typeof body.matchId === 'string' ? body.matchId : request.query.matchId;
-      if (!matchId || !await match(matchId) || (request.method !== 'GET' && !referee)) return denied();
+      if(request.method==='GET'){
+        if(matchId){if(!await canReadReport(container,auth,matchId))return denied();}
+        else if(!federation)return denied();
+      }else{if(!matchId||!referee||!await match(matchId)||!await canReadReport(container,auth,matchId))return denied();}
       if (typeof body.refereeId === 'string' && !auth.refereeIds?.includes(body.refereeId)) return denied();
     }
     if (path.startsWith('/api/v1/registrations/') && id) {
@@ -144,6 +150,8 @@ export function resourceAccess(container: ApplicationContainer): ApiMiddleware {
     }
     if (request.method !== 'GET' || response.status !== 200 || !Array.isArray(response.body)) return response;
     const filter = async (row: Record<string, string>) => {
+      if(path==='/api/v1/match-reports')return canReadReport(container,auth,row.matchId);
+      if(path==='/api/v1/identity-documents')return false;
       if (path === '/api/v1/matches') return matchAllowed(auth, row as unknown as Match) && (!referee || await platformMatchAllowed(container,auth.actorId,row.id));
       if (path === '/api/v1/match-sheets') return manager ? !!auth.clubIds?.includes(row.clubId) : match(row.matchId);
       if (path === '/api/v1/clubs') return clubAllowed(row.id);

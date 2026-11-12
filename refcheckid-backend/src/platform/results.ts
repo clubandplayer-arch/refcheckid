@@ -1,6 +1,7 @@
+import { requireReportAccess } from './report-access.js';
 import { createHash } from 'node:crypto';
 import { Appointments, appointmentValid } from './appointments.js';
-import { PlatformError, text, optional } from './organizations.js';
+import { Organizations,PlatformError, text, optional } from './organizations.js';
 import { stableId } from './store.js';
 import type {
   Appointment,
@@ -11,7 +12,7 @@ import type {
   Competition,
 } from './types.js';
 export class Results extends Appointments {
-  async fixtureAccess(id: string, write = false) {
+  async fixtureAccess(id: string, write = false, assistantWrite = false) {
     const fixture = await this.db.get<Fixture>('fixtures', id);
     if (!fixture) throw new PlatformError(404, 'Gara non trovata.');
     const mine = await this.db.find<Appointment>('appointments', {
@@ -20,11 +21,11 @@ export class Results extends Appointments {
     });
     for (const row of mine)
       if (
-        (!write || row.role === 'principal') &&
+        (!write || assistantWrite || row.role === 'principal') &&
         (await appointmentValid(this.db, row, this.auth.actorId))
       )
         return fixture;
-    if (write)
+    if (write || assistantWrite)
       throw new PlatformError(
         403,
         'Solo l’arbitro principale con designazione attiva può confermare i periodi.',
@@ -68,8 +69,43 @@ export class Results extends Appointments {
       players,
       summary,
       events: last?.events ?? [],
-      report: await this.app.repositories.matchReports.findByMatch(match.id),
+      reportStatus:
+        (await this.app.repositories.matchReports.findByMatch(match.id))?.status ?? null,
+      progress: await this.db.get('progress', id),
+      recognitionStatus: (await this.app.repositories.recognitions.getWorkflowByMatch(match.id))
+        .status,
       serverTime: new Date().toISOString(),
+    };
+  }
+  async privateReport(id: string) {
+    const fixture = await this.db.get<Fixture>('fixtures', id);
+    if (!fixture) throw new PlatformError(404, 'Gara non trovata.');
+    await requireReportAccess(this.app, this.auth, fixture.matchId);
+    return this.app.repositories.matchReports.findByMatch(fixture.matchId);
+  }
+  async eventHistory(id: string, cursor?: string) {
+    await this.fixtureAccess(id);
+    if (cursor && !/^[1-9][0-9]{0,9}$/.test(cursor))
+      throw new PlatformError(400, 'Cursore archivio non valido.');
+    const page = await this.db.page<PeriodUpdate>(
+      'updates',
+      { fixtureId: id },
+      cursor,
+      undefined,
+      'revision',
+    );
+    return {
+      ...page,
+      items: page.items.map((row) => ({
+        id: row.id,
+        revision: row.revision,
+        period: row.period,
+        homeScore: row.homeScore,
+        awayScore: row.awayScore,
+        state: row.state,
+        recordedAt: row.createdAt,
+        events: row.events,
+      })),
     };
   }
   async submitGameReport(id: string, body: Record<string, unknown>) {
@@ -124,7 +160,8 @@ export class Results extends Appointments {
   async homologate(id: string) {
     const fixture = await this.db.get<Fixture>('fixtures', id);
     if (!fixture) throw new PlatformError(404, 'Gara non trovata.');
-    await this.competition(fixture.competitionId, 'results');
+    const ownerScope=new Organizations(this.app,{...this.auth,roles:this.auth.roles.filter(role=>role!=='admin')});
+    await ownerScope.scope(fixture.organizationId,fixture.unitId,'results');
     const summary = await this.db.get<GameSummary>('summaries', id),
       report = await this.app.repositories.matchReports.findByMatch(fixture.matchId);
     if (summary?.state !== 'final_confirmed' || report?.status !== 'submitted')
@@ -136,7 +173,7 @@ export class Results extends Appointments {
     });
   }
   async submitPeriod(id: string, body: Record<string, unknown>) {
-    const fixture = await this.fixtureAccess(id, body.state !== 'provisional');
+    const fixture = await this.fixtureAccess(id, true, body.state === 'provisional');
     if (fixture.cancelled) throw new PlatformError(409, 'Gara annullata.');
     const operationId = text(body, 'operationId', 80);
     if (!/^[a-zA-Z0-9-]{8,80}$/.test(operationId))
@@ -188,14 +225,10 @@ export class Results extends Appointments {
     )
       throw new PlatformError(409, 'Conferma tutti i periodi previsti prima del risultato finale.');
     const correctionReason = optional(body, 'correctionReason', 2000);
-    if (
-      previous?.state === 'final_confirmed' &&
-      state !== 'final_confirmed' &&
-      correctionReason.length < 20
-    )
+    if (previous?.state === 'final_confirmed' && state !== 'final_confirmed')
       throw new PlatformError(
-        400,
-        'Per correggere un periodo confermato specifica una motivazione di almeno 20 caratteri.',
+        409,
+        'Una rettifica del risultato finale deve essere nuovamente confermata come fine gara.',
       );
     const context = await this.gameContext(id);
     const raw = body.events;
@@ -355,6 +388,25 @@ export class Results extends Appointments {
       lastConfirmedPeriod: state === 'provisional' ? (previous?.lastConfirmedPeriod ?? 0) : period,
       lastConfirmedOperationId:
         state === 'provisional' ? (previous?.lastConfirmedOperationId ?? '') : operationId,
+    });
+    const progress = await this.db.get<import('./publication.js').MatchProgress>('progress', id);
+    await this.db.put<import('./publication.js').MatchProgress>('progress', {
+      id,
+      fixtureId: id,
+      phase:
+        state === 'final_confirmed'
+          ? 'finished'
+          : state === 'period_confirmed'
+            ? 'interval'
+            : 'live',
+      period,
+      seconds:
+        (progress?.seconds ?? 0) +
+        (state !== 'provisional' && progress?.runningSince
+          ? Math.max(0, Math.floor((Date.now() - Date.parse(progress.runningSince)) / 1000))
+          : 0),
+      runningSince: state === 'provisional' ? (progress?.runningSince ?? null) : null,
+      revision: (progress?.revision ?? 0) + 1,
     });
     const match = await this.app.repositories.matches.findById(fixture.matchId);
     if (match?.status === 'scheduled')

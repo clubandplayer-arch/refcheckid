@@ -217,14 +217,16 @@ export class PostgresStore implements RuntimePersistence {
     repository: string;
     filter: Record<string, unknown>;
     limit: number;
-    afterId?: string;
+    afterId?: string;orderBy?:'revision';
     search?: string;
   }) {
+    const ordering=input.orderBy==='revision'?"(document->>'revision')::int DESC":"id";
+    const after=input.orderBy==='revision'?"(document->>'revision')::int < $3::int":"id>$3";
     const result = await this.query<{ total: number; items: T[] }>(
       `WITH scoped AS MATERIALIZED (
       SELECT id, document FROM refcheckid.entities WHERE repository=$1 AND document @> $2::jsonb AND ($5::text IS NULL OR document::text ILIKE $5)
-    ), page AS (SELECT id,document FROM scoped WHERE ($3::text IS NULL OR id>$3) ORDER BY id LIMIT $4)
-    SELECT (SELECT count(*)::int FROM scoped) AS total, coalesce((SELECT jsonb_agg(document ORDER BY id) FROM page),'[]'::jsonb) AS items`,
+    ), page AS (SELECT id,document FROM scoped WHERE ($3::text IS NULL OR ${after}) ORDER BY ${ordering} LIMIT $4)
+    SELECT (SELECT count(*)::int FROM scoped) AS total, coalesce((SELECT jsonb_agg(document ORDER BY ${ordering}) FROM page),'[]'::jsonb) AS items`,
       [
         input.repository,
         JSON.stringify(input.filter),
@@ -238,7 +240,7 @@ export class PostgresStore implements RuntimePersistence {
     return {
       total: row.total,
       items: row.items.slice(0, input.limit),
-      nextCursor: more ? (row.items[input.limit - 1] as { id: string }).id : null,
+      nextCursor: more ? input.orderBy==='revision'?String((row.items[input.limit-1] as {revision:number}).revision):(row.items[input.limit - 1] as { id: string }).id : null,
     };
   }
 

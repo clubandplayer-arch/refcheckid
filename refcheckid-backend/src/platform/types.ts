@@ -10,26 +10,30 @@ export type Role =
   | 'competition_manager'
   | 'designator'
   | 'photo_reviewer'
+  | 'report_reader'
   | 'viewer'
   | 'referee'
   | 'club_manager';
-export type Capability = 'structure' | 'people' | 'competitions' | 'designate' | 'results' | 'read';
+export type Capability =
+  'structure' | 'people' | 'competitions' | 'designate' | 'results' | 'reports' | 'read';
 export const roles: readonly Role[] = [
   'org_admin',
   'registrar',
   'competition_manager',
   'designator',
   'photo_reviewer',
+  'report_reader',
   'viewer',
   'referee',
   'club_manager',
 ];
 export const capabilities: Record<Role, readonly Capability[]> = {
-  org_admin: ['structure', 'people', 'competitions', 'designate', 'results', 'read'],
+  org_admin: ['structure', 'people', 'competitions', 'designate', 'results', 'reports', 'read'],
   registrar: ['people', 'read'],
-  competition_manager: ['competitions', 'results', 'read'],
+  competition_manager: ['competitions', 'results', 'reports', 'read'],
   designator: ['designate', 'people', 'read'],
   photo_reviewer: ['read'],
+  report_reader:['reports','read'],
   viewer: ['read'],
   referee: [],
   club_manager: [],

@@ -8,7 +8,7 @@ import { logoutSession } from "@/lib/auth-client";
 import { useSession, type AppRole } from "@/lib/session";
 
 export const roleRedirects: Record<AppRole, string> = {
-  admin: '/federation',
+  admin: '/admin/publication',
   federation: "/federation",
   manager: "/manager",
   referee: "/referee",
@@ -50,6 +50,7 @@ export function AuthGate({
         <div className="mx-auto flex max-w-7xl items-center justify-between text-sm">
           <span>{session.user.displayName}</span>
           <nav className="flex flex-wrap gap-3" aria-label="Le tue aree">
+            {session.user.role==='admin'?<Link className="text-primary underline" href="/admin/publication">Distribuzione dati</Link>:null}
             {(session.user.availableRoles??[session.user.role]).filter((role)=>role!=='admin').map((role)=><Link key={role} className="text-primary underline" href={roleRedirects[role]}>{({federation:'Gestione ente',referee:'Area arbitro',manager:'Area dirigente'} as Record<string,string>)[role]}</Link>)}
           </nav>
           <Button type="button" onClick={() => void handleLogout()}>

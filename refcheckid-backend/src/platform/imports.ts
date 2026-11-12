@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { Results } from './results.js';
+import { Publication } from './publication.js';
 import { PlatformError, text, optional, timestamp } from './organizations.js';
 import { stableId } from './store.js';
 import { parseSpreadsheet, importColumns, optionalImportColumns } from './import-files.js';
@@ -28,7 +28,7 @@ interface Upload extends Entity {
   actorId: string;
   expiresAt: string;
 }
-export class Imports extends Results {
+export class Imports extends Publication {
   private registrationCache: readonly Record<string, unknown>[] | null = null;
   private async priorRegistration(kind: string, personId: string, clubId: string, season: string) {
     const repository = kind === 'player' ? 'player_registrations' : 'staff_registrations';

@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -103,6 +104,7 @@ export function LoginForm() {
           ACCEDI
         </Button>
       </form>
+      <Link className="mt-4 block text-center text-sm text-primary underline" href="/results">Consulta i risultati ufficiali</Link>
     </Card>
   );
 }

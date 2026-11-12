@@ -27,7 +27,7 @@ const context = {
   players: [],
   home: { id: "home", name: "Casa" },
   away: { id: "away", name: "Ospite" },
-  report: null,
+  reportStatus: null,
 };
 beforeEach(() => {
   localStorage.clear();
@@ -42,10 +42,10 @@ afterEach(() => {
   client.clear();
   vi.resetAllMocks();
 });
-function show(role: "principal" | "assistant" = "principal") {
+function show(role: "principal" | "assistant" = "principal",notebook=false) {
   render(
     <QueryClientProvider client={client}>
-      <PeriodPanel fixtureId="fixture" role={role} />
+      <PeriodPanel fixtureId="fixture" role={role} notebook={notebook} />
     </QueryClientProvider>,
   );
 }
@@ -148,4 +148,16 @@ it("restores an unsent draft with its original server revision instead of silent
     "games/fixture/periods",
     expect.objectContaining({ revision: 0 }),
   );
+});
+
+it('keeps recording offline notebook events and sends the newer draft after the older pending operation is acknowledged',async()=>{
+ const base={...context,recognitionStatus:'locked',progress:null,players:[{registrationId:'player-1',clubId:'home',name:'Alice Player',shirtNumber:9,role:'starter'}]};mock.get.mockResolvedValue(base);show('principal',true);
+ await screen.findByRole('heading',{name:'Inserimento rapido'});fireEvent.change(screen.getByLabelText('Giocatore evento',{exact:true}),{target:{value:'player-1'}});fireEvent.click(screen.getByRole('button',{name:/^Registra evento$/}));
+ await waitFor(()=>expect(mock.post).toHaveBeenCalledTimes(1),{timeout:2000});await screen.findByText('Connessione assente');
+ fireEvent.click(screen.getByRole('button',{name:/^Registra evento$/}));await waitFor(()=>expect(JSON.parse(localStorage.getItem('refcheckid:period:referee-test:fixture:draft')!).events).toHaveLength(2));
+ expect(JSON.parse(localStorage.getItem('refcheckid:period:referee-test:fixture')!).events).toHaveLength(1);
+ cleanup();let revision=0;let serverEvents:unknown[]=[];mock.post.mockImplementation(async(_path:string,body:Record<string,unknown>)=>{revision++;serverEvents=body.events as unknown[];return{...body,revision};});mock.get.mockImplementation(async()=>({...base,events:serverEvents,summary:revision?{revision,period:1,state:'provisional',homeScore:serverEvents.length,awayScore:0,confirmedAt:new Date().toISOString()}:null}));
+ show('principal',true);await screen.findByRole('heading',{name:'Inserimento rapido'});fireEvent(window,new Event('online'));
+ await waitFor(()=>expect(mock.post).toHaveBeenCalledTimes(3),{timeout:3000});await waitFor(()=>expect(localStorage.getItem('refcheckid:period:referee-test:fixture')).toBeNull());
+ expect(mock.post.mock.calls.at(-1)?.[1]).toMatchObject({revision:1,events:expect.any(Array)});expect((mock.post.mock.calls.at(-1)?.[1] as {events:unknown[]}).events).toHaveLength(2);
 });

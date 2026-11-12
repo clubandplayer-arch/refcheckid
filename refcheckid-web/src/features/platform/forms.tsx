@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { platformGet, params } from "./api";
 import { Button } from "@/components/ui/button";
 export interface Field {
+  checked?: boolean;
   onValueChange?: (value: string) => void;
   remote?: string;
   valueKey?: string;
@@ -78,6 +79,9 @@ export function ActionForm({
                 className="w-full rounded-lg border p-2"
                 name={field.key}
                 required={!field.optional}
+                defaultChecked={
+                  field.type === "checkbox" ? field.checked : undefined
+                }
                 defaultValue={field.value ?? ""}
               >
                 <option value="">Seleziona…</option>
@@ -94,6 +98,9 @@ export function ActionForm({
                 type={field.type ?? "text"}
                 maxLength={field.type === "password" ? 128 : 2000}
                 required={!field.optional}
+                defaultChecked={
+                  field.type === "checkbox" ? field.checked : undefined
+                }
                 defaultValue={field.value ?? ""}
               />
             )}
@@ -139,6 +146,7 @@ export const roleNames: Record<string, string> = {
   competition_manager: "Responsabile campionati",
   designator: "Designatore arbitrale",
   photo_reviewer: "Revisore foto",
+  report_reader:"Consultazione referti riservati",
   viewer: "Consultazione",
   referee: "Arbitro",
   club_manager: "Dirigente società",

@@ -32,6 +32,8 @@ import {
   type Field,
 } from "./forms";
 import { SquadRoster } from "./squad-roster";
+import Link from "next/link";
+import {PublicationSettings} from "./publication-settings";
 import { ImportPanel } from "./import-panel";
 interface Context {
   organizations: Organization[];
@@ -61,6 +63,7 @@ const tabs = [
   "Deleghe",
   "Importazioni",
   "Risultati",
+  "Pubblicazione",
 ] as const;
 export function OrganizationWorkspace() {
   const { session } = useSession();
@@ -156,14 +159,14 @@ export function OrganizationWorkspace() {
         can("people")) ||
       (name === "Campionati" && (can("competitions") || can("designate"))) ||
       (name === "Designazioni" && can("designate")) ||
-      (name === "Deleghe" && rootAdmin) ||
+      (["Deleghe","Pubblicazione"].includes(name) && rootAdmin) ||
       (name === "Importazioni" &&
         (can("people") || can("competitions") || can("designate"))),
   );
   const offeredTabs = visibleTabs.filter(
     (name) =>
       organization?.kind !== "refereeing" ||
-      !["Società e squadre", "Tesserati", "Deleghe"].includes(name),
+      !["Società e squadre", "Tesserati", "Deleghe", "Pubblicazione"].includes(name),
   );
   const importKinds: import("./api").ImportKind[] =
     organization?.kind === "refereeing"
@@ -855,6 +858,7 @@ export function OrganizationWorkspace() {
                       Omologa risultato (richiede referto inviato)
                     </Button>
                   ) : null}
+                  {tab==='Risultati'&&can('reports')&&ownCompetition?<Link className="block text-blue-700 underline" href={`/federation/reports?fixtureId=${f.id}`}>Apri referto riservato</Link>:null}
                   {tab === "Risultati" && f.summary ? (
                     <GameDetails fixtureId={f.id} />
                   ) : null}
@@ -1093,6 +1097,7 @@ export function OrganizationWorkspace() {
               />
             </Card>
           ) : null}
+          {tab==='Pubblicazione'?<>{selectCompetition}<PublicationSettings competitionId={compId}/></>:null}
           {tab === "Importazioni" ? (
             <ImportPanel
               key={`${orgId}:${scope.unitId}`}
@@ -1238,7 +1243,7 @@ function GameDetails({ fixtureId }: { fixtureId: string }) {
         players: { registrationId: string; name: string }[];
         home: { id: string; name: string };
         away: { id: string; name: string };
-        report: { status: string } | null;
+        reportStatus: string | null;
       }>(`games/${fixtureId}`),
     enabled: open,
     refetchInterval: open ? 10000 : false,
@@ -1262,7 +1267,7 @@ function GameDetails({ fixtureId }: { fixtureId: string }) {
         <div className="space-y-2 p-2">
           <p>
             Referto:{" "}
-            {query.data.report?.status === "submitted"
+            {query.data.reportStatus === "submitted"
               ? "Inviato"
               : "Da inviare"}
           </p>

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, scryptSync } from 'node:crypto';
 import { mkdtemp, readFile, readdir, mkdir } from 'node:fs/promises';
 import { existsSync, openSync, closeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -25,6 +25,7 @@ const env = { ...process.env, NODE_ENV: 'development', PORT: String(backendPort)
   REFCHECKID_PHOTO_METADATA_ROOT: join(directory, 'metadata'), REFCHECKID_PHOTO_STORAGE_ROOT: join(directory, 'photos'),
   NEXT_TELEMETRY_DISABLED: '1', BACKEND_ORIGIN: origin,
 };
+delete env.REFCHECKID_RUNTIME;delete env.DATABASE_URL;delete env.SUPABASE_URL;delete env.SUPABASE_SERVER_KEY;
 delete env.AUTH_USERS_FILE;
 delete env.NEXT_PUBLIC_API_BASE_URL;
 await mkdir(env.REFCHECKID_PHOTO_METADATA_ROOT);
@@ -241,6 +242,7 @@ try {
   const competitionForm=form('Crea campionato e girone');
   await competitionForm.locator('[name=name]').fill('Under 19 provinciale test');
   await competitionForm.locator('[name=sport]').selectOption('football');
+  await competitionForm.locator('[name=season]').fill(dataset.seasonId);
   await competitionForm.locator('[name=category]').fill('Under 19');
   await competitionForm.locator('[name=group]').fill('A');
   const [competitionResponse]=await Promise.all([page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/v1/platform/competitions'),competitionForm.getByRole('button',{name:'Salva',exact:true}).click()]);
@@ -276,13 +278,47 @@ try {
   const scope={organizationId:sportsOrg.id,unitId:province.id},teams=[];
   for(const [index,club]of dataset.federationSyncPayload.clubs.slice(0,2).entries()){
     await api('/platform/clubs',federation,{...scope,code:`LEGACY-${index}`,name:club.name,existingClubId:club.id});
-    const team=await api('/platform/teams',federation,{...scope,code:`TEAM-${index}`,name:club.name,clubId:club.id,sport:'football',season:'2026/2027',category:'Under 19'});teams.push(team);await api('/platform/entries',federation,{competitionId:competition.id,teamId:team.id});
+    const team=await api('/platform/teams',federation,{...scope,code:`TEAM-${index}`,name:club.name,clubId:club.id,sport:'football',season:competition.season,category:'Under 19'});teams.push(team);await api('/platform/entries',federation,{competitionId:competition.id,teamId:team.id});
   }
   const fixture=await api('/platform/fixtures',federation,{competitionId:competition.id,code:'BROWSER-GAME',homeTeamId:teams[0].id,awayTeamId:teams[1].id,round:'1',scheduledAt:'2026-12-12T15:00:00+01:00',venue:'Campo browser test'});
   await api('/platform/appointments',federation,{fixtureId:fixture.id,officialId:official.id,role:'principal',send:true});
   await refereePage.reload();await refereePage.getByRole('button',{name:'Accetta gara',exact:true}).click();await refereePage.getByText('Accettata',{exact:false}).waitFor();await refereePage.getByRole('link',{name:'Apri distinta e riconoscimento di questa gara',exact:true}).waitFor();await refereePage.getByRole('heading',{name:'Prossima gara',exact:true}).locator('..').getByText(teams[0].name+' - '+teams[1].name,{exact:true}).waitFor();await refereePage.screenshot({path:join(directory,'platform-referee-appointment.png'),fullPage:true});
   await refereePage.getByRole('link',{name:'Apri distinta e riconoscimento di questa gara',exact:true}).click();await refereePage.waitForURL(url=>url.pathname==='/referee/match'&&url.searchParams.get('matchId')===fixture.matchId);await refereePage.getByRole('heading',{name:'Verifica distinte',exact:true}).waitFor();
   await page.getByRole('button',{name:'Designazioni',exact:true}).click();await page.screenshot({path:join(directory,'platform-delegated-designations.png'),fullPage:true});
+  // The publication administrator exists only in this run's isolated SQLite database.
+  const {RuntimeStore}=await import('../refcheckid-backend/dist/src/repositories/runtime-store.js');
+  const {stableId}=await import('../refcheckid-backend/dist/src/platform/store.js');
+  const ephemeral=new RuntimeStore(env.REFCHECKID_DATABASE_PATH),adminId=randomUUID(),adminActor=randomUUID(),adminEmail='publication-admin@example.invalid',adminPassword='Browser-platform-admin-2026!',salt=randomBytes(16).toString('hex');
+  ephemeral.put('auth_profiles',{id:adminId,actorId:adminActor,email:adminEmail,displayName:'Publication test admin',role:'admin',enabled:true,passwordHash:`scrypt$${salt}$${scryptSync(adminPassword,salt,64).toString('hex')}`,federationIds:[],clubIds:[],refereeIds:[]});ephemeral.put('platform_login_aliases',{id:stableId('login',adminEmail),profileId:adminId,email:adminEmail});ephemeral.close();
+  const adminToken=(await api('/auth/login','',{email:adminEmail,password:adminPassword})).accessToken;
+  const csvLine=values=>values.map(value=>'"'+String(value??'').replaceAll('"','""')+'"').join(';');
+  const playerRows=[],staffRows=[];
+  for(const[index,club]of dataset.federationSyncPayload.clubs.slice(0,2).entries()){
+    for(const registration of dataset.federationSyncPayload.playerRegistrations.filter(row=>row.clubId===club.id)){const player=dataset.federationSyncPayload.players.find(row=>row.id===registration.playerId);playerRows.push([registration.registrationNumber,player.firstName,player.lastName,player.birthDate,`LEGACY-${index}`,competition.season,player.id,`TEAM-${index}`]);}
+    for(const registration of dataset.federationSyncPayload.staffRegistrations.filter(row=>row.clubId===club.id)){const person=dataset.federationSyncPayload.staffMembers.find(row=>row.id===registration.staffMemberId);staffRows.push([registration.registrationNumber,person.firstName,person.lastName,`LEGACY-${index}`,competition.season,registration.role,person.id,`TEAM-${index}`]);}
+  }
+  for(const[kind,columns,rows]of [['players',['code','first_name','last_name','birth_date','club_code','season','existing_person_id','team_code'],playerRows],['staff',['code','first_name','last_name','club_code','season','role','existing_person_id','team_code'],staffRows]]){
+    const bytes=Buffer.from([columns,...rows].map(csvLine).join('\n'));const upload=await api('/platform/imports/upload',federation,{...scope,kind,filename:kind+'-publication.csv',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')});let job=await api('/platform/imports/prepare',federation,{uploadId:upload.id,contentBase64:bytes.toString('base64')});while(job.status==='validating')job=await api(`/platform/imports/${job.id}/advance`,federation,{action:'advance'});assert.equal(job.errors,0);await api(`/platform/imports/${job.id}/advance`,federation,{action:'commit'});while(job.status!=='completed')job=await api(`/platform/imports/${job.id}/advance`,federation,{action:'advance'});
+  }
+  const newRefereeToken=await refereePage.evaluate(()=>JSON.parse(localStorage.getItem('refcheckid.session')).accessToken);
+  const sheets=await api(`/match-sheets?matchId=${fixture.matchId}`,federation);
+  for(const[account,club]of [['homeManager',teams[0]],['awayManager',teams[1]]]){const token=await login(account),sheet=sheets.find(row=>row.clubId===club.clubId),body=lineup(account);body.players=body.players.map((row,index)=>({...row,isGoalkeeper:index===0,isCaptain:index===3,isViceCaptain:index===2}));await api(`/match-sheets/${sheet.id}/submit`,token,body);await api(`/match-sheets/${sheet.id}/lock`,newRefereeToken,{});}
+  await api('/recognitions/start',newRefereeToken,{matchId:fixture.matchId});for(const person of dataset.photoPlan)await api('/recognitions/decision',newRefereeToken,{matchId:fixture.matchId,registrationId:person.registrationId,status:'recognized',notes:'Isolated publication acceptance'});await api('/recognitions/complete',newRefereeToken,{matchId:fixture.matchId});
+  const publicContext=await browser.newContext({viewport:{width:1280,height:900}}),publicPage=await publicContext.newPage();publicPage.on('pageerror',error=>browserErrors.push(error.message));await publicPage.goto(webOrigin+'/results');await publicPage.getByText(/Non ci sono campionati pubblicati/).waitFor();
+  await page.getByLabel('Ente',{exact:true}).selectOption(sportsOrg.id);await page.getByLabel('Struttura',{exact:true}).locator(`option[value="${province.id}"]`).waitFor({state:'attached'});await page.getByLabel('Struttura',{exact:true}).selectOption(province.id);await page.getByRole('button',{name:'Pubblicazione',exact:true}).click();
+  const consentForm=form('Autorizzazione dell’ente sportivo');await consentForm.locator('[name=consent]').check();await consentForm.locator('[name=consentEvents]').check();await consentForm.getByRole('button',{name:'Salva autorizzazione',exact:true}).click();await page.getByText('Impostazioni salvate.',{exact:true}).waitFor();
+  const adminContext=await browser.newContext({viewport:{width:1280,height:900}}),adminPage=await adminContext.newPage();adminPage.on('pageerror',error=>browserErrors.push(error.message));await adminPage.goto(webOrigin);await adminPage.getByLabel('Email o codice personale',{exact:true}).fill(adminEmail);await adminPage.getByLabel('Password',{exact:true}).fill(adminPassword);await adminPage.getByRole('button',{name:'ACCEDI',exact:true}).click();await adminPage.waitForURL(url=>url.pathname==='/admin/publication');
+  const distribution=adminPage.locator('form').filter({has:adminPage.getByRole('heading',{name:'Attiva o sospendi la distribuzione',exact:true})});await distribution.locator('[name=mode]').selectOption('public');await distribution.locator('[name=includeLive]').check();await distribution.locator('[name=includeEvents]').check();await distribution.getByRole('button',{name:'Salva distribuzione',exact:true}).click();await adminPage.getByText('Impostazioni salvate.',{exact:true}).waitFor();
+  await refereePage.goto(webOrigin+`/referee/notebook?fixtureId=${fixture.id}`);await refereePage.getByRole('button',{name:'Avvia periodo',exact:true}).click();await refereePage.getByLabel('Giocatore evento',{exact:true}).selectOption({index:1});await refereePage.getByRole('button',{name:'Registra evento',exact:true}).click();await refereePage.getByText('Aggiornamento ricevuto e salvato dal server.',{exact:true}).waitFor();
+  await publicPage.getByLabel('Punteggio',{exact:true}).filter({hasText:'1 – 0'}).waitFor();await publicPage.getByText('Aggiornamento provvisorio',{exact:true}).waitFor();await publicPage.screenshot({path:join(directory,'official-results-live.png'),fullPage:true});
+  await refereePage.getByRole('button',{name:'Conferma fine periodo, anche senza eventi',exact:true}).click();await refereePage.getByRole('button',{name:'Avvia periodo',exact:true}).waitFor();await refereePage.getByRole('button',{name:'Avvia periodo',exact:true}).click();await refereePage.getByRole('button',{name:'Conferma fine gara',exact:true}).click();
+  const privateNote='PRIVATE-REPORT-NOT-IN-OFFICIAL-RESULTS';const reportForm=refereePage.locator('form').filter({has:refereePage.getByRole('heading',{name:'Invia il referto finale',exact:true})});await reportForm.locator('[name=notes]').fill(privateNote);await reportForm.getByRole('button',{name:'Conferma e invia referto',exact:true}).click();await refereePage.getByText('Referto inviato: i dati sono in sola lettura.',{exact:false}).waitFor();await refereePage.screenshot({path:join(directory,'digital-notebook-final.png'),fullPage:true});
+  const publicJson=await api(`/public/games/${fixture.id}`,'');assert.equal(publicJson.phase,'finished');assert.equal(publicJson.certification,'referee_confirmed');assert(!JSON.stringify(publicJson).includes(privateNote));assert(!JSON.stringify(publicJson).includes('registrationId'));assert.deepEqual(publicJson.events[0].participant,{});
+  assert.equal((await fetch(`${origin}/api/v1/platform/games/${fixture.id}/report`,{headers:headers(adminToken)})).status,403);
+  await page.goto(webOrigin+`/federation/reports?fixtureId=${fixture.id}`);await page.getByText(privateNote,{exact:true}).waitFor();await page.screenshot({path:join(directory,'private-federation-report.png'),fullPage:true});await publicPage.goto(webOrigin+`/results/${fixture.id}`);await publicPage.getByText('Terminata',{exact:true}).waitFor();assert(!(await publicPage.locator('body').innerText()).includes(privateNote));await publicPage.screenshot({path:join(directory,'official-results-final.png'),fullPage:true});
+  const policy=await api(`/platform/competitions/${competition.id}/publication`,federation);await api(`/platform/competitions/${competition.id}/publication/consent`,federation,{revision:policy.revision,consent:false,consentEvents:false,consentNames:false});assert.equal((await fetch(`${origin}/api/v1/public/games/${fixture.id}`)).status,404);await publicPage.reload();await publicPage.getByText('Questi dati non sono pubblicati.',{exact:true}).waitFor();
+  await adminContext.close();await publicContext.close();
+  check('Real Chromium: private publication consent, platform activation, digital notebook live goal, official public results, federation-only report and immediate withdrawal');
   await refereeContext.close();assert.deepEqual(browserErrors,[]);
   check('Real Chromium: territorial competition, guided CSV import, referee activation/login by code and accepted delegated appointment');
   assert.deepEqual(await fingerprints(join(backendRoot, 'storage/refcheckid-photos-dev')), originalPhotoState);

@@ -157,3 +157,9 @@ it('batches import writes atomically, prefetches missing keys and exposes buffer
   expect(await store.get('platform_people','person-0')).toHaveProperty('active',false);
   expect(await store.findMany('platform_people','clubId',['club'])).toHaveLength(100);
 });
+
+it('pages the event archive by descending revision inside one fixture without exposing another fixture',async()=>{
+ const{store}=await setup();await store.bulkTransaction(async()=>{for(let revision=1;revision<=110;revision++)await store.put('platform_updates',{id:`update-${revision}`,fixtureId:'authorized-fixture',revision});await store.put('platform_updates',{id:'private-update',fixtureId:'other-fixture',revision:999});});
+ const first=await store.documentPage<{revision:number}>({repository:'platform_updates',filter:{fixtureId:'authorized-fixture'},limit:50,orderBy:'revision'});expect(first.total).toBe(110);expect(first.items[0].revision).toBe(110);expect(first.items.at(-1)?.revision).toBe(61);expect(first.nextCursor).toBe('61');
+ const second=await store.documentPage<{revision:number}>({repository:'platform_updates',filter:{fixtureId:'authorized-fixture'},limit:50,orderBy:'revision',afterId:first.nextCursor!});expect(second.items[0].revision).toBe(60);expect(second.items.at(-1)?.revision).toBe(11);
+});

@@ -550,6 +550,105 @@ export function registerPlatformRoutes(app: ApplicationContainer, router: ApiRou
     ),
   );
   router.register(
+    'GET',
+    '/api/v1/platform/games/:id/access',
+    platformHandler(async (request) => {
+      const s = service(request);
+      await s.fixtureAccess(request.params.id!, true, true);
+      const row = (
+        await s.db.find<Appointment>('appointments', {
+          fixtureId: request.params.id,
+          actorId: request.auth!.actorId,
+          status: 'accepted',
+        })
+      )[0];
+      return json(200, { fixtureId: request.params.id, role: row.role });
+    }),
+  );
+  router.register(
+    'GET',
+    '/api/v1/platform/publication/catalog',
+    platformHandler(async (request) =>
+      json(200, await service(request).publicationCatalog(request.query.cursor)),
+    ),
+  );
+  router.register(
+    'GET',
+    '/api/v1/platform/competitions/:id/publication',
+    platformHandler(async (request) =>
+      json(200, await service(request).publicationPolicy(request.params.id!)),
+    ),
+  );
+  router.register(
+    'POST',
+    '/api/v1/platform/competitions/:id/publication/consent',
+    platformHandler(async (request) =>
+      json(200, await service(request).setPublication(request.params.id!, body(request), true)),
+    ),
+  );
+  router.register(
+    'POST',
+    '/api/v1/platform/competitions/:id/publication',
+    platformHandler(async (request) =>
+      json(200, await service(request).setPublication(request.params.id!, body(request))),
+    ),
+  );
+  router.register(
+    'POST',
+    '/api/v1/platform/games/:id/clock',
+    platformHandler(async (request) =>
+      json(200, await service(request).clock(request.params.id!, body(request))),
+    ),
+  );
+  const publicService = () => new Imports(app, { actorId: 'public', roles: [] });
+  const publicResponse = (data: unknown) => ({
+    ...json(200, data),
+    headers: {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+    },
+  });
+  router.register(
+    'GET',
+    '/api/v1/public/competitions',
+    platformHandler(async (request) =>
+      publicResponse(
+        await publicService().publicCompetitions(request.query.cursor, request.query.sport),
+      ),
+    ),
+  );
+  router.register(
+    'GET',
+    '/api/v1/public/competitions/:id/fixtures',
+    platformHandler(async (request) =>
+      publicResponse(
+        await publicService().publicFixtures(request.params.id!, request.query.cursor),
+      ),
+    ),
+  );
+  router.register(
+    'GET',
+    '/api/v1/public/games/:id',
+    platformHandler(async (request) =>
+      publicResponse(await publicService().publicFixture(request.params.id!)),
+    ),
+  );
+  router.register(
+    'GET',
+    '/api/v1/platform/games/:id/report',
+    platformHandler(async (request) =>
+      json(200, await service(request).privateReport(request.params.id!)),
+    ),
+  );
+  router.register(
+    'GET',
+    '/api/v1/platform/games/:id/history',
+    platformHandler(async (request) =>
+      json(200, await service(request).eventHistory(request.params.id!, request.query.cursor)),
+    ),
+  );
+  router.register(
     'POST',
     '/api/v1/platform/games/:id/report',
     platformHandler(async (request) =>

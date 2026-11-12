@@ -38,10 +38,11 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
     return response;
   });
 
+  router.use(next=>async request=>{const response=await next(request);return request.path.startsWith('/api/v1/public/')?{...response,headers:{...response.headers,'cache-control':'no-store','x-content-type-options':'nosniff'}}:response;});
   router.use(errorHandlingMiddleware);
   router.use((next) => (request) => {
     if(request.path === '/api/v1/platform/activate' || ['/api/v1/platform/imports/upload','/api/v1/platform/imports/prepare'].includes(request.path) || /^\/api\/v1\/platform\/imports\/[^/]+\/advance$/.test(request.path)) return requestContext.run({store:container.store},()=>next(request));
-    const readOnly = request.method === 'GET' && (request.path.startsWith('/api/v1/platform/') ||
+    const readOnly = request.method === 'GET' && (request.path.startsWith('/api/v1/platform/') ||request.path.startsWith('/api/v1/public/') ||
       ['/api/v1/photo-approvals/page', '/api/v1/photo-approvals/summary'].includes(request.path) ||
       /^\/api\/v1\/clubs\/[^/]+\/lineup-defaults$/.test(request.path) ||
       /^\/api\/v1\/photos\/versions\/[^/]+\/content$/.test(request.path));
