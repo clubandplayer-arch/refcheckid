@@ -10,3 +10,9 @@ Aprire la Preview del commit aggiornato e accedere come dirigente.
 6. Su una distinta già inviata, verificare che i comandi siano disabilitati.
 
 Non servono migrazioni, variabili d'ambiente o nuovi account. Le prove automatiche usano dati temporanei e non modificano staging.
+
+## Disposizione compatta
+
+- Su desktop, **Ordine** mostra due giocatori per riga.
+- **Staff** mostra una scheda per riga sul telefono, due su desktop e tre sugli schermi da 1536 pixel in su.
+- Numero maglia e scelte **Titolare / Riserva** sono raccolti nella barra superiore della scheda. Verificare entrambe le scelte, anche con tastiera, e il salvataggio della bozza.

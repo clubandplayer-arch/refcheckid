@@ -21,7 +21,7 @@ describe("regression: manager photo capture flow", () => {
         /md:grid-cols-\[96px_minmax\(0,1fr\)_minmax\(220px,340px\)_32px\]/g,
       )?.length,
     ).toBeGreaterThanOrEqual(1);
-    expect(source).toContain("md:grid-cols-[160px_minmax(0,1fr)_32px]");
+    expect(source).toContain('aria-label="Schede staff"');
     expect(source).not.toContain(
       "md:grid-cols-[32px_96px_minmax(0,1fr)_minmax(220px,340px)_minmax(220px,340px)]",
     );

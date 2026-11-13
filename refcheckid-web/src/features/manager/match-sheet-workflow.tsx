@@ -1205,42 +1205,43 @@ function OrderStep({ players, movePlayer, readOnly, toggleCaptain, toggleGoalkee
         </p>
       </div>
       {players.length === 0 ? <EmptyState message="Nessun convocato." /> : (
-        <ol className="min-w-0 space-y-3" aria-label="Giocatori in ordine di distinta">
+        <ol className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2" aria-label="Giocatori in ordine di distinta">
           {players.map((player, index) => {
             const name = `${player.lastName} ${player.firstName}`;
             const disabled = readOnly || !player.selected || player.suspended;
             const statusTone = getPlayerStatusTone(player);
             return (
               <li key={player.id} aria-label={name} className={`min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md sm:p-4 ${statusTone === "warning" ? "border-yellow-400 bg-yellow-50" : statusTone === "suspended" ? "border-red-400 bg-red-50" : ""}`}>
-                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] items-start gap-3 sm:grid-cols-[minmax(0,10rem)_minmax(0,15rem)] sm:justify-between sm:gap-6">
-                <div className="relative flex min-w-0 flex-col items-center gap-3 text-center">
-                  <span className="absolute left-0 top-0 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-white bg-slate-100 text-xs font-bold text-slate-600 shadow-sm">{index + 1}</span>
-                  {player.photoUrl ? <Image unoptimized alt={`Foto ${name}`} className="aspect-[3/4] w-full max-w-40 rounded-xl border bg-white object-cover shadow-sm" height={212} width={160} src={player.photoUrl} /> : <div className="flex aspect-[3/4] w-full max-w-40 items-center justify-center rounded-xl border bg-slate-50 text-sm text-slate-500">Foto assente</div>}
-                  <h3 className="w-full min-w-0 break-words text-sm font-semibold leading-snug sm:text-base">{name}</h3>
-                </div>
                 <fieldset disabled={disabled} className="min-w-0">
                   <legend className="sr-only">Dati di {name}</legend>
-                  <div className="grid min-w-0 grid-cols-1 gap-2">
-                    <label className="block min-w-0 space-y-1 text-xs font-medium text-slate-600">
-                      <span>Numero maglia</span>
-                      <Input className="h-11 max-w-24 w-full min-w-0 rounded-xl border-slate-200 bg-slate-50 text-center text-base font-semibold text-slate-900 disabled:opacity-70" min={0} inputMode="numeric" type="number" value={player.shirtNumber ?? ""} placeholder="N°"
+                  <div className="mb-3 flex min-w-0 items-center justify-between gap-2 rounded-xl bg-slate-50 p-1.5">
+                    <label className="flex shrink-0 items-center gap-1 text-xs font-semibold text-slate-600">
+                      <span aria-hidden="true">N°</span><span className="sr-only">Numero maglia</span>
+                      <Input aria-label="Numero maglia" className="h-11 w-11 min-w-0 rounded-lg border-slate-200 bg-white p-1 text-center text-base font-bold text-slate-900 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" min={0} inputMode="numeric" type="number" value={player.shirtNumber ?? ""} placeholder="—"
                         onChange={(event) => updateShirtNumber(player.id, Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : null)} />
                     </label>
-                    <label className="block min-w-0 space-y-1 text-xs font-medium text-slate-600">
-                      <span>Ruolo</span>
-                      <select className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-base font-medium text-slate-900 disabled:opacity-70" value={player.role}
-                        onChange={(event) => updatePlayerRole(player.id, event.target.value as PlayerLineupRole)}>
-                        {lineupRoleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                      </select>
-                    </label>
+                    <div role="radiogroup" aria-label={`Ruolo di ${name}`} className="flex min-w-0 gap-1">
+                      {lineupRoleOptions.map((option) => (
+                        <label key={option.value} className="relative flex min-h-11 min-w-0 cursor-pointer items-center justify-center">
+                          <input className="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0" type="radio" name={`role-${player.id}`} checked={player.role === option.value} onChange={() => updatePlayerRole(player.id, option.value)} value={option.value} />
+                          <span className="flex min-h-11 items-center rounded-lg border border-transparent px-1.5 text-xs font-semibold text-slate-600 transition peer-checked:border-primary peer-checked:bg-white peer-checked:text-primary peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-disabled:cursor-not-allowed">{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                  <div className="mt-1 flex flex-col text-xs text-slate-700 sm:text-sm">
-                    <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isGoalkeeper} onChange={() => toggleGoalkeeper(player.id)} />Portiere</label>
-                    <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isCaptain} onChange={() => toggleCaptain(player.id)} />Capitano</label>
-                    <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isViceCaptain} onChange={() => toggleViceCaptain(player.id)} />Vice capitano</label>
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-3">
+                    <div className="relative flex min-w-0 flex-col items-center gap-2 text-center">
+                      <span className="absolute left-0 top-0 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-white bg-slate-100 text-xs font-bold text-slate-600 shadow-sm">{index + 1}</span>
+                      {player.photoUrl ? <Image unoptimized alt={`Foto ${name}`} className="aspect-[3/4] w-full max-w-28 rounded-xl border bg-white object-cover shadow-sm" height={150} width={112} src={player.photoUrl} /> : <div className="flex aspect-[3/4] w-full max-w-28 items-center justify-center rounded-xl border bg-slate-50 text-xs text-slate-500">Foto assente</div>}
+                      <h3 className="w-full min-w-0 break-words text-sm font-semibold leading-snug">{name}</h3>
+                    </div>
+                    <div className="flex min-w-0 flex-col text-xs text-slate-700">
+                      <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isGoalkeeper} onChange={() => toggleGoalkeeper(player.id)} />Portiere</label>
+                      <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isCaptain} onChange={() => toggleCaptain(player.id)} />Capitano</label>
+                      <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isViceCaptain} onChange={() => toggleViceCaptain(player.id)} />Vice capitano</label>
+                    </div>
                   </div>
                 </fieldset>
-                </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-slate-100 pt-2">
                 <div className="flex flex-wrap gap-1.5">
                   <button className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" type="button" disabled={readOnly || index === 0} aria-label={`Sposta su ${name}`} onClick={() => movePlayer(player.id, -1)}>↑ Sposta su</button>
@@ -1312,7 +1313,7 @@ function StaffStep({
       {staff.length === 0 ? (
         <EmptyState message="Nessuno staff disponibile." />
       ) : null}
-      <div className="divide-y rounded-xl border">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3" aria-label="Schede staff">
         {staff.map((staffMember) => {
           const uploadUnavailableReason =
             getOfficialPhotoUploadUnavailableReason(
@@ -1323,10 +1324,10 @@ function StaffStep({
             );
           return (
             <div
-              className="grid gap-3 p-4 md:grid-cols-[160px_minmax(0,1fr)_32px] md:items-start"
+              className="flex min-w-0 flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm" aria-label={staffMember.fullName}
               key={staffMember.id}
             >
-              <div className="flex min-w-0 flex-col items-center gap-3 text-center [&>div:first-child>div]:h-48 [&>div:first-child>div]:w-36">
+              <div className="flex min-w-0 flex-col items-center gap-3 text-center [&>div:first-child>div]:h-36 [&>div:first-child>div]:w-28">
               <SubjectPhotoThumbnail
                 alt={`Foto ${staffMember.fullName}`}
                 photo={staffMember.photo}
@@ -1376,8 +1377,8 @@ function StaffStep({
                   uploadUnavailableReason={uploadUnavailableReason}
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm md:justify-end">
-                <span className="md:sr-only">Seleziona</span>
+              <label className="flex min-h-11 items-center justify-end gap-2 border-t border-slate-100 pt-2 text-sm">
+                <span>Seleziona</span>
                 <input
                   aria-label={`Seleziona ${staffMember.fullName}`}
                   checked={staffMember.selected}

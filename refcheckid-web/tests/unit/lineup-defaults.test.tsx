@@ -84,7 +84,7 @@ it('moves a player with buttons and saves their edited number and role in the ne
   expect((screen.getByRole('button',{name:'Sposta su Rossi Mario'}) as HTMLButtonElement).disabled).toBe(true);
   const second=within(screen.getByRole('listitem',{name:'Bianchi Luca'}));
   fireEvent.change(second.getByRole('spinbutton'),{target:{value:'25'}});
-  fireEvent.change(second.getByRole('combobox'),{target:{value:'reserve'}});
+  fireEvent.click(second.getByRole('radio',{name:'Riserva'}));
   fireEvent.click(second.getByRole('checkbox',{name:/^Capitano$/}));
   fireEvent.click(second.getByRole('button',{name:'Sposta su Bianchi Luca'}));
   expect(screen.getAllByRole('listitem')[0].getAttribute('aria-label')).toBe('Bianchi Luca');

@@ -193,7 +193,7 @@ try {
   const secondName=await orderList.getByRole('listitem').nth(1).getAttribute('aria-label');
   const secondCard=orderList.getByRole('listitem',{name:secondName,exact:true});
   await secondCard.getByLabel('Numero maglia',{exact:true}).fill('42');
-  await secondCard.getByRole('combobox').selectOption('reserve');
+  await secondCard.getByRole('radio',{name:'Riserva',exact:true}).check();
   await secondCard.getByRole('button',{name:`Sposta su ${secondName}`,exact:true}).click();
   assert.equal(await orderList.getByRole('listitem').first().getAttribute('aria-label'),secondName);
   for(const width of [390,320]){
@@ -202,13 +202,15 @@ try {
     assert(await secondCard.evaluate(card=>card.scrollWidth<=card.clientWidth));
   }
   const compactFields=await secondCard.evaluate(card=>{
-    const number=card.querySelector('input[type="number"]');const role=card.querySelector('select');
-    const n=number.getBoundingClientRect(),r=role.getBoundingClientRect();
-    return {numberWidth:n.width, stacked:r.top>=n.bottom, photoLeft:card.querySelector("img").getBoundingClientRect().right<=n.left, nameBelow:card.querySelector("h3").getBoundingClientRect().top>=card.querySelector("img").getBoundingClientRect().bottom};
+    const n=card.querySelector('input[type="number"]').getBoundingClientRect(),r=card.querySelector('[role="radiogroup"]').getBoundingClientRect();
+    const image=card.querySelector('img').getBoundingClientRect(),name=card.querySelector('h3').getBoundingClientRect();
+    return {numberWidth:n.width,sameRow:Math.abs(n.top-r.top)<2,nameBelow:name.top>=image.bottom};
   });
-  assert(compactFields.numberWidth<=100);assert(compactFields.stacked);assert(compactFields.photoLeft);assert(compactFields.nameBelow);
-  await page.screenshot({path:join(directory,'mobile-lineup-order.png'),fullPage:true});
+  assert(compactFields.numberWidth<=48);assert(compactFields.sameRow);assert(compactFields.nameBelow);
+  await secondCard.screenshot({path:join(directory,'mobile-lineup-card.png')});
   await page.setViewportSize({width:1280,height:900});
+  const firstTwo=await orderList.getByRole('listitem').evaluateAll(cards=>cards.slice(0,2).map(card=>card.getBoundingClientRect().top));
+  assert.equal(firstTwo[0],firstTwo[1]);
   await page.screenshot({path:join(directory,'desktop-lineup-order.png'),fullPage:true});
 
   const orderSave=page.waitForResponse(response=>response.url().endsWith('/draft')&&response.request().method()==='POST');
@@ -216,9 +218,20 @@ try {
   await page.reload();await page.getByRole('button',{name:'2. Ordine',exact:true}).click();
   await orderList.waitFor();assert.equal(await orderList.getByRole('listitem').first().getAttribute('aria-label'),secondName);
   assert.equal(await secondCard.getByLabel('Numero maglia',{exact:true}).inputValue(),'42');
-  assert.equal(await secondCard.getByRole('combobox').inputValue(),'reserve');
+  assert(await secondCard.getByRole('radio',{name:'Riserva',exact:true}).isChecked());
+  await page.getByRole('button',{name:'3. Staff',exact:true}).click();
+  const staffGrid=page.getByLabel('Schede staff',{exact:true});
+  await staffGrid.waitFor();
+  for(const [width,columns] of [[390,1],[1280,2],[1600,3]]){
+    await page.setViewportSize({width,height:900});
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+    const tops=await staffGrid.evaluate(grid=>Array.from(grid.children).map(card=>card.getBoundingClientRect().top));
+    assert(tops.length>=3);assert.equal(tops.filter(top=>top===tops[0]).length,columns);
+  }
+  await page.screenshot({path:join(directory,'desktop-staff-grid.png'),fullPage:true});
+  await page.setViewportSize({width:1280,height:900});
   await page.getByRole('button',{name:'1. Compilazione',exact:true}).click();
-  check('Real Chromium mobile: portrait and name align beside stacked controls at 320px, buttons reorder players and saved number/role/order survive reload');
+  check('Real Chromium mobile: compact number and role choices fit 320px; desktop shows two player cards, buttons reorder players and saved number/role/order survive reload');
   // On mobile, require the annual reason before any upload and ignore a double tap.
   await page.setViewportSize({width:390,height:844});
   const uploader=dataset.federationSyncPayload.players.find(player=>player.id===participant.subjectId);
