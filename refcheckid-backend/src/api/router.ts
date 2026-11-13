@@ -1,3 +1,5 @@
+import {managerPhotoRoster} from './manager-photo-roster.js';
+import {platformHandler} from '../platform/router.js';
 import { registerPlatformRoutes } from '../platform/router.js';
 import { lineupDefaults } from './lineup-defaults.js';
 import { cloudEnabled } from '../cloud/config.js';
@@ -82,6 +84,7 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   }));
 
   registerPlatformRoutes(container,router);
+  router.register('GET','/api/v1/platform/club-photo-roster/:id',platformHandler(request=>managerPhotoRoster(container,request)));
   router.register('GET', '/api/health', controllers.health);
   const openApiHandler = () => ({
     status: 200,

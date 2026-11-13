@@ -184,3 +184,21 @@ it('serves legacy referee navigation with real read-only SQL and no global comma
   await db.exec(await readFile(new URL('../../supabase/migrations/202611120001_result_archive_index.sql',import.meta.url),'utf8'));
   expect(await store.resultArchiveReady()).toBe(true);
 });
+
+it('reads manager photo metadata in one bounded read-only request without loading a 4000-person registry',async()=>{
+ const {db,store}=await setup(),{createApplicationContainer}=await import('../src/config/application-container.js'),{createRestApiRouter}=await import('../src/api/router.js');
+ const app=createApplicationContainer({store,seedDemo:false}),clubId='61000000-0000-4000-8000-000000009999',registrationId='61000000-0000-4000-8000-000000000001',subjectId='62000000-0000-4000-8000-000000000001',globalId='63000000-0000-4000-8000-000000000001',versionId='64000000-0000-4000-8000-000000000002';
+ await db.exec(`INSERT INTO refcheckid.entities(repository,id,document) SELECT 'player_registrations','61000000-0000-4000-8000-'||lpad(n::text,12,'0'),jsonb_build_object('id','61000000-0000-4000-8000-'||lpad(n::text,12,'0'),'playerId','65000000-0000-4000-8000-'||lpad(n::text,12,'0'),'clubId',CASE WHEN n=1 THEN '${clubId}' ELSE 'foreign-club' END,'deletedAt',NULL) FROM generate_series(1,4000)n`);
+ await store.transaction(async()=>{
+  await store.put('photo_subjects',{id:subjectId,dedupeKeyHash:'athlete:65000000-0000-4000-8000-000000000001'});
+  await store.put('global_official_photos',{id:globalId,photoSubjectId:subjectId,currentVersionId:versionId});
+  await store.put('photo_versions',{id:'64000000-0000-4000-8000-000000000001',globalOfficialPhotoId:globalId,versionNumber:1,activatedAt:'2020-01-01T00:00:00Z'});
+  await store.put('photo_versions',{id:versionId,globalOfficialPhotoId:globalId,versionNumber:2,activatedAt:new Date().toISOString()});
+  await store.put('season_registration_photos',{id:'66000000-0000-4000-8000-000000000001',registrationId,effectiveVersionId:versionId,status:'valid',deletedAt:null});
+ });
+ const query=vi.spyOn(db,'query'),router=createRestApiRouter(app),response=await router.handle({method:'GET',path:`/api/v1/platform/club-photo-roster/${clubId}`,query:{registrations:registrationId},headers:{},auth:{actorId:clubId,roles:['manager'],clubIds:[clubId]}});
+ expect(response.status).toBe(200);expect(response.body).toMatchObject({items:[{registrationId,status:'active',requiresReplacementReason:true}]});
+ expect(query.mock.calls.some(([sql])=>sql==='BEGIN READ ONLY')).toBe(true);expect(query.mock.calls.some(([sql])=>sql.includes('pg_advisory_xact_lock'))).toBe(false);
+ expect(query.mock.calls.some(([sql])=>sql==='SELECT document FROM refcheckid.entities WHERE repository=$1 ORDER BY ordinal')).toBe(false);
+ expect(query.mock.calls.filter(([sql])=>sql.startsWith('SELECT')).length).toBeLessThanOrEqual(8);
+});

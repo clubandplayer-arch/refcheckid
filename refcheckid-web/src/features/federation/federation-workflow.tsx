@@ -718,16 +718,16 @@ export function PhotoRequestsPanel() {
     notes = "Decisione operatore federale",
   ) {
     try {
-      if (status === "approved") await approvePhotoRequest(requestId, reasonCode);
-      else await rejectPhotoRequest(requestId, reasonCode, notes);
+      const saved=status === "approved"?await approvePhotoRequest(requestId, reasonCode):await rejectPhotoRequest(requestId, reasonCode, notes);
+      const cancelled=new Set(saved?.cancelledApprovalIds??[]);
       queryClient.setQueriesData<PhotoRequestPage>({ queryKey: [...queryKeys.photos, "page", statusFilter, slaFilter, clubFilter] }, (page) => {
         if (!page) return page;
-        return { ...page, total: Math.max(0, page.total - ((page.filterStatus ?? statusFilter) === "pending" ? 1 : 0)),
-          items: page.items.map((item) => item.id === requestId ? { ...item, status } : item) };
+        return { ...page, total: Math.max(0, page.total - ((page.filterStatus ?? statusFilter) === "pending" ? 1+cancelled.size : 0)),
+          items: page.items.filter(item=>!cancelled.has(item.id)).map((item) => item.id === requestId ? { ...item, status } : item) };
       });
       queryClient.setQueryData<FederationDashboard>([...queryKeys.federation, "dashboard"], (dashboard) => dashboard
-        ? { ...dashboard, pendingPhotoRequests: Math.max(0, dashboard.pendingPhotoRequests - 1),
-            notifications: dashboard.notifications.map((line) => line.includes("richieste foto") ? `${Math.max(0, dashboard.pendingPhotoRequests - 1)} richieste foto in attesa` : line) } : dashboard);
+        ? { ...dashboard, pendingPhotoRequests: Math.max(0, dashboard.pendingPhotoRequests - 1-cancelled.size),
+            notifications: dashboard.notifications.map((line) => line.includes("richieste foto") ? `${Math.max(0, dashboard.pendingPhotoRequests - 1-cancelled.size)} richieste foto in attesa` : line) } : dashboard);
       notify(status === "approved" ? "Nuova foto approvata e resa disponibile al Club" : "Nuova foto rifiutata: il Club mantiene la foto attuale", "success");
       // Mark stale without reloading the list or every full-size photo after each decision.
       void queryClient.invalidateQueries({ queryKey: queryKeys.photos, refetchType: "none" });
@@ -875,9 +875,9 @@ function PhotoRequestCard({
       </div>
       {request.additionalAnnualChange || request.replacementReason ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
-          <p className="font-semibold">{request.additionalAnnualChange ? "Richiesta di cambio foto aggiuntivo nell’anno" : "Motivazione del cambio foto"}</p>
+          <p className="font-semibold">{request.additionalAnnualChange ? "Cambio foto aggiuntivo nell’anno" : "Motivazione del cambio foto"}</p>
           <p className="whitespace-pre-wrap">{request.replacementReason ?? "Motivazione non disponibile"}</p>
-          <p className="mt-1 text-xs">Valuta la necessità del cambio per il riconoscimento. Un semplice taglio di capelli non è sufficiente.</p>
+          <p className="mt-1 text-xs">Valuta la motivazione prima di decidere.</p>
         </div>
       ) : null}
       {request.status === "rejected" ? (

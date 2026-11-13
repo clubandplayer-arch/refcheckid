@@ -138,17 +138,16 @@ describe("unit: frontend API client", () => {
       if (url.includes("/photo-approvals")) {
         return { ok: false, status: 403 };
       }
-      if (url.includes("/registrations/registration-home/season-photo")) {
+      if (url.includes("/platform/club-photo-roster/") && !url.includes("staff-registration-home")) {
         return {
           ok: true,
           status: 200,
           json: async () => ({
-            signedUrl: { url: "https://photos.example/home.jpg" },
-            version: { id: "version-home", status: "active" },
+            items:[{registrationId:"registration-home",currentPhotoUrl:"https://photos.example/home.jpg",proposedPhotoUrl:null,approvalId:null,status:"active"}],
           }),
         };
       }
-      if (url.includes("/registrations/staff-registration-home/season-photo")) {
+      if (url.includes("/platform/club-photo-roster/") && url.includes("staff-registration-home")) {
         return { ok: false, status: 403 };
       }
       const body = url.includes("/players")
@@ -196,7 +195,7 @@ describe("unit: frontend API client", () => {
       {
         id: "staff-home",
         registrationId: "staff-registration-home",
-        photo: { status: "missing", currentPhotoUrl: null },
+        photo: { status: "unavailable", currentPhotoUrl: null },
       },
     ]);
     expect(fetchMock).not.toHaveBeenCalledWith(
@@ -204,12 +203,12 @@ describe("unit: frontend API client", () => {
       expect.anything(),
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/registrations/registration-home/season-photo"),
+      expect.stringMatching(/club-photo-roster.*registrations=registration-home/),
       expect.any(Object),
     );
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining(
-        "/registrations/staff-registration-home/season-photo",
+        "registrations=staff-registration-home",
       ),
       expect.any(Object),
     );
@@ -218,16 +217,12 @@ describe("unit: frontend API client", () => {
   it("shows pending manager uploads as proposed photos until federation approval", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes("/registrations/registration-home/season-photo")) {
+      if (url.includes("/platform/club-photo-roster/") && !url.includes("staff-registration-home")) {
         return {
           ok: true,
           status: 200,
           json: async () => ({
-            approvalId: "approval-home",
-            proposedPhotoUrl:
-              "/api/v1/photos/versions/version-pending/content?rendition=normalized",
-            proposedVersionId: "version-pending",
-            status: "pending",
+            items:[{registrationId:"registration-home",approvalId:"approval-home",currentPhotoUrl:null,proposedPhotoUrl:"/api/v1/photos/versions/version-pending/content?rendition=normalized",status:"pending"}],
           }),
         };
       }
@@ -266,15 +261,12 @@ describe("unit: frontend API client", () => {
   it("does not expose local file signed photo URLs to browser image rendering", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes("/registrations/registration-home/season-photo")) {
+      if (url.includes("/platform/club-photo-roster/") && !url.includes("staff-registration-home")) {
         return {
           ok: true,
           status: 200,
           json: async () => ({
-            signedUrl: {
-              url: "file:///workspaces/refcheckid/refcheckid-backend/storage/refcheckid-photos-dev/photo.png",
-            },
-            version: { id: "version-local", status: "active" },
+            items:[{registrationId:"registration-home",currentPhotoUrl:"file:///private/photo.png",proposedPhotoUrl:null,status:"active"}],
           }),
         };
       }
@@ -298,11 +290,9 @@ describe("unit: frontend API client", () => {
     await expect(fetchPlayers()).resolves.toMatchObject([
       {
         id: "player-home",
-        photoUrl:
-          "/api/v1/photos/versions/version-local/content?rendition=normalized",
+        photoUrl:null,
         photo: {
-          currentPhotoUrl:
-            "/api/v1/photos/versions/version-local/content?rendition=normalized",
+          currentPhotoUrl:null,
           status: "active",
         },
       },

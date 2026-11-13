@@ -19,7 +19,7 @@ it.each(['athlete', 'staff_member'] as const)('enforces annual replacement reaso
     const proposal = async (reason?: string) => {
       const version = await app.repositories.photoVersions.create({ globalOfficialPhotoId: global.id, versionNumber: ++number,
         status: 'pending_approval', activatedAt: null, ...(reason ? { replacementReason: reason } : {}) });
-      const approval = await app.repositories.photoApprovals.create({ photoVersionId: version.id, federationId, registrationId: null,
+      const approval = await app.repositories.photoApprovals.create({ photoVersionId: version.id, federationId, registrationId: intent.registrationId,
         seasonId: '2026', status: 'pending', requestedByUserId: manager.actorId, requestedAt: new Date().toISOString(), disciplineId: null,
         decidedAt: null, decidedByUserId: null, decisionReasonCode: null, decisionNotes: null, scope: 'single_registration', slaDueAt: null });
       return { version, approval, approve: () => app.services.photos.approvePhotoApproval({ approvalId: approval.id, context }) };
@@ -31,8 +31,8 @@ it.each(['athlete', 'staff_member'] as const)('enforces annual replacement reaso
     // A pending request prepared before another change cannot bypass the approval guard.
     const stale = await proposal();
     const firstChange = await proposal(); await firstChange.approve();
-    await expect(stale.approve()).rejects.toThrow('motivazione');
-    expect((await app.repositories.photoApprovals.findById(stale.approval.id))?.status).toBe('pending');
+    await expect(stale.approve()).rejects.toThrow('già chiusa');
+    expect((await app.repositories.photoApprovals.findById(stale.approval.id))?.status).toBe('cancelled');
     await expect(app.services.photos.createUploadIntent(intent)).rejects.toThrow('motivazione');
     await expect(app.services.photos.createUploadIntent({ ...intent, replacementReason: 'capelli' })).rejects.toThrow('motivazione');
     const reason = 'Crescita fisica rilevante: il volto non è più riconoscibile nella foto precedente.';

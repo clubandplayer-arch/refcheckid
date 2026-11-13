@@ -185,16 +185,20 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('input[type="checkbox"]:checked').length === 1);
   await page.screenshot({ path: join(directory, 'manager-draft-resumed.png'), fullPage: true });
   check('Real Chromium: logout, role switch, demo reset and saved lineup draft restored after reload');
-  // Synthetic approval queue exercise; all data belongs to this temporary run.
-  const intentForReview = await api('/photos/upload-intent', home, {
-    subjectKind: participant.subjectKind, subjectId: participant.subjectId, registrationId: participant.registrationId,
-    federationId: dataset.federationSyncPayload.federations[0].id, seasonId: dataset.seasonId,
-    replacementReason: 'Crescita fisica rilevante che richiede un nuovo confronto del volto per il riconoscimento.',
-    mimeType: 'image/png', fileSizeBytes: oldBytes.length, sha256: createHash('sha256').update(oldBytes).digest('hex'),
-  });
-  await api(`/photos/uploads/${intentForReview.intent.uploadId}/complete`, home, {
-    objectKey: intentForReview.intent.objectKey, contentBase64: oldBytes.toString('base64'),
-  });
+  // On mobile, require the annual reason before any upload and ignore a double tap.
+  await page.setViewportSize({width:390,height:844});
+  const uploader=dataset.federationSyncPayload.players.find(player=>player.id===participant.subjectId);
+  await page.getByLabel(`Modifica foto ${uploader.lastName} ${uploader.firstName}`,{exact:true}).setInputFiles({name:'replacement.png',mimeType:'image/png',buffer:oldBytes});
+  const reasonInput=page.getByPlaceholder('Motivo del cambio aggiuntivo (almeno 20 caratteri)',{exact:true});await reasonInput.waitFor();
+  assert(await page.getByRole('button',{name:'Invia richiesta',exact:true}).isDisabled());
+  let uploadRequests=0;const countUpload=request=>{if(request.method()==='POST'&&new URL(request.url()).pathname==='/api/v1/photos/upload-intent')uploadRequests++;};page.on('request',countUpload);
+  await reasonInput.fill('Crescita fisica rilevante che richiede un nuovo confronto del volto per il riconoscimento.');
+  const completion=page.waitForResponse(response=>response.request().method()==='POST'&&/\/photos\/uploads\/[^/]+\/complete$/.test(new URL(response.url()).pathname));
+  await page.getByRole('button',{name:'Invia richiesta',exact:true}).evaluate(button=>{button.click();button.click();});assert.equal((await completion).status(),200);
+  await page.getByText('Richiesta già in attesa.',{exact:true}).waitFor();assert.equal(uploadRequests,1);page.off('request',countUpload);
+  const uniquePending=await api(`/photo-approvals?federationId=${dataset.federationSyncPayload.federations[0].id}&status=pending`,federation);assert.equal(uniquePending.filter(row=>row.registrationId===participant.registrationId).length,1);
+  await page.screenshot({path:join(directory,'mobile-photo-single-request.png'),fullPage:true});await page.setViewportSize({width:1280,height:900});
+  check('Real Chromium mobile: required annual reason, double-tap protection and one pending photo request');
   await page.getByRole('button', { name: 'Logout', exact: true }).click();
   await page.getByLabel('Email o codice personale', { exact: true }).fill(dataset.auth.federation.email);
   await page.getByLabel('Password', { exact: true }).fill(dataset.auth.federation.password);
@@ -209,7 +213,7 @@ try {
     const images = [...document.querySelectorAll('img')];
     return images.length >= 2 && images.every((image) => image.complete && image.naturalWidth > 0 && image.naturalWidth <= 320);
   });
-  await page.getByText('Richiesta di cambio foto aggiuntivo nell’anno', { exact: true }).waitFor();
+  await page.getByText('Cambio foto aggiuntivo nell’anno', { exact: true }).waitFor();
   const pagesBeforeDecision = photoPageLoads;
   const [decision] = await Promise.all([
     page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/approve')),
@@ -344,7 +348,7 @@ try {
   await managerPage.getByLabel('Logo',{exact:true}).setInputFiles({name:'club-logo.png',mimeType:'image/png',buffer:logo});await managerPage.getByRole('button',{name:'Salva profilo',exact:true}).click();await managerPage.getByText('Profilo salvato.',{exact:true}).waitFor();await managerPage.screenshot({path:join(directory,'club-profile-logo.png'),fullPage:true});
   await publicPage.reload();await publicPage.getByRole('img',{name:/Logo ASD RefCheck Home/}).waitFor();await publicPage.getByRole('img',{name:/Logo ASD RefCheck Home/}).evaluate(image=>image.decode());
   const oldBrand=await api(`/platform/profiles/organization/${sportsOrg.id}`,federation);await api(`/platform/profiles/organization/${sportsOrg.id}`,federation,{revision:oldBrand.revision,displayName:'Federazione identità test',primaryColor:'#173d69',accentColor:'#edf2ff',imageBase64:'data:image/png;base64,'+logo.toString('base64')});
-  await managerPage.reload();await managerPage.getByText('Federazione identità test',{exact:true}).first().waitFor();await managerPage.waitForFunction(()=>document.documentElement.style.getPropertyValue('--primary').length>0);await managerPage.setViewportSize({width:390,height:844});assert(await managerPage.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));await managerPage.screenshot({path:join(directory,'club-profile-mobile.png'),fullPage:true});
+  await managerPage.reload();await managerPage.getByText('Federazione identità test',{exact:true}).first().waitFor();await managerPage.waitForFunction(()=>document.documentElement.style.getPropertyValue('--primary').length>0);assert.equal(await managerPage.locator('[aria-label="Federazione di appartenenza"] img').count(),1);assert.equal(await managerPage.locator('[aria-label="Federazione di appartenenza"]').evaluate(section=>section.previousElementSibling?.contains(section)===false),true);await managerPage.setViewportSize({width:390,height:844});assert(await managerPage.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));await managerPage.screenshot({path:join(directory,'club-profile-mobile.png'),fullPage:true});
   await refereePage.goto(webOrigin+'/profile');const refereeProfiles=await api('/platform/profiles/context',newRefereeToken);const ownRefereeProfile=refereeProfiles.items.find(row=>row.kind==='referee');await refereePage.getByLabel('Profilo',{exact:true}).selectOption(`referee/${ownRefereeProfile.subjectId}`);
   await refereePage.getByLabel('Foto personale',{exact:true}).setInputFiles({name:'referee-photo.png',mimeType:'image/png',buffer:logo});await refereePage.getByRole('button',{name:'Salva profilo',exact:true}).click();await refereePage.getByText('Profilo salvato.',{exact:true}).waitFor();await refereePage.screenshot({path:join(directory,'referee-profile-photo.png'),fullPage:true});
   await page.goto(webOrigin+'/profile');await page.getByRole('heading',{name:'Verifica configurazione del sito',exact:true}).waitFor();await page.getByText('Amministratore pubblicazione: configurato',{exact:true}).waitFor();await page.screenshot({path:join(directory,'deployment-readiness.png'),fullPage:true});

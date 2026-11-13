@@ -31,7 +31,7 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain(`file.type.startsWith("image/")`);
     expect(source).toContain("5 * 1024 * 1024");
     expect(source).toContain("Conferma una preview prima del salvataggio");
-    expect(source).toContain("Conferma caricamento");
+    expect(source).toContain("Invia richiesta");
     expect(source).toContain(
       "fallback locale legacy è stato disabilitato dalla Recovery-4",
     );
@@ -62,7 +62,7 @@ describe("regression: manager photo capture flow", () => {
     expect(source).toContain("manca il tesseramento stagionale atleta");
     expect(source).toContain("manca il tesseramento stagionale staff");
     expect(source).toContain("uploadUnavailableReason");
-    expect(source).toContain("disabled={Boolean(uploadUnavailableReason)}");
+    expect(source).toContain("Boolean(unavailable)");
     expect(source).toContain("cursor-not-allowed opacity-60");
   });
 

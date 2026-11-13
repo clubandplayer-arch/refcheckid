@@ -173,6 +173,12 @@ export class PhotoVersionRepository extends PersistentPhotoRepository<PhotoVersi
 }
 
 export class PhotoApprovalRepository extends PersistentPhotoRepository<PhotoApproval> {
+  async listPendingByVersionIds(ids:readonly string[]):Promise<readonly PhotoApproval[]>{
+    if(!ids.length)return [];
+    const rows=this.store?.findMany?await this.store.findMany<PhotoApproval>('photo_approvals','photoVersionId',ids):await this.list();
+    return rows.filter(row=>ids.includes(row.photoVersionId)&&row.status==='pending'&&row.deletedAt===null);
+  }
+
   constructor(initialRows: readonly PhotoApproval[] = [], persistenceRoot?: string | null) {
     super('photo_approvals', 'photo-approvals.json', initialRows, persistenceRoot);
   }

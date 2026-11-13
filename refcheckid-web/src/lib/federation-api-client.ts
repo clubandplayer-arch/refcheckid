@@ -59,6 +59,7 @@ export async function fetchFederationReports(): Promise<
 }
 
 export interface ApiPhotoApproval {
+  cancelledApprovalIds?:string[];
   replacementReason?: string;
   additionalAnnualChange?: boolean;
   id: string;

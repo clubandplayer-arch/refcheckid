@@ -1,6 +1,6 @@
 "use client";
 
-import {IdentityHeader} from '@/features/profiles/profiles';
+import {IdentityHeader,FederationAffiliation} from '@/features/profiles/profiles';
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -60,6 +60,7 @@ export function AuthGate({
           </Button>
         </div>
       </div>
+      <FederationAffiliation/>
       {children}
     </div>
   );

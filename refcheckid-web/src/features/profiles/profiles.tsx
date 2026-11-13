@@ -84,33 +84,41 @@ export function IdentityHeader() {
       root.style.removeProperty("--muted");
     };
   }, [organization]);
+  const manager=session?.user.role==='manager';
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 items-center gap-3">
       {own?.imageUrl ? (
         <Image
           unoptimized
-          width={40}
-          height={40}
-          className="h-10 w-10 rounded object-contain"
+          width={96}
+          height={96}
+          className="h-20 w-20 rounded object-contain sm:h-24 sm:w-24"
           src={own.imageUrl}
           alt={own.displayName}
         />
       ) : null}
-      {organization?.imageUrl ? (
+      {!manager&&organization?.imageUrl ? (
         <Image
           unoptimized
-          width={40}
-          height={40}
-          className="h-10 w-10 object-contain"
+          width={96}
+          height={96}
+          className="h-20 w-20 object-contain sm:h-24 sm:w-24"
           src={organization.imageUrl}
           alt={organization.displayName}
         />
       ) : null}
       <span className="max-w-48 truncate sm:max-w-none">
-        {organization?.displayName ?? session?.user.displayName}
+        {(manager?own?.displayName:organization?.displayName) ?? session?.user.displayName}
       </span>
     </div>
   );
+}
+export function FederationAffiliation(){
+ const query=useIdentityProfiles(),{session}=useSession();
+ if(session?.user.role!=='manager')return null;
+ const club=query.data?.items.find(p=>p.kind==='club'),federation=query.data?.items.find(p=>p.kind==='organization'&&p.subjectId===club?.federationId);
+ if(!federation)return null;
+ return <aside aria-label="Federazione di appartenenza" className="border-b bg-muted px-6 py-3"><div className="mx-auto flex max-w-7xl items-center justify-end gap-4"><div className="text-right"><p className="text-xs text-slate-600">Federazione di appartenenza</p><p className="font-semibold">{federation.displayName}</p></div>{federation.imageUrl?<Image unoptimized width={80} height={80} className="h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20" src={federation.imageUrl} alt={`Federazione: ${federation.displayName}`}/>:null}</div></aside>;
 }
 export function ProfileBadge({
   kind,

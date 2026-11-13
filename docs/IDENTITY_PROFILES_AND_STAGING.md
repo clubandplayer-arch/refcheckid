@@ -76,3 +76,5 @@ Gli enti arbitrali formano una gerarchia autonoma. Il flusso è:
 4. Se l’ente non compare nell’elenco deve essere registrato dall’amministrazione della piattaforma. La lega non lo crea come propria sottostruttura.
 
 Le organizzazioni già presenti e gli incarichi esistenti non vengono cancellati. Un’eventuale appartenenza amministrativa già assegnata resta esplicita e va verificata dall’amministrazione; nessuna nuova appartenenza viene creata dalla semplice delega.
+
+L'area dirigente distingue ora il marchio club nell'intestazione e la federazione di appartenenza in una fascia separata. Per le correzioni del caricamento foto e della richiesta unica consultare `PHOTO_UPLOAD_SINGLE_REQUEST.md`.

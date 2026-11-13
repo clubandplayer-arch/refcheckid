@@ -61,3 +61,16 @@ it('shows the roster and keeps navigation usable while official photo requests a
   fireEvent.click(screen.getByRole('button',{name:'2. Ordine'}));
   expect((screen.getByRole('spinbutton') as HTMLInputElement).value).toBe('77');
 });
+
+it('shows loading rather than missing while photo policy is pending',async()=>{
+ mocks.photos.mockReturnValue(new Promise(()=>{}));show();await screen.findByText('Rossi Mario');expect(screen.getByText('Caricamento foto…')).toBeTruthy();expect(screen.queryByText('Missing')).toBeNull();
+});
+it('requires the annual reason before enabling the upload button',async()=>{
+ mocks.photos.mockImplementation(async (_team,players)=>players.map((player:Record<string,unknown>)=>({...player,photoUrl:'/photo.jpg',photo:{status:'active',currentPhotoUrl:'/photo.jpg',proposedPhotoUrl:null,approvalId:null,requiresReplacementReason:true}})));
+ show();await screen.findByText('Active');const input=screen.getByLabelText('Modifica foto Rossi Mario') as HTMLInputElement;
+ fireEvent.change(input,{target:{files:[new File(['fake-image'],'face.jpg',{type:'image/jpeg'})]}});
+ const reason=await screen.findByPlaceholderText('Motivo del cambio aggiuntivo (almeno 20 caratteri)');
+ expect((screen.getByRole('button',{name:'Invia richiesta'}) as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.change(reason,{target:{value:'Crescita fisica rilevante che rende necessario un aggiornamento della foto.'}});
+ expect((screen.getByRole('button',{name:'Invia richiesta'}) as HTMLButtonElement).disabled).toBe(false);
+});

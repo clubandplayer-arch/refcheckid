@@ -10,7 +10,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -58,10 +58,12 @@ export function MatchSheetWorkflow() {
   const [photoDraft, setPhotoDraft] = useState<{
     id: string;
     previewUrl: string;
+    uploading?:boolean;
     zoom: number;
     offsetX: number;
     offsetY: number;
   } | null>(null);
+  const photoUploadLock=useRef(false);
   const [photoChangeReason, setPhotoChangeReason] = useState("");
   const [photoError, setPhotoError] = useState<PhotoErrorState | null>(null);
   const managerTeam = getCurrentManagerTeam();
@@ -158,7 +160,7 @@ export function MatchSheetWorkflow() {
   });
   const managerTeamLabel = submittedSheet?.clubName ?? getCurrentManagerConfig().label;
   const players = useMemo(() => {
-    if (!isReadOnly && playersEdited) return selectedPlayers.map(player=>{const fresh=fetchedPlayers.find(p=>p.id===player.id);return fresh?{...player,photo:fresh.photo,photoUrl:fresh.photoUrl}:player;});
+    if (!isReadOnly && playersEdited) return selectedPlayers.map(player=>{const fresh=fetchedPlayers.find(p=>p.id===player.id);return fresh?.photo&&(fresh.photo.receivedAt??0)>=(player.photo?.receivedAt??0)?{...player,photo:fresh.photo,photoUrl:fresh.photoUrl}:player;});
     const defaultsByRegistration = new Map(
       (defaultsQuery.data?.players ?? []).map((player) => [player.playerRegistrationId, player]),
     );
@@ -202,7 +204,7 @@ export function MatchSheetWorkflow() {
       .map(({ lineupOrder: _lineupOrder, ...player }) => player);
   }, [defaultsQuery.data, fetchedPlayers, isReadOnly, playersEdited, selectedPlayers, submittedSheet?.players]);
   const staff = useMemo(() => {
-    if (!isReadOnly && staffEdited) return selectedStaff.map(member=>{const fresh=fetchedStaff.find(p=>p.id===member.id);return fresh?{...member,photo:fresh.photo,photoUrl:fresh.photoUrl}:member;});
+    if (!isReadOnly && staffEdited) return selectedStaff.map(member=>{const fresh=fetchedStaff.find(p=>p.id===member.id);return fresh?.photo&&(fresh.photo.receivedAt??0)>=(member.photo?.receivedAt??0)?{...member,photo:fresh.photo,photoUrl:fresh.photoUrl}:member;});
     if (!isReadOnly && !submittedSheet?.staff?.length) return fetchedStaff;
     const submittedRegistrationIds = new Set(
       (submittedSheet?.staff ?? []).map((line) => line.staffRegistrationId),
@@ -408,6 +410,13 @@ export function MatchSheetWorkflow() {
       });
       return;
     }
+    if(photoUploadLock.current)return;
+    const person=subjectKind==='athlete'?players.find(p=>p.id===subjectId):staff.find(p=>p.id===subjectId);
+    if(!person?.photo||['loading','unavailable'].includes(person.photo.status)){setPhotoError({subjectKind,subjectId,message:'Attendi la verifica della foto.'});return;}
+    if(person.photo.approvalId){setPhotoError({subjectKind,subjectId,message:'Richiesta già in attesa.'});return;}
+    if(person.photo.requiresReplacementReason&&photoChangeReason.trim().length<20){setPhotoError({subjectKind,subjectId,message:'Inserisci una motivazione di almeno 20 caratteri.'});return;}
+    photoUploadLock.current=true;
+    setPhotoDraft(current=>current?{...current,uploading:true}:current);
     try {
       await applyPhoto(await cropPhotoDraft(photoDraft));
       setPhotoDraft(null);
@@ -417,7 +426,9 @@ export function MatchSheetWorkflow() {
         error instanceof Error ? error.message : "Upload foto non riuscito.";
       setPhotoError({ subjectKind, subjectId, message });
       notify(message, "error");
-    }
+      void queryClient.invalidateQueries({queryKey:queryKeys.players});
+      void queryClient.invalidateQueries({queryKey:queryKeys.staff});
+    }finally{photoUploadLock.current=false;setPhotoDraft(current=>current?.id===subjectId?{...current,uploading:false}:current);}
   }
   function updatePhotoDraftTransform(
     subjectId: string,
@@ -704,6 +715,7 @@ function PlayersStep({
   photoDraft: {
     id: string;
     previewUrl: string;
+    uploading?:boolean;
     zoom: number;
     offsetX: number;
     offsetY: number;
@@ -790,6 +802,7 @@ function PlayersStep({
                 />
                 <PhotoCaptureControls
                   replacementReason={replacementReason}
+                  photo={player.photo}
                   onReplacementReasonChange={onReplacementReasonChange}
                   currentPhotoUrl={
                     player.photo?.currentPhotoUrl ?? player.photoUrl
@@ -839,6 +852,8 @@ function SubjectPhotoThumbnail({
 }>) {
   const displayPhotoUrl =
     photo?.proposedPhotoUrl ?? photo?.currentPhotoUrl ?? photoUrl;
+  const [imageLoaded,setImageLoaded]=useState(false),[imageError,setImageError]=useState(false);
+  useEffect(()=>{setImageLoaded(false);setImageError(false);},[displayPhotoUrl]);
   const isPending =
     photo?.status === "pending" && photo?.proposedPhotoUrl !== null;
   return (
@@ -851,8 +866,11 @@ function SubjectPhotoThumbnail({
             className="h-full w-full object-cover"
             height={96}
             src={displayPhotoUrl}
+            onLoad={()=>setImageLoaded(true)}
+            onError={()=>setImageError(true)}
             width={80}
           />
+          {!imageLoaded?<span className="absolute inset-0 flex items-center justify-center bg-muted p-2 text-center text-xs">{imageError?"Foto non disponibile":"Caricamento foto…"}</span>:null}
           {isPending ? (
             <span className="absolute inset-x-1 bottom-1 rounded bg-red-600/95 px-1 py-0.5 text-center text-[9px] font-bold leading-tight text-white shadow">
               Da approvare
@@ -871,8 +889,10 @@ function SubjectPhotoThumbnail({
 function BackendPhotoStatus({
   photo,
 }: Readonly<{ photo: PlayerListItem["photo"] | StaffListItem["photo"] }>) {
-  const status = photo?.status ?? "missing";
+  const status = photo?.status ?? "loading";
   const label = {
+    loading:"Caricamento foto…",
+    unavailable:"Foto non disponibile",
     active: "Active",
     missing: "Missing",
     pending: "Pending Approval",
@@ -880,6 +900,8 @@ function BackendPhotoStatus({
     suspended: "Suspended",
   }[status];
   const tone = {
+    loading:"bg-slate-100 text-slate-700",
+    unavailable:"bg-amber-100 text-amber-800",
     active: "bg-green-100 text-green-800",
     missing: "bg-slate-100 text-slate-700",
     pending: "bg-amber-100 text-amber-800",
@@ -1010,6 +1032,7 @@ function PhotoExampleIllustration() {
 
 function PhotoCaptureControls({
   replacementReason,
+  photo,
   onReplacementReasonChange,
   currentPhotoUrl,
   onConfirm,
@@ -1022,6 +1045,7 @@ function PhotoCaptureControls({
 }: Readonly<{
   replacementReason: string;
   onReplacementReasonChange: (value: string) => void;
+  photo:PlayerListItem["photo"];
   currentPhotoUrl: string | null;
   onConfirm: () => void;
   onPhotoSelected: (file: File | null) => void;
@@ -1031,6 +1055,7 @@ function PhotoCaptureControls({
   photoDraft: {
     id: string;
     previewUrl: string;
+    uploading?:boolean;
     zoom: number;
     offsetX: number;
     offsetY: number;
@@ -1039,6 +1064,9 @@ function PhotoCaptureControls({
   subjectLabel: string;
   uploadUnavailableReason: string | null;
 }>) {
+  const policyUnavailable=!photo||['loading','unavailable'].includes(photo.status);
+  const unavailable=uploadUnavailableReason||(photo?.approvalId?'Richiesta già in attesa.':policyUnavailable?photo?.status==='unavailable'?'Foto non disponibile. Aggiorna la pagina.':'Verifica foto in corso.':null);
+  const reasonRequired=photo?.requiresReplacementReason??false;
   return (
     <div className="w-full space-y-2 text-xs md:max-w-[340px]">
       <p className="font-semibold text-slate-600">
@@ -1046,7 +1074,7 @@ function PhotoCaptureControls({
       </p>
       <label
         className={`block rounded-lg border border-dashed bg-white p-2 text-center transition ${
-          uploadUnavailableReason
+          unavailable
             ? "cursor-not-allowed opacity-60"
             : "hover:border-primary"
         }`}
@@ -1057,14 +1085,14 @@ function PhotoCaptureControls({
           aria-label={`${currentPhotoUrl ? "Modifica" : "Aggiungi"} foto ${subjectLabel}`}
           capture="environment"
           className="sr-only"
-          disabled={Boolean(uploadUnavailableReason)}
+          disabled={Boolean(unavailable)||!!photoDraft?.uploading}
           onChange={(event) => onPhotoSelected(event.target.files?.[0] ?? null)}
           type="file"
         />
       </label>
-      {uploadUnavailableReason ? (
+      {unavailable ? (
         <p className="rounded-md bg-amber-50 p-2 text-amber-800">
-          {uploadUnavailableReason}
+          {unavailable}
         </p>
       ) : null}
       {photoDraft ? (
@@ -1126,20 +1154,19 @@ function PhotoCaptureControls({
               value={photoDraft.offsetY}
             />
           </label>
-          <label className="block space-y-1">
-            <span>Motivazione cambio aggiuntivo</span>
+          {reasonRequired?<label className="block space-y-1">
+            <span>Motivazione obbligatoria</span>
             <textarea className="block w-full rounded-lg border p-2" maxLength={2000}
               value={replacementReason} onChange={(event) => onReplacementReasonChange(event.target.value)}
-              placeholder="Dal secondo cambio nell’anno: specifica il motivo (almeno 20 caratteri)." />
-            <span>Non necessaria per il primo caricamento o il primo cambio dell’anno. La federazione valuterà la richiesta.</span>
-          </label>
+              required minLength={20} placeholder="Motivo del cambio aggiuntivo (almeno 20 caratteri)" />
+          </label>:null}
           <Button
             className="w-full py-1 text-xs"
-            disabled={Boolean(uploadUnavailableReason)}
+            disabled={Boolean(unavailable)||!!photoDraft?.uploading||(reasonRequired&&replacementReason.trim().length<20)}
             onClick={onConfirm}
             type="button"
           >
-            Conferma caricamento
+            {photoDraft.uploading?"Invio…":"Invia richiesta"}
           </Button>
         </div>
       ) : null}
@@ -1387,6 +1414,7 @@ function StaffStep({
   photoDraft: {
     id: string;
     previewUrl: string;
+    uploading?:boolean;
     zoom: number;
     offsetX: number;
     offsetY: number;
@@ -1448,6 +1476,7 @@ function StaffStep({
                 />
                 <PhotoCaptureControls
                   replacementReason={replacementReason}
+                  photo={staffMember.photo}
                   onReplacementReasonChange={onReplacementReasonChange}
                   currentPhotoUrl={
                     staffMember.photo?.currentPhotoUrl ?? staffMember.photoUrl
@@ -1583,6 +1612,7 @@ function isSmokeResetAvailable(): boolean {
 
 async function cropPhotoDraft(photoDraft: {
   previewUrl: string;
+    uploading?:boolean;
   zoom: number;
   offsetX: number;
   offsetY: number;

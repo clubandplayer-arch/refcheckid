@@ -1,3 +1,4 @@
+import {requiresAnnualPhotoReason} from './photo-change-policy.js';
 import type {
   GlobalOfficialPhoto,
   MatchSheetPhotoSnapshot,
@@ -140,6 +141,7 @@ export class PhotoService {
     const replacementReason = command.replacementReason?.trim();
     if (replacementReason && replacementReason.length > 2000) throw new PhotoInvariantViolationError('La motivazione non può superare 2000 caratteri.');
     await this.assertAnnualPhotoChange(global, replacementReason);
+    await this.assertNoPendingUpload(global.id,command.registrationId,command.seasonId);
     const extension =
       command.mimeType === 'image/png'
         ? '.png'
@@ -207,6 +209,8 @@ export class PhotoService {
     const global = await this.dependencies.globalOfficialPhotos.findBySubject(subjectId);
     if (global === null)
       throw new PhotoInvariantViolationError('Global official photo was not found for upload.');
+    await this.assertAnnualPhotoChange(global,session.replacementReason);
+    await this.assertNoPendingUpload(global.id,session.registrationId,session.seasonId);
     const existing = await this.dependencies.photoVersions.listByGlobalPhoto(global.id);
     const version = await this.dependencies.photoVersions.create({
       globalOfficialPhotoId: global.id,
@@ -284,18 +288,18 @@ export class PhotoService {
   }
 
   private async requiresAdditionalAnnualChange(globalId: UUID): Promise<boolean> {
-    const approved = (await this.dependencies.photoVersions.listByGlobalPhoto(globalId))
-      .filter((version) => typeof version.activatedAt === 'string')
-      .sort((a, b) => a.versionNumber - b.versionNumber);
-    // Initial activation is not a replacement. Count approved changes only;
-    // rejected uploads do not consume the allowance, and club/season changes do not reset it.
-    const yearStart = `${new Date().getUTCFullYear()}-01-01T00:00:00.000Z`;
-    return approved.slice(1).some((version) => version.activatedAt! >= yearStart);
+    return requiresAnnualPhotoReason(await this.dependencies.photoVersions.listByGlobalPhoto(globalId));
+  }
+
+  private async assertNoPendingUpload(globalId:UUID,registrationId:UUID,seasonId:string){
+    const versions=await this.dependencies.photoVersions.listByGlobalPhoto(globalId);
+    const pending=await this.dependencies.photoApprovals.listPendingForRegistration(registrationId,seasonId);
+    if(pending.length||(await this.dependencies.photoApprovals.listPendingByVersionIds(versions.map(v=>v.id))).length)throw new PhotoInvariantViolationError('Richiesta foto già in attesa di approvazione.');
   }
 
   private async assertAnnualPhotoChange(global: GlobalOfficialPhoto, reason?: string): Promise<void> {
     if (global.currentVersionId && await this.requiresAdditionalAnnualChange(global.id) && (!reason || reason.trim().length < 20)) {
-      throw new PhotoInvariantViolationError('Hai già effettuato un cambio foto in questo anno solare. Per un ulteriore cambio invia una motivazione specifica di almeno 20 caratteri alla federazione.');
+      throw new PhotoInvariantViolationError('Cambio aggiuntivo: inserisci una motivazione di almeno 20 caratteri.');
     }
   }
 
@@ -434,10 +438,11 @@ export class PhotoService {
     });
   }
 
-  async approvePhotoApproval(command: PhotoDecisionCommand): Promise<PhotoApproval> {
+  async approvePhotoApproval(command: PhotoDecisionCommand): Promise<PhotoApproval & {cancelledApprovalIds?:string[]}> {
     const approval = await this.requirePhotoApproval(command.approvalId);
     this.assertCanDecideApproval(command.context, approval);
     if (approval.status === 'approved') return approval;
+    if(approval.status==='cancelled')throw new PhotoInvariantViolationError('Richiesta duplicata già chiusa. Aggiorna l’elenco.');
     if (approval.status !== 'pending') {
       assertPhotoApprovalTransition(approval.status, 'approved');
     }
@@ -549,13 +554,15 @@ export class PhotoService {
       ipHash: null,
       userAgentHash: null,
     });
-    return decided;
+    const cancelledApprovalIds=await this.cancelOtherPending(global.id,approval,command.context.actorId);
+    return {...decided,cancelledApprovalIds};
   }
 
-  async rejectPhotoApproval(command: PhotoDecisionCommand): Promise<PhotoApproval> {
+  async rejectPhotoApproval(command: PhotoDecisionCommand): Promise<PhotoApproval & {cancelledApprovalIds?:string[]}> {
     const approval = await this.requirePhotoApproval(command.approvalId);
     this.assertCanDecideApproval(command.context, approval);
     if (approval.status === 'rejected') return approval;
+    if(approval.status==='cancelled')throw new PhotoInvariantViolationError('Richiesta duplicata già chiusa. Aggiorna l’elenco.');
     if (approval.status !== 'pending') {
       assertPhotoApprovalTransition(approval.status, 'rejected');
     }
@@ -591,7 +598,15 @@ export class PhotoService {
       ipHash: null,
       userAgentHash: null,
     });
-    return decided;
+    const cancelledApprovalIds=await this.cancelOtherPending(global.id,approval,command.context.actorId);
+    return {...decided,cancelledApprovalIds};
+  }
+
+  private async cancelOtherPending(globalId:UUID,decided:PhotoApproval,actorId:UUID){
+    const versions=await this.dependencies.photoVersions.listByGlobalPhoto(globalId);
+    const duplicates=(await this.dependencies.photoApprovals.listPendingByVersionIds(versions.map(v=>v.id))).filter(row=>row.id!==decided.id&&row.federationId===decided.federationId&&row.registrationId===decided.registrationId&&row.seasonId===decided.seasonId);
+    for(const row of duplicates){await this.dependencies.photoApprovals.update(row.id,{status:'cancelled',decidedAt:new Date().toISOString(),decidedByUserId:actorId,decisionReasonCode:'duplicate_request',decisionNotes:'Richiesta duplicata chiusa dopo la decisione sulla foto.'});const version=versions.find(v=>v.id===row.photoVersionId);if(version?.status==='pending_approval')await this.dependencies.photoVersions.update(version.id,{status:'rejected',rejectionReasonCode:'duplicate_request'});}
+    return duplicates.map(row=>row.id);
   }
 
   async createGlobalOfficialPhoto(

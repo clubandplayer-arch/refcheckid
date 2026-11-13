@@ -1,12 +1,15 @@
-import { request } from "./api-client";
+import { request, ApiRequestError } from "./api-client";
+import {getCurrentManagerConfig} from "./manager-team";
 import type { ManagerTeam } from "./manager-team";
 import { getPhotoFeatureFlags } from "./photo-feature-flags";
 import type { PlayerListItem, StaffListItem } from "./types";
 
 export type OfficialPhotoStatus =
-  "missing" | "pending" | "active" | "rejected" | "suspended";
+  "missing" | "pending" | "active" | "rejected" | "suspended" | "loading" | "unavailable";
 
 export interface ManagerPhotoState {
+  readonly receivedAt?:number;
+  readonly requiresReplacementReason?:boolean;
   readonly status: OfficialPhotoStatus;
   readonly currentPhotoUrl: string | null;
   readonly proposedPhotoUrl: string | null;
@@ -14,6 +17,7 @@ export interface ManagerPhotoState {
 }
 
 interface SignedReadResponse {
+  requiresReplacementReason?:boolean;
   approvalId?: string | null;
   proposedPhotoUrl?: string | null;
   proposedVersionId?: string | null;
@@ -39,24 +43,8 @@ export async function enrichPlayersWithBackendPhotos(
 ): Promise<readonly PlayerListItem[]> {
   const flags = getPhotoFeatureFlags();
   if (!flags.officialBackendRead) return players;
-  return Promise.all(
-    players.map(async (player) => {
-      try {
-        const photo = await readBackendPhotoState(
-          "athlete",
-          player.id,
-          player.registrationId,
-        );
-        return { ...player, photo, photoUrl: photo.currentPhotoUrl };
-      } catch {
-        return {
-          ...player,
-          photo: missingPhotoState(player.photoUrl),
-          photoUrl: player.photoUrl,
-        };
-      }
-    }),
-  );
+  const photos=await batchPhotoStates(players.map(player=>player.registrationId));
+  return players.map(player=>{const photo=photos.get(player.registrationId??'')??{...missingPhotoState(null),status:'unavailable' as const};return {...player,photo,photoUrl:photo.currentPhotoUrl};});
 }
 
 export async function enrichStaffWithBackendStatus(
@@ -75,24 +63,8 @@ export async function enrichStaffWithBackendStatus(
       },
     }));
   }
-  return Promise.all(
-    staff.map(async (member) => {
-      try {
-        const photo = await readBackendPhotoState(
-          "staff_member",
-          member.id,
-          member.registrationId,
-        );
-        return { ...member, photo, photoUrl: photo.currentPhotoUrl };
-      } catch {
-        return {
-          ...member,
-          photo: missingPhotoState(member.photoUrl),
-          photoUrl: member.photoUrl,
-        };
-      }
-    }),
-  );
+  const photos=await batchPhotoStates(staff.map(member=>member.registrationId));
+  return staff.map(member=>{const photo=photos.get(member.registrationId??'')??{...missingPhotoState(null),status:'unavailable' as const};return {...member,photo,photoUrl:photo.currentPhotoUrl};});
 }
 
 export async function readBackendPhotoState(
@@ -125,13 +97,14 @@ export async function readBackendPhotoState(
               ? "active"
               : "missing");
     return {
+      requiresReplacementReason:signed.requiresReplacementReason??false,
       approvalId: signed.approvalId ?? null,
       currentPhotoUrl,
       proposedPhotoUrl,
       status: currentStatus,
     };
-  } catch {
-    return missingPhotoState(null);
+  } catch(error) {
+    return error instanceof ApiRequestError&&error.status===404?missingPhotoState(null):{...missingPhotoState(null),status:"unavailable"};
   }
 }
 
@@ -205,11 +178,7 @@ export async function uploadOfficialSubjectPhoto(input: {
       federationId: input.federationId,
     }),
   });
-  return readBackendPhotoState(
-    input.subjectKind,
-    input.subjectId,
-    input.registrationId,
-  );
+  return (await batchPhotoStates([input.registrationId],input.clubId)).get(input.registrationId)??readBackendPhotoState(input.subjectKind,input.subjectId,input.registrationId);
 }
 
 export function uploadOfficialPlayerPhoto(input: {
@@ -293,4 +262,13 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const copy = new Uint8Array(bytes.byteLength);
   copy.set(bytes);
   return copy.buffer;
+}
+
+async function batchPhotoStates(ids:readonly (string|null)[],clubId=getCurrentManagerConfig().clubId){
+ const registrations=ids.filter((id):id is string=>!!id);
+ const result=new Map<string,ManagerPhotoState>();
+ for(let index=0;index<registrations.length;index+=100){
+  try{const response=await request<{items:(ManagerPhotoState&{registrationId:string})[]}>(`/platform/club-photo-roster/${encodeURIComponent(clubId)}?registrations=${encodeURIComponent(registrations.slice(index,index+100).join(','))}`);for(const row of response.items)result.set(row.registrationId,{...row,receivedAt:Date.now(),currentPhotoUrl:normalizeBrowserPhotoUrl(row.currentPhotoUrl),proposedPhotoUrl:normalizeBrowserPhotoUrl(row.proposedPhotoUrl)});}catch{/* Unknown is not missing: uploads remain disabled until policy can be read. */}
+ }
+ return result;
 }
