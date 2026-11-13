@@ -201,7 +201,16 @@ try {
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
     assert(await secondCard.evaluate(card=>card.scrollWidth<=card.clientWidth));
   }
+  const compactFields=await secondCard.evaluate(card=>{
+    const number=card.querySelector('input[type="number"]');const role=card.querySelector('select');
+    const n=number.getBoundingClientRect(),r=role.getBoundingClientRect();
+    return {numberWidth:n.width, sameRow:Math.abs(n.top-r.top)<2};
+  });
+  assert(compactFields.numberWidth<=100);assert(compactFields.sameRow);
   await page.screenshot({path:join(directory,'mobile-lineup-order.png'),fullPage:true});
+  await page.setViewportSize({width:1280,height:900});
+  await page.screenshot({path:join(directory,'desktop-lineup-order.png'),fullPage:true});
+
   const orderSave=page.waitForResponse(response=>response.url().endsWith('/draft')&&response.request().method()==='POST');
   await page.getByRole('button',{name:'Salva distinta in bozza',exact:true}).click();assert.equal((await orderSave).status(),200);
   await page.reload();await page.getByRole('button',{name:'2. Ordine',exact:true}).click();

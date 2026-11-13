@@ -1205,47 +1205,54 @@ function OrderStep({ players, movePlayer, readOnly, toggleCaptain, toggleGoalkee
         </p>
       </div>
       {players.length === 0 ? <EmptyState message="Nessun convocato." /> : (
-        <ol className="min-w-0 space-y-4" aria-label="Giocatori in ordine di distinta">
+        <ol className="min-w-0 space-y-3" aria-label="Giocatori in ordine di distinta">
           {players.map((player, index) => {
             const name = `${player.lastName} ${player.firstName}`;
             const disabled = readOnly || !player.selected || player.suspended;
             const statusTone = getPlayerStatusTone(player);
             return (
-              <li key={player.id} aria-label={name} className={`min-w-0 rounded-xl border p-3 sm:p-4 ${statusTone === "warning" ? "border-yellow-400 bg-yellow-50" : statusTone === "suspended" ? "border-red-400 bg-red-50" : ""}`}>
+              <li key={player.id} aria-label={name} className={`min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md sm:p-4 ${statusTone === "warning" ? "border-yellow-400 bg-yellow-50" : statusTone === "suspended" ? "border-red-400 bg-red-50" : ""}`}>
+                <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)] lg:items-center">
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="shrink-0 text-sm font-semibold text-slate-500">{index + 1}.</span>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">{index + 1}</span>
                   {player.photoUrl ? <Image unoptimized alt={`Foto ${name}`} className="h-14 w-10 shrink-0 rounded-md border bg-white object-cover" height={56} width={40} src={player.photoUrl} /> : null}
                   <h3 className="min-w-0 break-words font-semibold">{name}</h3>
                 </div>
-                <fieldset disabled={disabled} className="mt-3 min-w-0 space-y-3">
+                <fieldset disabled={disabled} className="min-w-0">
                   <legend className="sr-only">Dati di {name}</legend>
-                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                    <label className="min-w-0 space-y-1 text-sm">
+                  <div className="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] gap-2 sm:max-w-xs">
+                    <label className="block min-w-0 space-y-1 text-xs font-medium text-slate-600">
                       <span>Numero maglia</span>
-                      <Input className="min-h-11 w-full min-w-0 text-base" min={0} inputMode="numeric" type="number" value={player.shirtNumber ?? ""} placeholder="Numero"
+                      <Input className="h-11 w-full min-w-0 rounded-xl border-slate-200 bg-slate-50 text-center text-base font-semibold text-slate-900 disabled:opacity-70" min={0} inputMode="numeric" type="number" value={player.shirtNumber ?? ""} placeholder="N°"
                         onChange={(event) => updateShirtNumber(player.id, Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : null)} />
                     </label>
-                    <label className="min-w-0 space-y-1 text-sm">
+                    <label className="block min-w-0 space-y-1 text-xs font-medium text-slate-600">
                       <span>Ruolo</span>
-                      <select className="min-h-11 w-full min-w-0 rounded-lg border bg-white px-3 py-2 text-base" value={player.role}
+                      <select className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-base font-medium text-slate-900 disabled:opacity-70" value={player.role}
                         onChange={(event) => updatePlayerRole(player.id, event.target.value as PlayerLineupRole)}>
                         {lineupRoleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                       </select>
                     </label>
                   </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                </fieldset>
+                </div>
+                <fieldset disabled={disabled} className="mt-2 min-w-0">
+                  <legend className="sr-only">Incarichi di {name}</legend>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0 text-sm text-slate-700">
                     <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isGoalkeeper} onChange={() => toggleGoalkeeper(player.id)} />Portiere</label>
                     <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isCaptain} onChange={() => toggleCaptain(player.id)} />Capitano</label>
                     <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isViceCaptain} onChange={() => toggleViceCaptain(player.id)} />Vice capitano</label>
                   </div>
                 </fieldset>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button className="min-h-11" type="button" disabled={readOnly || index === 0} aria-label={`Sposta su ${name}`} onClick={() => movePlayer(player.id, -1)}>↑ Sposta su</Button>
-                  <Button className="min-h-11" type="button" disabled={readOnly || index === players.length - 1} aria-label={`Sposta giù ${name}`} onClick={() => movePlayer(player.id, 1)}>↓ Sposta giù</Button>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-slate-100 pt-2">
+                <div className="flex flex-wrap gap-1.5">
+                  <button className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" type="button" disabled={readOnly || index === 0} aria-label={`Sposta su ${name}`} onClick={() => movePlayer(player.id, -1)}>↑ Sposta su</button>
+                  <button className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" type="button" disabled={readOnly || index === players.length - 1} aria-label={`Sposta giù ${name}`} onClick={() => movePlayer(player.id, 1)}>↓ Sposta giù</button>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                <div className="flex flex-wrap items-center gap-3 text-sm">
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusTone === "warning" ? "bg-yellow-100 text-yellow-800" : statusTone === "suspended" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>{getPlayerStatusLabel(player)}</span>
                   <label className="flex min-h-11 items-center gap-2"><input aria-label={`Convoca ${name}`} type="checkbox" checked={player.selected} disabled={readOnly || player.suspended} onChange={() => togglePlayer(player.id)} />Convocato</label>
+                </div>
                 </div>
               </li>
             );
