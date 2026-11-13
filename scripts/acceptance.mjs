@@ -185,6 +185,31 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('input[type="checkbox"]:checked').length === 1);
   await page.screenshot({ path: join(directory, 'manager-draft-resumed.png'), fullPage: true });
   check('Real Chromium: logout, role switch, demo reset and saved lineup draft restored after reload');
+  // Every order control fits a phone and edits survive saving and reloading.
+  await page.setViewportSize({width:390,height:844});
+  await page.getByRole('button',{name:'Seleziona tutti',exact:true}).click();
+  await page.getByRole('button',{name:'2. Ordine',exact:true}).click();
+  const orderList=page.getByRole('list',{name:'Giocatori in ordine di distinta'});
+  const secondName=await orderList.getByRole('listitem').nth(1).getAttribute('aria-label');
+  const secondCard=orderList.getByRole('listitem',{name:secondName,exact:true});
+  await secondCard.getByLabel('Numero maglia',{exact:true}).fill('42');
+  await secondCard.getByRole('combobox').selectOption('reserve');
+  await secondCard.getByRole('button',{name:`Sposta su ${secondName}`,exact:true}).click();
+  assert.equal(await orderList.getByRole('listitem').first().getAttribute('aria-label'),secondName);
+  for(const width of [390,320]){
+    await page.setViewportSize({width,height:844});
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+    assert(await secondCard.evaluate(card=>card.scrollWidth<=card.clientWidth));
+  }
+  await page.screenshot({path:join(directory,'mobile-lineup-order.png'),fullPage:true});
+  const orderSave=page.waitForResponse(response=>response.url().endsWith('/draft')&&response.request().method()==='POST');
+  await page.getByRole('button',{name:'Salva distinta in bozza',exact:true}).click();assert.equal((await orderSave).status(),200);
+  await page.reload();await page.getByRole('button',{name:'2. Ordine',exact:true}).click();
+  await orderList.waitFor();assert.equal(await orderList.getByRole('listitem').first().getAttribute('aria-label'),secondName);
+  assert.equal(await secondCard.getByLabel('Numero maglia',{exact:true}).inputValue(),'42');
+  assert.equal(await secondCard.getByRole('combobox').inputValue(),'reserve');
+  await page.getByRole('button',{name:'1. Compilazione',exact:true}).click();
+  check('Real Chromium mobile: lineup controls fit 320px, buttons reorder players and saved number/role/order survive reload');
   // On mobile, require the annual reason before any upload and ignore a double tap.
   await page.setViewportSize({width:390,height:844});
   const uploader=dataset.federationSyncPayload.players.find(player=>player.id===participant.subjectId);

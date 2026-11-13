@@ -1,13 +1,6 @@
 "use client";
 
-import { DndContext, type DragEndEvent } from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { arrayMove } from "@dnd-kit/sortable";
 import Image from "next/image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -524,16 +517,16 @@ export function MatchSheetWorkflow() {
       }),
     );
   }
-  function handleDragEnd(event: DragEndEvent) {
+  function movePlayer(id: string, direction: -1 | 1) {
     if (isReadOnly) return;
-    setPlayersEdited(true);
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = players.findIndex((player) => player.id === active.id);
-    const newIndex = players.findIndex((player) => player.id === over.id);
-    setSelectedPlayers((current) =>
-      arrayMove([...(current.length ? current : players)], oldIndex, newIndex),
-    );
+    const index = orderedCalledPlayers.findIndex((player) => player.id === id);
+    const neighbor = orderedCalledPlayers[index + direction];
+    if (!neighbor) return;
+    setPlayerList((current) => {
+      const from = current.findIndex((player) => player.id === id);
+      const to = current.findIndex((player) => player.id === neighbor.id);
+      return arrayMove([...current], from, to);
+    });
   }
 
   if (playersQuery.isLoading || staffQuery.isLoading || sheetsQuery.isLoading || defaultsQuery.isLoading)
@@ -638,7 +631,8 @@ export function MatchSheetWorkflow() {
       ) : null}
       {step === 1 ? (
         <OrderStep
-          onDragEnd={handleDragEnd}
+          movePlayer={movePlayer}
+          readOnly={isReadOnly}
           players={orderedCalledPlayers}
           toggleCaptain={toggleCaptain}
           toggleGoalkeeper={toggleGoalkeeper}
@@ -1188,18 +1182,12 @@ function getOfficialPhotoUploadUnavailableReason(
     : "Upload ufficiale non disponibile: manca il tesseramento stagionale staff.";
 }
 
-function OrderStep({
-  players,
-  onDragEnd,
-  toggleCaptain,
-  toggleGoalkeeper,
-  togglePlayer,
-  toggleViceCaptain,
-  updatePlayerRole,
-  updateShirtNumber,
+function OrderStep({ players, movePlayer, readOnly, toggleCaptain, toggleGoalkeeper, togglePlayer,
+  toggleViceCaptain, updatePlayerRole, updateShirtNumber,
 }: Readonly<{
   players: readonly PlayerListItem[];
-  onDragEnd: (event: DragEndEvent) => void;
+  movePlayer: (id: string, direction: -1 | 1) => void;
+  readOnly: boolean;
   toggleCaptain: (id: string) => void;
   toggleGoalkeeper: (id: string) => void;
   togglePlayer: (id: string) => void;
@@ -1208,182 +1196,63 @@ function OrderStep({
   updateShirtNumber: (id: string, value: number | null) => void;
 }>) {
   return (
-    <Card className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold">Ordine distinta</h2>
-          <p className="text-sm text-slate-500">
-            Drag & drop, numero maglia, ruolo e incarichi.
-          </p>
-        </div>
+    <Card className="min-w-0 space-y-4">
+      <div>
+        <h2 className="text-xl font-bold">Ordine distinta</h2>
+        <p className="text-sm text-slate-500">
+          Usa “Sposta su” e “Sposta giù” per cambiare l’ordine dei giocatori.
+          Per ogni giocatore scegli il numero di maglia, il ruolo e gli incarichi.
+        </p>
       </div>
-      {players.length === 0 ? (
-        <EmptyState message="Nessun convocato." />
-      ) : (
-        <DndContext onDragEnd={onDragEnd}>
-          <SortableContext
-            items={players.map((player) => player.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="overflow-x-auto rounded-xl border">
-              <div className="grid min-w-[1120px] grid-cols-[72px_minmax(260px,2fr)_140px_160px_360px_140px_90px] border-b bg-muted/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <span>Ordine</span>
-                <span>Giocatore</span>
-                <span>Numero maglia</span>
-                <span>Ruolo</span>
-                <span>Incarichi</span>
-                <span>Stato</span>
-                <span>Azione</span>
-              </div>
-              {players.map((player) => (
-                <SortablePlayerRow
-                  key={player.id}
-                  player={player}
-                  toggleCaptain={toggleCaptain}
-                  toggleGoalkeeper={toggleGoalkeeper}
-                  togglePlayer={togglePlayer}
-                  toggleViceCaptain={toggleViceCaptain}
-                  updatePlayerRole={updatePlayerRole}
-                  updateShirtNumber={updateShirtNumber}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
+      {players.length === 0 ? <EmptyState message="Nessun convocato." /> : (
+        <ol className="min-w-0 space-y-4" aria-label="Giocatori in ordine di distinta">
+          {players.map((player, index) => {
+            const name = `${player.lastName} ${player.firstName}`;
+            const disabled = readOnly || !player.selected || player.suspended;
+            const statusTone = getPlayerStatusTone(player);
+            return (
+              <li key={player.id} aria-label={name} className={`min-w-0 rounded-xl border p-3 sm:p-4 ${statusTone === "warning" ? "border-yellow-400 bg-yellow-50" : statusTone === "suspended" ? "border-red-400 bg-red-50" : ""}`}>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="shrink-0 text-sm font-semibold text-slate-500">{index + 1}.</span>
+                  {player.photoUrl ? <Image unoptimized alt={`Foto ${name}`} className="h-14 w-10 shrink-0 rounded-md border bg-white object-cover" height={56} width={40} src={player.photoUrl} /> : null}
+                  <h3 className="min-w-0 break-words font-semibold">{name}</h3>
+                </div>
+                <fieldset disabled={disabled} className="mt-3 min-w-0 space-y-3">
+                  <legend className="sr-only">Dati di {name}</legend>
+                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="min-w-0 space-y-1 text-sm">
+                      <span>Numero maglia</span>
+                      <Input className="min-h-11 w-full min-w-0 text-base" min={0} inputMode="numeric" type="number" value={player.shirtNumber ?? ""} placeholder="Numero"
+                        onChange={(event) => updateShirtNumber(player.id, Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : null)} />
+                    </label>
+                    <label className="min-w-0 space-y-1 text-sm">
+                      <span>Ruolo</span>
+                      <select className="min-h-11 w-full min-w-0 rounded-lg border bg-white px-3 py-2 text-base" value={player.role}
+                        onChange={(event) => updatePlayerRole(player.id, event.target.value as PlayerLineupRole)}>
+                        {lineupRoleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                    <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isGoalkeeper} onChange={() => toggleGoalkeeper(player.id)} />Portiere</label>
+                    <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isCaptain} onChange={() => toggleCaptain(player.id)} />Capitano</label>
+                    <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isViceCaptain} onChange={() => toggleViceCaptain(player.id)} />Vice capitano</label>
+                  </div>
+                </fieldset>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button className="min-h-11" type="button" disabled={readOnly || index === 0} aria-label={`Sposta su ${name}`} onClick={() => movePlayer(player.id, -1)}>↑ Sposta su</Button>
+                  <Button className="min-h-11" type="button" disabled={readOnly || index === players.length - 1} aria-label={`Sposta giù ${name}`} onClick={() => movePlayer(player.id, 1)}>↓ Sposta giù</Button>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusTone === "warning" ? "bg-yellow-100 text-yellow-800" : statusTone === "suspended" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>{getPlayerStatusLabel(player)}</span>
+                  <label className="flex min-h-11 items-center gap-2"><input aria-label={`Convoca ${name}`} type="checkbox" checked={player.selected} disabled={readOnly || player.suspended} onChange={() => togglePlayer(player.id)} />Convocato</label>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
       )}
     </Card>
-  );
-}
-
-function SortablePlayerRow({
-  player,
-  toggleCaptain,
-  toggleGoalkeeper,
-  togglePlayer,
-  toggleViceCaptain,
-  updatePlayerRole,
-  updateShirtNumber,
-}: Readonly<{
-  player: PlayerListItem;
-  toggleCaptain: (id: string) => void;
-  toggleGoalkeeper: (id: string) => void;
-  togglePlayer: (id: string) => void;
-  toggleViceCaptain: (id: string) => void;
-  updatePlayerRole: (id: string, value: PlayerLineupRole) => void;
-  updateShirtNumber: (id: string, value: number | null) => void;
-}>) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: player.id });
-  const statusTone = getPlayerStatusTone(player);
-  const disabled = !player.selected || player.suspended;
-  return (
-    <div
-      className={`grid min-w-[1120px] grid-cols-[72px_minmax(260px,2fr)_140px_160px_360px_140px_90px] items-center gap-3 border-b px-3 py-3 text-sm last:border-b-0 ${
-        statusTone === "warning"
-          ? "border-l-4 border-l-yellow-400 bg-yellow-50"
-          : statusTone === "suspended"
-            ? "border-l-4 border-l-red-500 bg-red-50 opacity-80"
-            : ""
-      }`}
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-    >
-      <button
-        aria-label={`Sposta ${player.lastName} ${player.firstName}`}
-        className="rounded-lg bg-muted px-3 py-2 text-sm font-semibold"
-        type="button"
-        {...attributes}
-        {...listeners}
-      >
-        ↕
-      </button>
-      <div className="flex min-w-0 items-center gap-3">
-        {player.photoUrl ? (
-          <Image
-                unoptimized
-            alt={`Foto ${player.lastName} ${player.firstName}`}
-            className="h-14 w-10 rounded-md border bg-white object-cover shadow-sm"
-            height={56}
-            src={player.photoUrl}
-            width={40}
-          />
-        ) : null}
-        <span className="whitespace-normal break-words font-medium leading-tight">
-          {player.lastName} {player.firstName}
-        </span>
-      </div>
-      <Input
-        disabled={disabled}
-        min={0}
-        onChange={(event) =>
-          updateShirtNumber(player.id, Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : null)
-        }
-        placeholder="N°"
-        type="number"
-        value={player.shirtNumber ?? ""}
-      />
-      <select
-        className="rounded-lg border px-3 py-2 text-sm"
-        disabled={disabled}
-        onChange={(event) =>
-          updatePlayerRole(player.id, event.target.value as PlayerLineupRole)
-        }
-        value={player.role}
-      >
-        {lineupRoleOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      <div className="flex flex-wrap gap-4">
-        <label className="flex items-center gap-2">
-          <input
-            checked={player.isGoalkeeper}
-            disabled={disabled}
-            onChange={() => toggleGoalkeeper(player.id)}
-            type="checkbox"
-          />
-          Portiere
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            checked={player.isCaptain}
-            disabled={disabled}
-            onChange={() => toggleCaptain(player.id)}
-            type="checkbox"
-          />
-          Capitano
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            checked={player.isViceCaptain}
-            disabled={disabled}
-            onChange={() => toggleViceCaptain(player.id)}
-            type="checkbox"
-          />
-          Vice capitano
-        </label>
-      </div>
-      <span
-        className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${
-          statusTone === "warning"
-            ? "bg-yellow-100 text-yellow-800"
-            : statusTone === "suspended"
-              ? "bg-red-100 text-red-800"
-              : "bg-green-100 text-green-800"
-        }`}
-      >
-        {getPlayerStatusLabel(player)}
-      </span>
-      <input
-        aria-label={`Convoca ${player.lastName} ${player.firstName}`}
-        checked={player.selected}
-        disabled={player.suspended}
-        onChange={() => togglePlayer(player.id)}
-        type="checkbox"
-      />
-    </div>
   );
 }
 

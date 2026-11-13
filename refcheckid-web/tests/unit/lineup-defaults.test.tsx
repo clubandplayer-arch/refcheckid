@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const mocks = vi.hoisted(() => ({ players: vi.fn(), staff: vi.fn(), sheets: vi.fn(), matches: vi.fn(), defaults: vi.fn(), photos:vi.fn(), staffPhotos:vi.fn(), save: vi.fn() }));
 vi.mock('@/lib/api-client', async () => ({
@@ -73,4 +73,32 @@ it('requires the annual reason before enabling the upload button',async()=>{
  expect((screen.getByRole('button',{name:'Invia richiesta'}) as HTMLButtonElement).disabled).toBe(true);
  fireEvent.change(reason,{target:{value:'Crescita fisica rilevante che rende necessario un aggiornamento della foto.'}});
  expect((screen.getByRole('button',{name:'Invia richiesta'}) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it('moves a player with buttons and saves their edited number and role in the new order', async () => {
+  const first = { id: 'player', registrationId: 'registration', season: '2026', firstName: 'Mario', lastName: 'Rossi', photoUrl: null, selected: false, suspended: false, warning: false, shirtNumber: 1, role: 'starter', isGoalkeeper: false, isCaptain: false, isViceCaptain: false };
+  mocks.players.mockResolvedValue([first, {...first, id:'second', registrationId:'registration2', firstName:'Luca',lastName:'Bianchi',shirtNumber:2}]);
+  show(); await screen.findByText('Rossi Mario');
+  fireEvent.click(screen.getByRole('button',{name:'Seleziona tutti'}));
+  fireEvent.click(screen.getByRole('button',{name:'2. Ordine'}));
+  expect((screen.getByRole('button',{name:'Sposta su Rossi Mario'}) as HTMLButtonElement).disabled).toBe(true);
+  const second=within(screen.getByRole('listitem',{name:'Bianchi Luca'}));
+  fireEvent.change(second.getByRole('spinbutton'),{target:{value:'25'}});
+  fireEvent.change(second.getByRole('combobox'),{target:{value:'reserve'}});
+  fireEvent.click(second.getByRole('checkbox',{name:/^Capitano$/}));
+  fireEvent.click(second.getByRole('button',{name:'Sposta su Bianchi Luca'}));
+  expect(screen.getAllByRole('listitem')[0].getAttribute('aria-label')).toBe('Bianchi Luca');
+  expect((screen.getByRole('button',{name:'Sposta giù Rossi Mario'}) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button',{name:'Salva distinta in bozza'}));
+  await vi.waitFor(()=>expect(mocks.save).toHaveBeenCalledWith('sheet',expect.objectContaining({players:[expect.objectContaining({playerRegistrationId:'registration2',shirtNumber:25,role:'reserve',isCaptain:true,lineupOrder:0}),expect.objectContaining({playerRegistrationId:'registration',lineupOrder:1})]})));
+});
+
+it('keeps order and player controls disabled after submission', async () => {
+  mocks.sheets.mockResolvedValue([{id:'sheet',matchId:'match',clubId:'club',status:'submitted',players:[saved]}]);
+  show();await screen.findByText('Rossi Mario');
+  fireEvent.click(screen.getByRole('button',{name:'2. Ordine'}));
+  const card=screen.getByRole('listitem',{name:'Rossi Mario'});
+  expect(card.querySelector('fieldset')?.disabled).toBe(true);
+  expect((screen.getByRole('button',{name:'Sposta su Rossi Mario'}) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('checkbox',{name:'Convoca Rossi Mario'}) as HTMLInputElement).disabled).toBe(true);
 });
