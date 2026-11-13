@@ -204,9 +204,9 @@ try {
   const compactFields=await secondCard.evaluate(card=>{
     const number=card.querySelector('input[type="number"]');const role=card.querySelector('select');
     const n=number.getBoundingClientRect(),r=role.getBoundingClientRect();
-    return {numberWidth:n.width, sameRow:Math.abs(n.top-r.top)<2};
+    return {numberWidth:n.width, stacked:r.top>=n.bottom, photoLeft:card.querySelector("img").getBoundingClientRect().right<=n.left, nameBelow:card.querySelector("h3").getBoundingClientRect().top>=card.querySelector("img").getBoundingClientRect().bottom};
   });
-  assert(compactFields.numberWidth<=100);assert(compactFields.sameRow);
+  assert(compactFields.numberWidth<=100);assert(compactFields.stacked);assert(compactFields.photoLeft);assert(compactFields.nameBelow);
   await page.screenshot({path:join(directory,'mobile-lineup-order.png'),fullPage:true});
   await page.setViewportSize({width:1280,height:900});
   await page.screenshot({path:join(directory,'desktop-lineup-order.png'),fullPage:true});
@@ -218,7 +218,7 @@ try {
   assert.equal(await secondCard.getByLabel('Numero maglia',{exact:true}).inputValue(),'42');
   assert.equal(await secondCard.getByRole('combobox').inputValue(),'reserve');
   await page.getByRole('button',{name:'1. Compilazione',exact:true}).click();
-  check('Real Chromium mobile: lineup controls fit 320px, buttons reorder players and saved number/role/order survive reload');
+  check('Real Chromium mobile: portrait and name align beside stacked controls at 320px, buttons reorder players and saved number/role/order survive reload');
   // On mobile, require the annual reason before any upload and ignore a double tap.
   await page.setViewportSize({width:390,height:844});
   const uploader=dataset.federationSyncPayload.players.find(player=>player.id===participant.subjectId);

@@ -1212,18 +1212,18 @@ function OrderStep({ players, movePlayer, readOnly, toggleCaptain, toggleGoalkee
             const statusTone = getPlayerStatusTone(player);
             return (
               <li key={player.id} aria-label={name} className={`min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md sm:p-4 ${statusTone === "warning" ? "border-yellow-400 bg-yellow-50" : statusTone === "suspended" ? "border-red-400 bg-red-50" : ""}`}>
-                <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)] lg:items-center">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">{index + 1}</span>
-                  {player.photoUrl ? <Image unoptimized alt={`Foto ${name}`} className="h-14 w-10 shrink-0 rounded-md border bg-white object-cover" height={56} width={40} src={player.photoUrl} /> : null}
-                  <h3 className="min-w-0 break-words font-semibold">{name}</h3>
+                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] items-start gap-3 sm:grid-cols-[minmax(0,10rem)_minmax(0,15rem)] sm:justify-between sm:gap-6">
+                <div className="relative flex min-w-0 flex-col items-center gap-3 text-center">
+                  <span className="absolute left-0 top-0 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-white bg-slate-100 text-xs font-bold text-slate-600 shadow-sm">{index + 1}</span>
+                  {player.photoUrl ? <Image unoptimized alt={`Foto ${name}`} className="aspect-[3/4] w-full max-w-40 rounded-xl border bg-white object-cover shadow-sm" height={212} width={160} src={player.photoUrl} /> : <div className="flex aspect-[3/4] w-full max-w-40 items-center justify-center rounded-xl border bg-slate-50 text-sm text-slate-500">Foto assente</div>}
+                  <h3 className="w-full min-w-0 break-words text-sm font-semibold leading-snug sm:text-base">{name}</h3>
                 </div>
                 <fieldset disabled={disabled} className="min-w-0">
                   <legend className="sr-only">Dati di {name}</legend>
-                  <div className="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] gap-2 sm:max-w-xs">
+                  <div className="grid min-w-0 grid-cols-1 gap-2">
                     <label className="block min-w-0 space-y-1 text-xs font-medium text-slate-600">
                       <span>Numero maglia</span>
-                      <Input className="h-11 w-full min-w-0 rounded-xl border-slate-200 bg-slate-50 text-center text-base font-semibold text-slate-900 disabled:opacity-70" min={0} inputMode="numeric" type="number" value={player.shirtNumber ?? ""} placeholder="N°"
+                      <Input className="h-11 max-w-24 w-full min-w-0 rounded-xl border-slate-200 bg-slate-50 text-center text-base font-semibold text-slate-900 disabled:opacity-70" min={0} inputMode="numeric" type="number" value={player.shirtNumber ?? ""} placeholder="N°"
                         onChange={(event) => updateShirtNumber(player.id, Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : null)} />
                     </label>
                     <label className="block min-w-0 space-y-1 text-xs font-medium text-slate-600">
@@ -1234,17 +1234,14 @@ function OrderStep({ players, movePlayer, readOnly, toggleCaptain, toggleGoalkee
                       </select>
                     </label>
                   </div>
-                </fieldset>
-                </div>
-                <fieldset disabled={disabled} className="mt-2 min-w-0">
-                  <legend className="sr-only">Incarichi di {name}</legend>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0 text-sm text-slate-700">
+                  <div className="mt-1 flex flex-col text-xs text-slate-700 sm:text-sm">
                     <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isGoalkeeper} onChange={() => toggleGoalkeeper(player.id)} />Portiere</label>
                     <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isCaptain} onChange={() => toggleCaptain(player.id)} />Capitano</label>
                     <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={player.isViceCaptain} onChange={() => toggleViceCaptain(player.id)} />Vice capitano</label>
                   </div>
                 </fieldset>
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-slate-100 pt-2">
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-slate-100 pt-2">
                 <div className="flex flex-wrap gap-1.5">
                   <button className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" type="button" disabled={readOnly || index === 0} aria-label={`Sposta su ${name}`} onClick={() => movePlayer(player.id, -1)}>↑ Sposta su</button>
                   <button className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" type="button" disabled={readOnly || index === players.length - 1} aria-label={`Sposta giù ${name}`} onClick={() => movePlayer(player.id, 1)}>↓ Sposta giù</button>
@@ -1326,9 +1323,10 @@ function StaffStep({
             );
           return (
             <div
-              className="grid gap-3 p-4 md:grid-cols-[96px_minmax(0,1fr)_minmax(220px,340px)_32px] md:items-start"
+              className="grid gap-3 p-4 md:grid-cols-[160px_minmax(0,1fr)_32px] md:items-start"
               key={staffMember.id}
             >
+              <div className="flex min-w-0 flex-col items-center gap-3 text-center [&>div:first-child>div]:h-48 [&>div:first-child>div]:w-36">
               <SubjectPhotoThumbnail
                 alt={`Foto ${staffMember.fullName}`}
                 photo={staffMember.photo}
@@ -1342,6 +1340,7 @@ function StaffStep({
                   {staffMember.role}
                 </p>
                 <BackendPhotoStatus photo={staffMember.photo} />
+              </div>
               </div>
               <div className="min-w-0 space-y-2">
                 <PhotoComparison
